@@ -4,7 +4,7 @@ import { BookOpen, Send, Check, ArrowRight, Calendar, Link2, Loader2, User, Mail
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../stores/authStore'
-import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode } from '../lib/calendar'
+import { getGoogleAuthUrl, isGCalCallback } from '../lib/calendar'
 import { GENRES, SEED_BOOKS } from '../data/seedBooks'
 
 const ROLE_OPTIONS = [
@@ -90,14 +90,14 @@ export function Onboarding() {
 
   useEffect(() => {
     if (isGCalCallback()) {
-      const code = getGCalAuthCode()
-      if (code) {
-        setGcalConnected(true)
-        setStep(3)
-        window.history.replaceState({}, '', '/onboarding')
+      setGcalConnected(true)
+      setStep(3)
+      if (user) {
+        updateProfile({ gcal_connected: true })
       }
+      window.history.replaceState({}, '', '/onboarding')
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })

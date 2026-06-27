@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
-import { getGoogleAuthUrl } from '../lib/calendar'
+import { getGoogleAuthUrl, isGCalCallback } from '../lib/calendar'
 import { GENRES } from '../data/seedBooks'
 
 function MultiSelectChips({ options, selected, onToggle }) {
@@ -50,6 +50,14 @@ export function Profile() {
       setCalendlyLink(profile.calendly_link || '')
     }
   }, [user, profile])
+
+  useEffect(() => {
+    if (isGCalCallback() && user) {
+      updateProfile({ gcal_connected: true }).then(() => {
+        window.history.replaceState({}, '', '/profile')
+      })
+    }
+  }, [user])
 
   const handleSave = async () => {
     setSaving(true)

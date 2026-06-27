@@ -1,22 +1,23 @@
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events'
-const REDIRECT_URI = `${window.location.origin}/onboarding?gcal=callback`
 
 export function getGoogleAuthUrl() {
+  const redirectUri = `${window.location.origin}${window.location.pathname}`
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: SCOPES,
     access_type: 'offline',
     prompt: 'consent',
+    state: 'gcal_connect',
   })
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`
 }
 
 export function isGCalCallback() {
   const params = new URLSearchParams(window.location.search)
-  return params.get('gcal') === 'callback' && params.has('code')
+  return params.get('state') === 'gcal_connect' && params.has('code')
 }
 
 export function getGCalAuthCode() {
