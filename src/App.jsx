@@ -10,8 +10,8 @@ import { Dashboard } from './pages/Dashboard'
 import { PostSession } from './pages/PostSession'
 import { Onboarding } from './pages/Onboarding'
 import { Login } from './pages/Login'
-import { Signup } from './pages/Signup'
 import { AddBook } from './pages/AddBook'
+import { Profile } from './pages/Profile'
 import { useAuthStore } from './stores/authStore'
 
 export default function App() {
@@ -30,13 +30,12 @@ export default function App() {
           <Route path="/books/:id" element={<BookDetail />} />
           <Route path="/narrators/:id" element={<NarratorProfile />} />
           <Route path="/book/:bookId/narrator/:narratorId/schedule" element={<Schedule />} />
-          <Route path="/booking/:id" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/review/:bookingId" element={<PostSession />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/add-book" element={<AddBook />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/add-book" element={<AddBook />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,63 +1,41 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Send, Check } from 'lucide-react'
+import { BookOpen, Send, Check, ArrowRight, Calendar, Link2, Loader2, User, Mail } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { useAuthStore } from '../stores/authStore'
+import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode } from '../lib/calendar'
 import { GENRES, SEED_BOOKS } from '../data/seedBooks'
 
-const STEPS = [
-  {
-    id: 'welcome',
-    message: "Hey! Welcome to BookLoop. I'd love to help you get set up. What brings you here?",
-    type: 'multiselect',
-    options: ['Learn about a book', 'Discuss ideas', 'Exam prep', 'Book club catch-up', 'Just exploring'],
-  },
-  {
-    id: 'genres',
-    message: (answers) => {
-      const purpose = answers.welcome?.[0] || 'exploring'
-      return `Great — ${purpose.toLowerCase()} is a perfect reason to be here. What genres interest you most?`
-    },
-    type: 'multiselect',
-    options: GENRES,
-  },
-  {
-    id: 'books',
-    message: "Any specific books you're curious about? Search below or just skip ahead.",
-    type: 'search',
-  },
-  {
-    id: 'name',
-    message: (answers) => {
-      const genreCount = answers.genres?.length || 0
-      return `Almost done! ${genreCount > 0 ? `Loving the ${answers.genres[0]} pick.` : ''} What should we call you?`
-    },
-    type: 'text',
-    placeholder: 'Your name',
-  },
-  {
-    id: 'done',
-    message: (answers) => `You're all set, ${answers.name || 'friend'}! Let's find you a great conversation.`,
-    type: 'complete',
-  },
+const ROLE_OPTIONS = [
+  { value: 'reader', label: 'Listener', desc: 'I want to learn about books from narrators' },
+  { value: 'narrator', label: 'Narrator', desc: "I've read books deeply and want to share knowledge" },
+  { value: 'both', label: 'Both', desc: 'I want to narrate some books and listen to others' },
 ]
 
-function ChatBubble({ message, isBot, children }) {
+function StepIndicator({ current, total }) {
   return (
-    <div className={`flex gap-3 ${isBot ? '' : 'flex-row-reverse'}`}>
-      {isBot && (
-        <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center shrink-0">
-          <BookOpen size={14} className="text-white" />
-        </div>
-      )}
-      <div className={`max-w-[85%] ${isBot ? '' : 'text-right'}`}>
-        {message && (
-          <div className={`inline-block rounded-2xl px-4 py-2.5 text-sm
-            ${isBot ? 'bg-surface rounded-tl-sm' : 'bg-foreground text-white rounded-tr-sm'}`}>
-            {message}
-          </div>
-        )}
-        {children && <div className="mt-2">{children}</div>}
+    <div className="flex gap-1.5 mb-6">
+      {Array.from({ length: total }, (_, i) => (
+        <div
+          key={i}
+          className={`h-1 flex-1 rounded-full transition-colors ${
+            i <= current ? 'bg-highlight' : 'bg-border'
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function ChatBubble({ children }) {
+  return (
+    <div className="flex gap-3 mb-4">
+      <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center shrink-0">
+        <BookOpen size={14} className="text-white" />
+      </div>
+      <div className="bg-surface rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm max-w-[85%]">
+        {children}
       </div>
     </div>
   )
@@ -87,190 +65,283 @@ function MultiSelectChips({ options, selected, onToggle }) {
   )
 }
 
-function BookSearchInput({ onSelect, selectedBooks }) {
-  const [query, setQuery] = useState('')
-  const results = query.length > 0
-    ? SEED_BOOKS.filter((b) =>
-        b.title.toLowerCase().includes(query.toLowerCase()) ||
-        b.author.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 5)
-    : []
-
-  return (
-    <div className="space-y-2">
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="Search for a book..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm
-            placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-        />
-      </div>
-      {results.length > 0 && (
-        <div className="border border-border rounded-lg overflow-hidden">
-          {results.map((book) => (
-            <button
-              key={book.id}
-              onClick={() => { onSelect(book); setQuery('') }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-surface transition-colors border-b border-border last:border-b-0 cursor-pointer"
-            >
-              <span className="font-medium">{book.title}</span>
-              <span className="text-muted"> — {book.author}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {selectedBooks.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selectedBooks.map((book) => (
-            <span key={book.id} className="inline-flex items-center gap-1 bg-highlight/10 text-highlight text-xs px-2 py-1 rounded-full">
-              {book.title}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TypingIndicator() {
-  return (
-    <div className="flex gap-3">
-      <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center shrink-0">
-        <BookOpen size={14} className="text-white" />
-      </div>
-      <div className="bg-surface rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-muted animate-bounce" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted animate-bounce" style={{ animationDelay: '300ms' }} />
-      </div>
-    </div>
-  )
-}
-
 export function Onboarding() {
-  const [currentStep, setCurrentStep] = useState(0)
-  const [answers, setAnswers] = useState({})
-  const [visibleMessages, setVisibleMessages] = useState([])
-  const [isTyping, setIsTyping] = useState(true)
-  const [textInput, setTextInput] = useState('')
-  const [selectedBooks, setSelectedBooks] = useState([])
-  const scrollRef = useRef(null)
+  const [step, setStep] = useState(0)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState('')
+  const [genres, setGenres] = useState([])
+  const [calendlyLink, setCalendlyLink] = useState('')
+  const [gcalConnected, setGcalConnected] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const { user, profile, updateProfile } = useAuthStore()
   const navigate = useNavigate()
-
-  const step = STEPS[currentStep]
+  const scrollRef = useRef(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsTyping(false)
-      const message = typeof step.message === 'function' ? step.message(answers) : step.message
-      setVisibleMessages((prev) => [...prev, { type: 'bot', text: message, stepId: step.id }])
-    }, 800)
-    return () => clearTimeout(timer)
-  }, [currentStep])
+    if (!user) { navigate('/login'); return }
+    if (profile?.onboarding_complete) { navigate('/dashboard'); return }
+    if (profile?.name) setName(profile.name)
+    if (profile?.email) setEmail(profile.email)
+    if (profile?.role) setRole(profile.role)
+    if (profile?.genres) setGenres(profile.genres)
+  }, [user, profile])
+
+  useEffect(() => {
+    if (isGCalCallback()) {
+      const code = getGCalAuthCode()
+      if (code) {
+        setGcalConnected(true)
+        setStep(3)
+        window.history.replaceState({}, '', '/onboarding')
+      }
+    }
+  }, [])
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [visibleMessages, isTyping])
+  }, [step])
 
-  const advanceStep = (answer) => {
-    const newAnswers = { ...answers, [step.id]: answer }
-    setAnswers(newAnswers)
-
-    const displayAnswer = Array.isArray(answer) ? answer.join(', ') : typeof answer === 'string' ? answer : ''
-    if (displayAnswer) {
-      setVisibleMessages((prev) => [...prev, { type: 'user', text: displayAnswer }])
-    }
-
-    if (currentStep < STEPS.length - 1) {
-      setIsTyping(true)
-      setCurrentStep(currentStep + 1)
+  const saveAndNext = async (updates, nextStep) => {
+    setSaving(true)
+    setError('')
+    try {
+      await updateProfile(updates)
+      setStep(nextStep)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleMultiSelectContinue = (selected) => {
-    if (selected.length > 0) advanceStep(selected)
-  }
-
-  const handleTextSubmit = (e) => {
-    e.preventDefault()
-    if (textInput.trim()) {
-      advanceStep(textInput.trim())
-      setTextInput('')
-    }
-  }
-
-  const [multiSelectState, setMultiSelectState] = useState([])
-
-  const toggleMultiSelect = (option) => {
-    setMultiSelectState((prev) =>
-      prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
-    )
-  }
-
-  useEffect(() => {
-    setMultiSelectState([])
-  }, [currentStep])
+  const totalSteps = 5
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex flex-col max-w-lg mx-auto">
-      <div className="flex-1 px-4 py-6 space-y-4 overflow-y-auto">
-        {visibleMessages.map((msg, i) => (
-          <ChatBubble key={i} message={msg.text} isBot={msg.type === 'bot'} />
-        ))}
+      <div className="flex-1 px-4 py-6">
+        <StepIndicator current={step} total={totalSteps} />
 
-        {isTyping && <TypingIndicator />}
-
-        {!isTyping && step.type === 'multiselect' && (
-          <div className="pl-11 space-y-3">
-            <MultiSelectChips
-              options={step.options}
-              selected={multiSelectState}
-              onToggle={toggleMultiSelect}
-            />
-            {multiSelectState.length > 0 && (
-              <Button size="sm" onClick={() => handleMultiSelectContinue(multiSelectState)}>
-                Continue
+        {/* Step 0: Basic details */}
+        {step === 0 && (
+          <div>
+            <ChatBubble>
+              Welcome to Tome! Let's get you set up. What should we call you?
+            </ChatBubble>
+            <div className="pl-11 space-y-4">
+              <Input
+                label="Your name"
+                placeholder="e.g., Priya Sharma"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <p className="text-xs text-muted">For calendar invites and session notifications.</p>
+              {error && <p className="text-sm text-highlight">{error}</p>}
+              <Button
+                disabled={!name.trim() || !email.trim() || saving}
+                onClick={() => saveAndNext({ name: name.trim(), email: email.trim() }, 1)}
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
               </Button>
-            )}
+            </div>
           </div>
         )}
 
-        {!isTyping && step.type === 'search' && (
-          <div className="pl-11 space-y-3">
-            <BookSearchInput
-              selectedBooks={selectedBooks}
-              onSelect={(book) => setSelectedBooks((prev) =>
-                prev.find((b) => b.id === book.id) ? prev : [...prev, book]
+        {/* Step 1: Role selection */}
+        {step === 1 && (
+          <div>
+            <ChatBubble>
+              Nice to meet you, {name}! How do you want to use Tome?
+            </ChatBubble>
+            <div className="pl-11 space-y-3">
+              {ROLE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setRole(opt.value)}
+                  className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer
+                    ${role === opt.value
+                      ? 'border-highlight bg-highlight/5'
+                      : 'border-border hover:border-foreground/20'
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">{opt.label}</span>
+                    {role === opt.value && (
+                      <div className="w-5 h-5 rounded-full bg-highlight flex items-center justify-center">
+                        <Check size={12} className="text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+              {error && <p className="text-sm text-highlight">{error}</p>}
+              <Button
+                disabled={!role || saving}
+                onClick={() => saveAndNext({ role }, 2)}
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Interests */}
+        {step === 2 && (
+          <div>
+            <ChatBubble>
+              {role === 'narrator'
+                ? 'What genres do you know well enough to discuss?'
+                : 'What genres interest you most?'}
+            </ChatBubble>
+            <div className="pl-11 space-y-4">
+              <MultiSelectChips
+                options={GENRES}
+                selected={genres}
+                onToggle={(g) => setGenres((prev) =>
+                  prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]
+                )}
+              />
+              {error && <p className="text-sm text-highlight">{error}</p>}
+              <Button
+                disabled={genres.length === 0 || saving}
+                onClick={() => saveAndNext({ genres }, 3)}
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Calendar integration */}
+        {step === 3 && (
+          <div>
+            <ChatBubble>
+              Let's connect your calendar so sessions are automatically synced.
+            </ChatBubble>
+            <div className="pl-11 space-y-4">
+              {/* Google Calendar */}
+              <div className="p-4 rounded-xl border border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={18} className="text-muted" />
+                    <span className="text-sm font-medium">Google Calendar</span>
+                  </div>
+                  {gcalConnected && (
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <Check size={12} /> Connected
+                    </span>
+                  )}
+                </div>
+                {gcalConnected ? (
+                  <p className="text-xs text-muted">Sessions will be added to your Google Calendar with Meet links.</p>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { window.location.href = getGoogleAuthUrl() }}
+                  >
+                    <Calendar size={14} className="mr-1" /> Connect Google Calendar
+                  </Button>
+                )}
+              </div>
+
+              {/* Calendly (narrators only) */}
+              {(role === 'narrator' || role === 'both') && (
+                <div className="p-4 rounded-xl border border-border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Link2 size={18} className="text-muted" />
+                    <span className="text-sm font-medium">Calendly</span>
+                  </div>
+                  <p className="text-xs text-muted mb-2">Paste your Calendly link so listeners can book sessions with you.</p>
+                  <input
+                    type="url"
+                    placeholder="https://calendly.com/your-name"
+                    value={calendlyLink}
+                    onChange={(e) => setCalendlyLink(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm
+                      placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
+                  />
+                </div>
               )}
-            />
-            <Button size="sm" onClick={() => advanceStep(selectedBooks.map((b) => b.title))}>
-              {selectedBooks.length > 0 ? 'Continue' : 'Skip for now'}
-            </Button>
+
+              {error && <p className="text-sm text-highlight">{error}</p>}
+              <div className="flex gap-2">
+                <Button
+                  disabled={saving}
+                  onClick={() => saveAndNext({
+                    gcal_connected: gcalConnected,
+                    calendly_link: calendlyLink || null,
+                  }, 4)}
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep(4)}
+                >
+                  Skip for now
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
-        {!isTyping && step.type === 'text' && (
-          <form onSubmit={handleTextSubmit} className="pl-11 flex gap-2">
-            <Input
-              placeholder={step.placeholder}
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              autoFocus
-            />
-            <Button type="submit" size="md">
-              <Send size={16} />
-            </Button>
-          </form>
-        )}
-
-        {!isTyping && step.type === 'complete' && (
-          <div className="pl-11">
-            <Button onClick={() => navigate('/')}>
-              Start exploring
-            </Button>
+        {/* Step 4: Complete */}
+        {step === 4 && (
+          <div>
+            <ChatBubble>
+              You're all set, {name}! 🎉 Let's find you a great conversation.
+            </ChatBubble>
+            <div className="pl-11 space-y-4">
+              <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <User size={14} className="text-muted" /> {name}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail size={14} className="text-muted" /> {email}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <BookOpen size={14} className="text-muted" />
+                  {role === 'both' ? 'Narrator & Listener' : role === 'narrator' ? 'Narrator' : 'Listener'}
+                </div>
+                {gcalConnected && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <Calendar size={14} /> Google Calendar connected
+                  </div>
+                )}
+                {calendlyLink && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Link2 size={14} className="text-muted" /> Calendly linked
+                  </div>
+                )}
+              </div>
+              {error && <p className="text-sm text-highlight">{error}</p>}
+              <Button
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true)
+                  try {
+                    await updateProfile({ onboarding_complete: true })
+                    navigate('/dashboard')
+                  } catch (err) {
+                    setError(err.message)
+                    setSaving(false)
+                  }
+                }}
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <>Go to Dashboard <ArrowRight size={16} className="ml-1" /></>}
+              </Button>
+            </div>
           </div>
         )}
 

@@ -5,6 +5,7 @@ import { format, addDays, startOfWeek, isSameDay, setHours, setMinutes, isAfter 
 import { Button } from '../components/ui/Button'
 import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
 import { useAuthStore } from '../stores/authStore'
+import { supabase } from '../lib/supabase'
 
 const TIME_SLOTS = [
   { hour: 9, minute: 0 },
@@ -73,7 +74,7 @@ export function Schedule() {
         <p className="text-sm text-muted mb-6">Create a free account to schedule sessions with narrators.</p>
         <div className="flex gap-3 justify-center">
           <Button onClick={() => navigate('/login')}>Log in</Button>
-          <Button variant="outline" onClick={() => navigate('/signup')}>Sign up</Button>
+          <Button variant="outline" onClick={() => navigate('/login')}>Sign up</Button>
         </div>
       </div>
     )
@@ -185,11 +186,23 @@ export function Schedule() {
             <p className="text-sm font-medium">{format(selectedSlot.time, 'EEEE, MMMM d · h:mm a')}</p>
             <p className="text-xs text-muted">{duration} min session</p>
           </div>
-          <Button onClick={() => {
-            setBooking({
-              time: selectedSlot.time,
-              meetingLink: `https://meet.google.com/abc-${Math.random().toString(36).slice(2, 6)}-xyz`,
-            })
+          <Button onClick={async () => {
+            const meetLink = `https://meet.google.com/${crypto.randomUUID().slice(0, 3)}-${crypto.randomUUID().slice(0, 4)}-${crypto.randomUUID().slice(0, 3)}`
+            const endTime = new Date(selectedSlot.time.getTime() + duration * 60000)
+
+            const { data, error } = await supabase.from('bookings').insert({
+              reader_id: user.id,
+              narrator_id: narratorId,
+              book_id: bookId,
+              scheduled_at: selectedSlot.time.toISOString(),
+              duration_minutes: duration,
+              status: 'confirmed',
+              meeting_link: meetLink,
+            }).select().single()
+
+            if (!error && data) {
+              setBooking({ time: selectedSlot.time, meetingLink: meetLink })
+            }
           }}>
             Confirm booking
           </Button>

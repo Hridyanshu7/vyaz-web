@@ -5,6 +5,7 @@ export const useAuthStore = create((set, get) => ({
   user: null,
   profile: null,
   loading: true,
+  otpSent: false,
 
   initialize: async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -25,23 +26,39 @@ export const useAuthStore = create((set, get) => ({
   },
 
   fetchProfile: async (userId) => {
-    const { data } = await supabase
+    let { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single()
-    set({ profile: data })
-  },
 
-  signUp: async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) throw error
+    if (!data) {
+      const { data: created } = await supabase
+        .from('profiles')
+        .upsert({ id: userId })
+        .select()
+        .single()
+      data = created
+    }
+
+    set({ profile: data })
     return data
   },
 
-  signIn: async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  sendOtp: async (phone) => {
+    const { error } = await supabase.auth.signInWithOtp({ phone })
     if (error) throw error
+    set({ otpSent: true })
+  },
+
+  verifyOtp: async (phone, token) => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: 'sms',
+    })
+    if (error) throw error
+    set({ otpSent: false })
     return data
   },
 
@@ -56,6 +73,26 @@ export const useAuthStore = create((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ user: null, profile: null })
+    set({ user: null, profile: null, otpSent: false })
+  },
+
+  updateProfile: async (updates) => {
+    const { user } = get()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+    set({ profile: data })
+    return data
+  },
+
+  isOnboarded: () => {
+    return get().profile?.onboarding_complete === true
   },
 }))

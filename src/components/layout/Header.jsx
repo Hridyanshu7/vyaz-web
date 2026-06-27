@@ -20,7 +20,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-lg">
           <BookOpen size={22} className="text-highlight" />
-          BookLoop
+          Tome
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
@@ -35,15 +35,10 @@ export function Header() {
               <Link to="/dashboard" className="text-sm text-muted hover:text-foreground transition-colors">
                 Dashboard
               </Link>
-              {profile?.role === 'narrator' || profile?.role === 'both' ? (
-                <Link to="/narrator/dashboard" className="text-sm text-muted hover:text-foreground transition-colors">
-                  Narrator
-                </Link>
-              ) : null}
               <div className="flex items-center gap-3">
-                <Link to="/dashboard" className="flex items-center gap-1.5 text-sm">
+                <Link to="/profile" className="flex items-center gap-1.5 text-sm hover:text-highlight transition-colors">
                   <User size={16} />
-                  {profile?.name || 'Account'}
+                  {profile?.name || 'Profile'}
                 </Link>
                 <button onClick={handleSignOut} className="p-1.5 text-muted hover:text-foreground cursor-pointer">
                   <LogOut size={16} />
@@ -51,14 +46,9 @@ export function Header() {
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
-                Log in
-              </Button>
-              <Button size="sm" onClick={() => navigate('/signup')}>
-                Sign up
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => navigate('/login')}>
+              Sign in
+            </Button>
           )}
         </nav>
 
@@ -73,54 +63,28 @@ export function Header() {
       {mobileOpen && (
         <div className="md:hidden border-t border-border bg-background">
           <div className="px-4 py-3 flex flex-col gap-2">
-            <Link
-              to="/books"
-              className="py-2 text-sm text-muted hover:text-foreground"
-              onClick={() => setMobileOpen(false)}
-            >
+            <Link to="/books" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
               Browse Books
             </Link>
-            <Link
-              to="/add-book"
-              className="py-2 text-sm text-muted hover:text-foreground flex items-center gap-1"
-              onClick={() => setMobileOpen(false)}
-            >
+            <Link to="/add-book" className="py-2 text-sm text-muted hover:text-foreground flex items-center gap-1" onClick={() => setMobileOpen(false)}>
               <Plus size={14} /> Add Book
             </Link>
             {user ? (
               <>
-                <Link
-                  to="/dashboard"
-                  className="py-2 text-sm text-muted hover:text-foreground"
-                  onClick={() => setMobileOpen(false)}
-                >
+                <Link to="/dashboard" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
                   Dashboard
                 </Link>
-                {(profile?.role === 'narrator' || profile?.role === 'both') && (
-                  <Link
-                    to="/narrator/dashboard"
-                    className="py-2 text-sm text-muted hover:text-foreground"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Narrator Dashboard
-                  </Link>
-                )}
-                <button
-                  onClick={handleSignOut}
-                  className="py-2 text-sm text-left text-muted hover:text-foreground cursor-pointer"
-                >
+                <Link to="/profile" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
+                  Profile
+                </Link>
+                <button onClick={handleSignOut} className="py-2 text-sm text-left text-muted hover:text-foreground cursor-pointer">
                   Log out
                 </button>
               </>
             ) : (
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => { navigate('/login'); setMobileOpen(false) }}>
-                  Log in
-                </Button>
-                <Button size="sm" className="flex-1" onClick={() => { navigate('/signup'); setMobileOpen(false) }}>
-                  Sign up
-                </Button>
-              </div>
+              <Button size="sm" className="mt-2" onClick={() => { navigate('/login'); setMobileOpen(false) }}>
+                Sign in
+              </Button>
             )}
           </div>
         </div>

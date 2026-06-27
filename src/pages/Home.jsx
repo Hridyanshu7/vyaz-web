@@ -32,7 +32,7 @@ export function Home() {
             Skip the summary. Have a real conversation with someone who deeply understands the book you're curious about.
           </p>
           <div className="flex gap-3 mt-8">
-            <Button size="lg" onClick={() => navigate(user ? '/books' : '/signup')}>
+            <Button size="lg" onClick={() => navigate(user ? '/books' : '/login')}>
               Get started <ArrowRight size={18} className="ml-1" />
             </Button>
             <Button variant="outline" size="lg" onClick={() => {
