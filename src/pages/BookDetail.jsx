@@ -1,0 +1,304 @@
+import { useParams, Link } from 'react-router-dom'
+import { BookOpen, ArrowLeft, Clock, FileText, Star, ShoppingCart, ExternalLink } from 'lucide-react'
+import { Badge } from '../components/ui/Badge'
+import { StarRating } from '../components/ui/StarRating'
+import { NarratorCard } from '../components/narrators/NarratorCard'
+import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
+
+export function BookDetail() {
+  const { id } = useParams()
+  const book = SEED_BOOKS.find((b) => b.id === id)
+  const narrators = SEED_NARRATORS.filter((n) => n.book_ids?.includes(id))
+
+  if (!book) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-16 text-center">
+        <p className="text-muted">Book not found.</p>
+        <Link to="/books" className="text-highlight hover:underline text-sm mt-2 inline-block">Back to browse</Link>
+      </div>
+    )
+  }
+
+  const az = book.amazon_data
+  const gr = book.goodreads_data
+  const hasEnrichedData = az || gr
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <Link to="/books" className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-6">
+        <ArrowLeft size={16} /> Back to books
+      </Link>
+
+      {/* Hero section */}
+      <div className="grid md:grid-cols-[240px_1fr] gap-8 mb-8">
+        <div>
+          <div className="aspect-[3/4] rounded-xl bg-surface flex items-center justify-center border border-border overflow-hidden">
+            {book.cover_url ? (
+              <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+            ) : (
+              <BookOpen size={48} className="text-muted" />
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {book.genre && <Badge>{book.genre}</Badge>}
+            {gr?.genres?.filter((g) => g !== book.genre).slice(0, 3).map((g) => (
+              <Badge key={g} variant="muted">{g}</Badge>
+            ))}
+          </div>
+
+          <h1 className="text-2xl md:text-3xl font-bold">{book.title}</h1>
+          <p className="text-muted mt-1 text-lg">{book.author}</p>
+
+          <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-muted">
+            {book.page_count && (
+              <span className="flex items-center gap-1"><FileText size={14} /> {book.page_count} pages</span>
+            )}
+            {book.page_count && (
+              <span className="flex items-center gap-1"><Clock size={14} /> ~{Math.ceil(book.page_count / 40)} hr read</span>
+            )}
+            {book.isbn && <span className="text-xs">ISBN: {book.isbn}</span>}
+            {book.publisher && <span className="text-xs">· {book.publisher}</span>}
+            {book.language && <span className="text-xs">· {book.language}</span>}
+          </div>
+
+          {/* Ratings from both platforms */}
+          {(gr?.averageRating || az?.stars) && (
+            <div className="flex flex-wrap gap-4 mt-4 p-3 bg-surface rounded-lg border border-border">
+              {gr?.averageRating && (
+                <div className="flex items-center gap-2">
+                  <BookOpen size={16} className="text-green-600" />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold text-lg">{gr.averageRating}</span>
+                      <StarRating rating={Math.round(gr.averageRating)} size={14} />
+                    </div>
+                    <p className="text-xs text-muted">{gr.ratingsCount?.toLocaleString()} ratings on Goodreads</p>
+                  </div>
+                </div>
+              )}
+              {az?.stars && (
+                <div className="flex items-center gap-2">
+                  <ShoppingCart size={16} className="text-orange-500" />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold text-lg">{az.stars}</span>
+                      <StarRating rating={Math.round(az.stars)} size={14} />
+                    </div>
+                    <p className="text-xs text-muted">{az.reviewsCount?.toLocaleString()} reviews on Amazon</p>
+                  </div>
+                </div>
+              )}
+              {az?.price && (
+                <div className="ml-auto text-right">
+                  <p className="font-bold text-lg">{az.price}</p>
+                  {az.listPrice && <p className="text-xs text-muted line-through">{az.listPrice}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Primary description */}
+          <p className="mt-4 text-sm leading-relaxed">{book.description}</p>
+
+          {/* External links */}
+          <div className="flex gap-2 mt-4">
+            {gr?.url && (
+              <a href={gr.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-green-700 hover:underline">
+                <ExternalLink size={12} /> View on Goodreads
+              </a>
+            )}
+            {az?.url && (
+              <a href={az.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-orange-600 hover:underline">
+                <ExternalLink size={12} /> View on Amazon
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Side-by-side platform details (only for enriched books) */}
+      {hasEnrichedData && (
+        <div className="grid md:grid-cols-2 gap-4 mb-8">
+          {/* Goodreads column */}
+          <div className={`border rounded-xl overflow-hidden ${gr ? 'border-green-200' : 'border-border'}`}>
+            <div className="px-4 py-2.5 bg-green-50 border-b border-green-200 flex items-center gap-2">
+              <BookOpen size={14} className="text-green-700" />
+              <span className="text-xs font-semibold text-green-800">Goodreads</span>
+            </div>
+            {gr ? (
+              <div className="p-4 space-y-4 text-sm">
+                {gr.description && gr.description !== book.description && (
+                  <div>
+                    <p className="text-xs font-medium mb-1">Description</p>
+                    <p className="text-muted text-xs leading-relaxed line-clamp-6">{gr.description}</p>
+                  </div>
+                )}
+                {gr.publishedAt && <p className="text-xs text-muted">Published: {gr.publishedAt}</p>}
+                {gr.series && <p className="text-xs text-muted">Series: {gr.series}</p>}
+                {gr.awards?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium mb-1">Awards</p>
+                    <div className="flex flex-wrap gap-1">
+                      {gr.awards.map((a, i) => <Badge key={i} variant="highlight">{a}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {gr.ratingsDistribution && (
+                  <div>
+                    <p className="text-xs font-medium mb-1.5">Rating breakdown</p>
+                    {Object.entries(gr.ratingsDistribution).reverse().map(([stars, count]) => (
+                      <div key={stars} className="flex items-center gap-2 text-xs mb-1">
+                        <span className="w-3 text-right">{stars}</span>
+                        <Star size={10} className="text-highlight fill-highlight" />
+                        <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
+                          <div className="h-full bg-highlight rounded-full"
+                            style={{ width: `${(count / Math.max(gr.ratingsCount, 1)) * 100}%` }} />
+                        </div>
+                        <span className="text-muted w-14 text-right">{count?.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {gr.reviews?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium mb-2">Reviews</p>
+                    <div className="space-y-2">
+                      {gr.reviews.map((r, i) => (
+                        <div key={i} className="p-2.5 bg-surface rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium">{r.reviewer}</span>
+                            <StarRating rating={r.rating} size={10} />
+                          </div>
+                          <p className="text-xs text-muted line-clamp-3">{r.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-muted text-center py-8">
+                No Goodreads data available for this book.
+              </div>
+            )}
+          </div>
+
+          {/* Amazon column */}
+          <div className={`border rounded-xl overflow-hidden ${az ? 'border-orange-200' : 'border-border'}`}>
+            <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-200 flex items-center gap-2">
+              <ShoppingCart size={14} className="text-orange-700" />
+              <span className="text-xs font-semibold text-orange-800">Amazon</span>
+            </div>
+            {az ? (
+              <div className="p-4 space-y-4 text-sm">
+                {az.aiSummary && (
+                  <div className="p-2.5 bg-orange-50/50 rounded-lg">
+                    <p className="text-xs font-medium mb-1">AI Review Summary</p>
+                    <p className="text-xs text-muted">{az.aiSummary}</p>
+                  </div>
+                )}
+                {az.aiKeywords?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium mb-1.5">What readers say</p>
+                    {az.aiKeywords.slice(0, 3).map((k, i) => (
+                      <div key={i} className="mb-2">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${k.sentiment === 'positive' ? 'bg-green-500' : k.sentiment === 'negative' ? 'bg-red-500' : 'bg-gray-400'}`} />
+                          <span className="text-xs font-medium">{k.name}</span>
+                        </div>
+                        <p className="text-xs text-muted">{k.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {az.description && az.description !== book.description && (
+                  <div>
+                    <p className="text-xs font-medium mb-1">Description</p>
+                    <p className="text-muted text-xs leading-relaxed line-clamp-6">{az.description}</p>
+                  </div>
+                )}
+                {az.price && (
+                  <div className="p-3 bg-surface rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold">{az.price}</span>
+                      {az.listPrice && <span className="text-sm text-muted line-through">{az.listPrice}</span>}
+                    </div>
+                    {az.inStockText && <p className="text-xs text-green-600 mt-1">{az.inStockText}</p>}
+                    {az.delivery && <p className="text-xs text-muted mt-0.5">Delivery: {az.delivery}</p>}
+                  </div>
+                )}
+                {az.starsBreakdown && (
+                  <div>
+                    <p className="text-xs font-medium mb-1.5">Rating breakdown</p>
+                    {Object.entries(az.starsBreakdown).reverse().map(([label, pct]) => (
+                      <div key={label} className="flex items-center gap-2 text-xs mb-1">
+                        <span className="w-8 text-right text-muted">{label}</span>
+                        <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-400 rounded-full" style={{ width: `${pct * 100}%` }} />
+                        </div>
+                        <span className="text-muted w-8 text-right">{Math.round(pct * 100)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                  {az.publisher && <span>Publisher: {az.publisher}</span>}
+                  {az.pubDate && <span>Published: {az.pubDate}</span>}
+                  {az.language && <span>{az.language}</span>}
+                  {az.edition && <span>{az.edition} edition</span>}
+                  {az.isbn13 && <span>ISBN-13: {az.isbn13}</span>}
+                </div>
+                {az.bestsellerRanks?.length > 0 && (
+                  <div className="text-xs text-muted">
+                    <p className="font-medium text-foreground mb-1">Bestseller Ranks</p>
+                    {az.bestsellerRanks.map((r, i) => (
+                      <p key={i}>#{r.rank.toLocaleString()} in {r.category}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-muted text-center py-8">
+                No Amazon data available for this book.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Narrators section */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">
+            Narrators <span className="text-muted font-normal">({narrators.length})</span>
+          </h2>
+        </div>
+
+        {narrators.length === 0 ? (
+          <div className="text-center py-8 border border-dashed border-border rounded-xl">
+            <p className="text-muted text-sm">No narrators available for this book yet.</p>
+            <p className="text-xs text-muted mt-1">Know this book well? Become a narrator.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {narrators.map((narrator, i) => (
+              <NarratorCard
+                key={narrator.id}
+                narrator={narrator}
+                bookId={id}
+                isOnline={i % 2 === 0}
+                rating={4.2 + (i * 0.15)}
+                reviewCount={8 + i * 3}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
