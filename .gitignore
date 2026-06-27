@@ -3,3 +3,4 @@ dist
 .env
 .env.local
 src/data/*-raw.json
+.DS_Store
