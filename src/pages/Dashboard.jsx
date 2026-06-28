@@ -7,11 +7,29 @@ import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 import { useSessions } from '../hooks/useSessions'
+import { supabase } from '../lib/supabase'
 
-function SessionCard({ session, currentUserId }) {
+function SessionCard({ session, currentUserId, onRefresh }) {
   const isNarrator = session.narrator_id === currentUserId
-  const isUpcoming = !isPast(new Date(session.scheduled_at))
+  const sessionEnd = new Date(new Date(session.scheduled_at).getTime() + session.duration_minutes * 60000)
+  const isOver = isPast(sessionEnd)
+  const isUpcoming = !isOver && session.status !== 'cancelled'
   const attendeeCount = session.attendees?.length || 0
+
+  const myAttendance = session.attendees?.find((a) => a.reader_id === currentUserId)
+  const didAttend = myAttendance?.status === 'attended'
+  const isCompleted = isOver && session.status !== 'cancelled'
+  const canReview = isCompleted && !isNarrator && didAttend
+
+  const handleJoin = async () => {
+    if (isNarrator) {
+      await supabase.from('sessions').update({ status: 'completed' }).eq('id', session.id).eq('status', 'scheduled')
+    } else if (myAttendance) {
+      await supabase.from('session_attendees').update({ status: 'attended' }).eq('id', myAttendance.id)
+    }
+    window.open(session.meeting_link, '_blank')
+    if (onRefresh) setTimeout(onRefresh, 1000)
+  }
 
   const dateLabel = (() => {
     const d = new Date(session.scheduled_at)
@@ -19,6 +37,9 @@ function SessionCard({ session, currentUserId }) {
     if (isTomorrow(d)) return 'Tomorrow'
     return format(d, 'EEE, MMM d')
   })()
+
+  const statusLabel = isCompleted ? 'Completed' : isUpcoming ? 'Upcoming' : session.status
+  const statusVariant = isCompleted ? 'muted' : isUpcoming ? 'success' : 'default'
 
   return (
     <div className="p-4 rounded-xl border border-border">
@@ -33,9 +54,7 @@ function SessionCard({ session, currentUserId }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <h3 className="font-medium text-sm truncate">{session.book?.title || 'Unknown Book'}</h3>
-            <Badge variant={isUpcoming ? 'success' : session.status === 'completed' ? 'muted' : 'default'}>
-              {isUpcoming ? 'Upcoming' : session.status}
-            </Badge>
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
             {session.type === 'group' && (
               <Badge variant="highlight"><Users size={10} /> {attendeeCount}/{session.max_attendees}</Badge>
             )}
@@ -53,17 +72,20 @@ function SessionCard({ session, currentUserId }) {
             <span className="flex items-center gap-1">
               <Clock size={12} /> {session.duration_minutes} min
             </span>
+            {isCompleted && didAttend && (
+              <span className="text-green-600 flex items-center gap-1">✓ Attended</span>
+            )}
           </div>
         </div>
         <div className="shrink-0">
           {isUpcoming && session.meeting_link ? (
-            <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
-              <Button size="sm"><Video size={14} className="mr-1" /> Join</Button>
-            </a>
-          ) : session.status === 'completed' && !isNarrator ? (
+            <Button size="sm" onClick={handleJoin}><Video size={14} className="mr-1" /> Join</Button>
+          ) : canReview ? (
             <Link to={`/dashboard/review/${session.id}`}>
               <Button size="sm" variant="outline"><Star size={14} className="mr-1" /> Review</Button>
             </Link>
+          ) : isCompleted && !isNarrator && !didAttend ? (
+            <Badge variant="muted">Missed</Badge>
           ) : null}
         </div>
       </div>
@@ -162,7 +184,7 @@ export function Dashboard() {
                     <div>
                       <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Upcoming</p>
                       <div className="space-y-2">
-                        {upcoming.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} />)}
+                        {upcoming.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} onRefresh={refetch} />)}
                       </div>
                     </div>
                   )}
@@ -170,7 +192,7 @@ export function Dashboard() {
                     <div className="mt-6">
                       <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2">Completed</p>
                       <div className="space-y-2">
-                        {completed.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} />)}
+                        {completed.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} onRefresh={refetch} />)}
                       </div>
                     </div>
                   )}
@@ -189,7 +211,7 @@ export function Dashboard() {
                 {asListener.length === 0 ? (
                   <EmptyState message="No listening sessions yet" cta="Browse books" onClick={() => navigate('/books')} />
                 ) : (
-                  asListener.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} />)
+                  asListener.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} onRefresh={refetch} />)
                 )}
               </div>
             </div>
@@ -206,7 +228,7 @@ export function Dashboard() {
                 {asNarrator.length === 0 ? (
                   <EmptyState message="No narration sessions yet" />
                 ) : (
-                  asNarrator.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} />)
+                  asNarrator.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} onRefresh={refetch} />)
                 )}
               </div>
             </div>

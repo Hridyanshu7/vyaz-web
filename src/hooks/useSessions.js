@@ -67,10 +67,17 @@ export function useSessions() {
     s.attendees?.some((a) => a.reader_id === user?.id)
   )
 
-  const upcoming = sessions.filter((s) =>
-    ['scheduled', 'open'].includes(s.status) && new Date(s.scheduled_at) > new Date()
-  )
-  const completed = sessions.filter((s) => s.status === 'completed')
+  const now = new Date()
+  const upcoming = sessions.filter((s) => {
+    if (s.status === 'cancelled') return false
+    const sessionEnd = new Date(new Date(s.scheduled_at).getTime() + s.duration_minutes * 60000)
+    return sessionEnd > now
+  })
+  const completed = sessions.filter((s) => {
+    if (s.status === 'cancelled') return false
+    const sessionEnd = new Date(new Date(s.scheduled_at).getTime() + s.duration_minutes * 60000)
+    return sessionEnd <= now
+  })
 
   const narratorStats = {
     totalSessions: asNarrator.length,
