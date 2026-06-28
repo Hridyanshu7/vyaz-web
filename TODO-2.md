@@ -70,6 +70,71 @@ It's a self-solving demand board. Demand attracts supply.
 
 ---
 
+## Homepage: Request Leaderboard
+
+A live leaderboard on the homepage showing the most requested books, sorted by request count. Visible to everyone — logged in or not. Drives both demand registration and narrator recruitment.
+
+### Design
+
+```
+┌─────────────────────────────────────────────────────┐
+│  MOST WANTED                                        │
+│  Books people are dying to discuss                  │
+│                                                     │
+│  1. The Mom Test — Rob Fitzpatrick                  │
+│     47 people want this  [I want this too →]        │
+│                                                     │
+│  2. Build — Tony Fadell                             │
+│     38 people want this  [I want this too →]        │
+│                                                     │
+│  3. Poor Charlie's Almanack — Charlie Munger        │
+│     31 people want this  [I want this too →]        │
+│                                                     │
+│  4. The Courage to Be Disliked — Ichiro Kishimi     │
+│     28 people want this  [I want this too →]        │
+│                                                     │
+│  5. Outliers — Malcolm Gladwell                     │
+│     24 people want this  [I want this too →]        │
+│                                                     │
+│  ─────────────────────────────────────────────────  │
+│  Don't see your book?                               │
+│  [Request a book — tell us what you want →]         │
+└─────────────────────────────────────────────────────┘
+```
+
+### Behavior
+
+- **Sorted by request count** — most wanted at the top, updates in real-time as new requests come in
+- **"I want this too" button** — logged-in users can +1 a book. One request per user per book (deduplicated). If not logged in, opens signup modal first.
+- **"Request a book" CTA at the bottom** — opens the request form for books not in the list (free text + optional URL)
+- **Placement on homepage** — between "Why Vyaz?" and "Meet a narrator" sections
+- **Shows top 5-10** — with a "View all →" link to the full `/wanted` page
+
+### Data flow
+
+```
+User clicks "I want this too"
+    ↓
+Insert into book_requests (user_id, book_title, book_author)
+    ↓
+Leaderboard re-aggregates (GROUP BY book_title, COUNT)
+    ↓
+Count updates on screen
+```
+
+### For narrators
+
+Each leaderboard entry also shows a subtle "Can you narrate this? →" link that takes narrators to the signup flow with that book pre-selected. This turns the demand board into a narrator recruitment tool.
+
+### Implementation details
+
+- **Component:** `RequestLeaderboard.jsx` — fetches all `book_requests`, groups by `book_title` or `book_id`, sorts by count, renders top N
+- **Hook:** `useBookRequests.js` — fetches requests, aggregates leaderboard, provides `addRequest()` and `hasUserRequested()` methods
+- **Deduplication:** Check if user already requested this book before allowing +1 (query `book_requests` where `user_id` + `book_title` match)
+- **Logged-out users:** Show the leaderboard (read-only). "I want this too" opens signup modal. After signup, the request is submitted automatically (save intent in localStorage, similar to signup modal pattern).
+
+---
+
 ## Admin-Facing: Demand Dashboard
 
 In the admin panel, a Demand Dashboard section:
@@ -173,22 +238,31 @@ CREATE POLICY "Users create requests" ON book_requests FOR INSERT WITH CHECK (au
 - Submit creates a `book_requests` row
 - **Effort:** 2 hrs
 
-### Step 3: Place the form across the app
-- Homepage: "Request a book" CTA below the hero or in the catalog section
+### Step 3: Homepage request leaderboard
+- `useBookRequests` hook — fetches all requests, aggregates by book title/id, sorts by count, provides `addRequest()` and `hasUserRequested()`
+- `RequestLeaderboard` component — renders top 5-10 books with request counts
+- "I want this too" button — deduplicated per user per book, opens signup modal if not logged in
+- "Request a book" CTA at the bottom for books not in the list
+- Logged-out users: leaderboard is visible (read-only), "I want this too" triggers signup modal, intent saved in localStorage
+- "Can you narrate this?" subtle link per entry for narrator recruitment
+- Placement: homepage between "Why Vyaz?" and "Meet a narrator" sections
+- **Effort:** 2 hrs
+
+### Step 4: Place the request form across the app
 - Browse page: "Can't find your book?" prompt when search returns no results
 - Book not found state: when a user lands on a book page that doesn't exist
 - Signup modal: optional "Which books are you dying to read?" step
 - **Effort:** 1 hr
 
-### Step 4: Most Wanted page (`/wanted`)
-- Public page showing aggregated requests grouped by book title
+### Step 5: Most Wanted full page (`/wanted`)
+- Full page version of the leaderboard — all requested books, not just top 10
 - Count of unique requesters per book
 - "Become narrator" CTA per book (links to signup modal with narrator toggle pre-selected)
 - Sort by request count (descending)
 - Filter by motivation (career, curiosity, etc.)
 - **Effort:** 2 hrs
 
-### Step 5: Admin demand dashboard
+### Step 6: Admin demand dashboard
 - Table of all requests with search/filter
 - Aggregated view: top requested books not in catalog
 - Aggregated view: top requested books with no narrator
@@ -197,14 +271,14 @@ CREATE POLICY "Users create requests" ON book_requests FOR INSERT WITH CHECK (au
 - Action: mark request as fulfilled
 - **Effort:** 3 hrs
 
-### Step 6: Notification system
+### Step 7: Notification system
 - When a narrator signs up for a book, query `book_requests` for matching `book_id`
 - Send email to all requesters with `notified = false`
 - Set `notified = true` after sending
 - Requires: transactional email service (Resend/Postmark) + Supabase Edge Function
 - **Effort:** 3 hrs
 
-### Step 7: Auto-import pipeline (later)
+### Step 8: Auto-import pipeline (later)
 - When a book_request with a URL hits 10+ requests, auto-trigger Apify scraper
 - Import the book to catalog
 - Backfill `book_id` on all matching requests
@@ -217,10 +291,10 @@ CREATE POLICY "Users create requests" ON book_requests FOR INSERT WITH CHECK (au
 
 | Phase | Items | Effort |
 |---|---|---|
-| **Build now** | Steps 1-4 (migration, form, placements, Most Wanted page) | ~5 hrs |
-| **Build next** | Step 5 (admin dashboard) | ~3 hrs |
-| **Build later** | Steps 6-7 (notifications, auto-import) | ~5 hrs |
-| **Total** | | **~13 hrs** |
+| **Build now** | Steps 1-5 (migration, form, homepage leaderboard, placements, Most Wanted page) | ~7 hrs |
+| **Build next** | Step 6 (admin dashboard) | ~3 hrs |
+| **Build later** | Steps 7-8 (notifications, auto-import) | ~5 hrs |
+| **Total** | | **~15 hrs** |
 
 ---
 
