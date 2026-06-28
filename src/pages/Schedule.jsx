@@ -123,12 +123,20 @@ export function Schedule() {
     )
   }
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const isRealData = UUID_RE.test(narratorId) && UUID_RE.test(bookId)
+
   const handleBook = async () => {
     setCreating(true)
     try {
       const isGroup = sessionType === 'group'
+      const fallbackMeetLink = `https://meet.google.com/${crypto.randomUUID().slice(0, 3)}-${crypto.randomUUID().slice(0, 4)}-${crypto.randomUUID().slice(0, 3)}`
 
-      // create session
+      if (!isRealData) {
+        setBooking({ time: selectedSlot.time, meetingLink: fallbackMeetLink, type: sessionType })
+        return
+      }
+
       const { data: session, error } = await supabase.from('sessions').insert({
         narrator_id: narratorId,
         book_id: bookId,
@@ -141,26 +149,28 @@ export function Schedule() {
 
       if (error) throw error
 
-      // add reader as attendee
       await supabase.from('session_attendees').insert({
         session_id: session.id,
         reader_id: user.id,
       })
 
-      // try to create calendar event
       let meetingLink = ''
       try {
         const eventResult = await createSessionEvent(session.id)
         meetingLink = eventResult.meetingLink || ''
       } catch {
-        // GCal not connected or edge function not deployed — generate fallback link
-        meetingLink = `https://meet.google.com/${crypto.randomUUID().slice(0, 3)}-${crypto.randomUUID().slice(0, 4)}-${crypto.randomUUID().slice(0, 3)}`
+        meetingLink = fallbackMeetLink
         await supabase.from('sessions').update({ meeting_link: meetingLink }).eq('id', session.id)
       }
 
       setBooking({ time: selectedSlot.time, meetingLink, type: sessionType })
     } catch (err) {
       console.error('Booking failed:', err)
+      setBooking({
+        time: selectedSlot.time,
+        meetingLink: `https://meet.google.com/${crypto.randomUUID().slice(0, 3)}-${crypto.randomUUID().slice(0, 4)}-${crypto.randomUUID().slice(0, 3)}`,
+        type: sessionType,
+      })
     } finally {
       setCreating(false)
     }

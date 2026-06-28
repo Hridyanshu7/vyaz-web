@@ -90,30 +90,36 @@ export function useSessions() {
   }
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function useBookSessions(bookId) {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!bookId) return
+    if (!bookId || !UUID_REGEX.test(bookId)) { setLoading(false); return }
     fetchBookSessions()
   }, [bookId])
 
   const fetchBookSessions = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('sessions')
-      .select(`
-        *,
-        narrator:profiles!sessions_narrator_id_fkey(id, name, avatar_url),
-        attendees:session_attendees(id, reader_id)
-      `)
-      .eq('book_id', bookId)
-      .in('status', ['scheduled', 'open'])
-      .gt('scheduled_at', new Date().toISOString())
-      .order('scheduled_at', { ascending: true })
+    try {
+      const { data } = await supabase
+        .from('sessions')
+        .select(`
+          *,
+          narrator:profiles!sessions_narrator_id_fkey(id, name, avatar_url),
+          attendees:session_attendees(id, reader_id)
+        `)
+        .eq('book_id', bookId)
+        .in('status', ['scheduled', 'open'])
+        .gt('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: true })
 
-    setSessions(data || [])
+      setSessions(data || [])
+    } catch {
+      setSessions([])
+    }
     setLoading(false)
   }
 
