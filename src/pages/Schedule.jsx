@@ -4,7 +4,7 @@ import { ArrowLeft, Clock, Video, ChevronLeft, ChevronRight, Users, Loader2 } fr
 import { format, addDays, startOfWeek, isSameDay, setHours, setMinutes, isAfter } from 'date-fns'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
-import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { createSessionEvent, getNarratorAvailability } from '../lib/calendar'
@@ -52,8 +52,9 @@ export function Schedule() {
   const [busySlots, setBusySlots] = useState([])
   const [loadingAvail, setLoadingAvail] = useState(false)
 
-  const book = SEED_BOOKS.find((b) => b.id === bookId)
-  const narrator = SEED_NARRATORS.find((n) => n.id === narratorId)
+  const { getBook, narrators: allNarrators } = useBookStore()
+  const book = getBook(bookId)
+  const narrator = allNarrators.find((n) => n.id === narratorId)
 
   const weekStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))

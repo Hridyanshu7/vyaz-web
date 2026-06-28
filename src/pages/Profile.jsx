@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
 import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
-import { GENRES } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 
 function MultiSelectChips({ options, selected, onToggle }) {
   return (
@@ -31,6 +31,7 @@ function MultiSelectChips({ options, selected, onToggle }) {
 
 export function Profile() {
   const { user, profile, loading, updateProfile } = useAuthStore()
+  const allGenres = useBookStore((s) => s.genres)
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -127,7 +128,7 @@ export function Profile() {
         <section>
           <label className="block text-sm font-medium mb-2">Interests</label>
           <MultiSelectChips
-            options={GENRES}
+            options={allGenres}
             selected={genres}
             onToggle={(g) => setGenres((prev) =>
               prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]

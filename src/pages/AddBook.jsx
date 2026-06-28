@@ -4,10 +4,11 @@ import { Link2, BookOpen, Loader2, Check, AlertCircle, Info, Star, ShoppingCart 
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { importBookFromUrl } from '../lib/bookImport'
-import { SEED_BOOKS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 
 export function AddBook() {
   const navigate = useNavigate()
+  const addBookToStore = useBookStore((s) => s.addBook)
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
@@ -36,17 +37,19 @@ export function AddBook() {
     }
   }
 
-  const handleAdd = () => {
+  const [addedBookId, setAddedBookId] = useState(null)
+
+  const handleAdd = async () => {
     if (!book) return
-    const { _partial, amazon, goodreads, ...basics } = book
-    const newBook = {
-      ...basics,
-      amazon_data: amazon || null,
-      goodreads_data: goodreads || null,
-      id: String(SEED_BOOKS.length + 1 + Math.floor(Math.random() * 1000)),
+    setLoading(true)
+    try {
+      const saved = await addBookToStore(book)
+      setAddedBookId(saved.id)
+      setAdded(true)
+    } catch (err) {
+      setError(err.message)
     }
-    SEED_BOOKS.push(newBook)
-    setAdded(true)
+    setLoading(false)
   }
 
   const az = book?.amazon
@@ -271,7 +274,7 @@ export function AddBook() {
                 <Button variant="secondary" disabled>
                   <Check size={16} className="mr-1" /> Added to catalog
                 </Button>
-                <Button variant="outline" onClick={() => navigate(`/books/${SEED_BOOKS[SEED_BOOKS.length - 1]?.id}`)}>
+                <Button variant="outline" onClick={() => navigate(`/books/${addedBookId}`)}>
                   View book
                 </Button>
                 <Button variant="ghost" onClick={() => { setBook(null); setUrl(''); setAdded(false) }}>

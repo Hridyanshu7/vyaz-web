@@ -7,10 +7,11 @@ import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
 import { importBookFromUrl } from '../lib/bookImport'
-import { SEED_BOOKS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 
 export function SignupModal({ open, onClose }) {
   const { user, profile, sendOtp, verifyOtp, signInWithGoogle, updateProfile } = useAuthStore()
+  const { books, addBook: addBookToStore } = useBookStore()
   const [countryCode, setCountryCode] = useState('+91')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [otp, setOtp] = useState('')
@@ -113,9 +114,8 @@ export function SignupModal({ open, onClose }) {
     setAddingBook(true)
     try {
       const book = await importBookFromUrl(addBookUrl, () => {})
-      const newBook = { ...book, id: crypto.randomUUID() }
-      SEED_BOOKS.push(newBook)
-      setSelectedBooks((prev) => [...prev, newBook.id])
+      const saved = await addBookToStore(book)
+      setSelectedBooks((prev) => [...prev, saved.id])
       setAddBookUrl('')
     } catch (err) {
       setError(err.message)
@@ -166,7 +166,7 @@ export function SignupModal({ open, onClose }) {
     setLoading(false)
   }
 
-  const filteredCatalog = SEED_BOOKS.filter((b) =>
+  const filteredCatalog = books.filter((b) =>
     !selectedBooks.includes(b.id) &&
     (bookSearch === '' || b.title.toLowerCase().includes(bookSearch.toLowerCase()) || b.author.toLowerCase().includes(bookSearch.toLowerCase()))
   ).slice(0, 6)
@@ -357,7 +357,7 @@ export function SignupModal({ open, onClose }) {
                 {selectedBooks.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {selectedBooks.map((bookId) => {
-                      const book = SEED_BOOKS.find((b) => b.id === bookId)
+                      const book = books.find((b) => b.id === bookId)
                       return book ? (
                         <Badge key={bookId} variant="highlight" className="cursor-pointer" onClick={() =>
                           setSelectedBooks((prev) => prev.filter((id) => id !== bookId))

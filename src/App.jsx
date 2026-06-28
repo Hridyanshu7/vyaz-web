@@ -13,13 +13,16 @@ import { Login } from './pages/Login'
 import { AddBook } from './pages/AddBook'
 import { Profile } from './pages/Profile'
 import { useAuthStore } from './stores/authStore'
+import { useBookStore } from './stores/bookStore'
 
 export default function App() {
-  const initialize = useAuthStore((s) => s.initialize)
+  const initAuth = useAuthStore((s) => s.initialize)
+  const initBooks = useBookStore((s) => s.initialize)
 
   useEffect(() => {
-    initialize()
-  }, [initialize])
+    initAuth()
+    initBooks()
+  }, [initAuth, initBooks])
 
   return (
     <BrowserRouter>

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../stores/authStore'
 import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
-import { GENRES, SEED_BOOKS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 
 const ROLE_OPTIONS = [
   { value: 'reader', label: 'Listener', desc: 'I want to learn about books from narrators' },
@@ -66,6 +66,7 @@ function MultiSelectChips({ options, selected, onToggle }) {
 }
 
 export function Onboarding() {
+  const { genres: GENRES, books: SEED_BOOKS } = useBookStore()
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')

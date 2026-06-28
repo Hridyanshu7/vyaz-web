@@ -1,7 +1,9 @@
 import { Search } from 'lucide-react'
-import { GENRES } from '../../data/seedBooks'
+import { useBookStore } from '../../stores/bookStore'
 
 export function BookSearch({ searchQuery, onSearchChange, selectedGenre, onGenreChange }) {
+  const genres = useBookStore((s) => s.genres)
+
   return (
     <div className="space-y-3">
       <div className="relative">
@@ -23,7 +25,7 @@ export function BookSearch({ searchQuery, onSearchChange, selectedGenre, onGenre
         >
           All
         </button>
-        {GENRES.map((genre) => (
+        {genres.map((genre) => (
           <button
             key={genre}
             onClick={() => onGenreChange(genre === selectedGenre ? null : genre)}

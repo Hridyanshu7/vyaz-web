@@ -3,7 +3,7 @@ import { ArrowLeft, User, Star, BookOpen, Calendar } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
-import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 
 const MOCK_REVIEWS = [
   { id: 1, reviewer: 'Alex T.', rating: 5, comment: 'Incredibly helpful session. Explained the key concepts from Sapiens in a way that clicked immediately.', date: '2 days ago' },
@@ -13,7 +13,8 @@ const MOCK_REVIEWS = [
 
 export function NarratorProfile() {
   const { id } = useParams()
-  const narrator = SEED_NARRATORS.find((n) => n.id === id)
+  const { narrators: allNarrators, books } = useBookStore()
+  const narrator = allNarrators.find((n) => n.id === id)
 
   if (!narrator) {
     return (
@@ -24,7 +25,7 @@ export function NarratorProfile() {
     )
   }
 
-  const books = SEED_BOOKS.filter((b) => narrator.book_ids.includes(b.id))
+  const narratorBooks = books.filter((b) => narrator.book_ids.includes(b.id))
   const avgRating = 4.5
 
   return (
@@ -48,7 +49,7 @@ export function NarratorProfile() {
             </div>
             <Badge variant="muted">
               <BookOpen size={12} />
-              {books.length} books
+              {narratorBooks.length} books
             </Badge>
           </div>
         </div>
@@ -57,7 +58,7 @@ export function NarratorProfile() {
       <section className="mb-8">
         <h2 className="text-base font-semibold mb-3">Books they can discuss</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {books.map((book) => (
+          {narratorBooks.map((book) => (
             <Link
               key={book.id}
               to={`/book/${book.id}/narrator/${narrator.id}/schedule`}

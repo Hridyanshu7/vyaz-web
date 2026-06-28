@@ -1,20 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, BookOpen, Users, Calendar, MessageSquare, Star, User } from 'lucide-react'
+import { ArrowRight, BookOpen, Users, Calendar, Star, User } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { StarRating } from '../components/ui/StarRating'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
-import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
-
-const FEATURED_BOOKS = [...SEED_BOOKS]
-  .sort((a, b) => (b.goodreads_data?.averageRating || 0) - (a.goodreads_data?.averageRating || 0))
-  .slice(0, 6)
-
-const FOUNDER_NARRATOR = SEED_NARRATORS[0]
 
 export function Home() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -22,16 +16,11 @@ export function Home() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const showSignup = useSignupModal((s) => s.show)
+  const { books, narrators, loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
 
-  const filteredBooks = SEED_BOOKS.filter((book) => {
-    const matchesSearch = !searchQuery ||
-      book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesGenre = !selectedGenre ||
-      book.goodreads_data?.genres?.some((g) => g === selectedGenre) ||
-      book.genre === selectedGenre
-    return matchesSearch && matchesGenre
-  })
+  const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
+  const featuredBooks = getFeaturedBooks()
+  const founderNarrator = narrators[0]
 
   return (
     <div>
@@ -67,7 +56,7 @@ export function Home() {
                 <BookOpen size={24} className="text-highlight" />
               </div>
               <h3 className="font-semibold mb-1">Pick a book</h3>
-              <p className="text-sm text-muted">Browse our catalog of 20+ titles. See ratings, reviews, and what readers say — all in one place.</p>
+              <p className="text-sm text-muted">Browse our catalog. See ratings, reviews, and what readers say — all in one place.</p>
             </div>
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-highlight/10 flex items-center justify-center mx-auto mb-4">
@@ -88,48 +77,44 @@ export function Home() {
       </section>
 
       {/* ===== FEATURED BOOKS ===== */}
-      <section className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-16">
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold">Top rated books</h2>
-              <p className="text-sm text-muted mt-1">Highest rated on Goodreads, available for narration</p>
+      {featuredBooks.length > 0 && (
+        <section className="border-b border-border">
+          <div className="max-w-6xl mx-auto px-4 py-16">
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold">Top rated books</h2>
+                <p className="text-sm text-muted mt-1">Highest rated on Goodreads, available for narration</p>
+              </div>
+              <Link to="/books" className="text-sm text-highlight hover:underline flex items-center gap-1">
+                View all <ArrowRight size={14} />
+              </Link>
             </div>
-            <Link to="/books" className="text-sm text-highlight hover:underline flex items-center gap-1">
-              View all <ArrowRight size={14} />
-            </Link>
-          </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4">
-            {FEATURED_BOOKS.map((book) => (
-              <Link
-                key={book.id}
-                to={`/books/${book.id}`}
-                className="shrink-0 w-[160px] group"
-              >
-                <div className="aspect-[3/4] rounded-xl bg-surface border border-border overflow-hidden mb-2 group-hover:border-foreground/20 transition-colors">
-                  {book.cover_url ? (
-                    <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={24} className="text-muted" />
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4">
+              {featuredBooks.map((book) => (
+                <Link key={book.id} to={`/books/${book.id}`} className="shrink-0 w-[160px] group">
+                  <div className="aspect-[3/4] rounded-xl bg-surface border border-border overflow-hidden mb-2 group-hover:border-foreground/20 transition-colors">
+                    {book.cover_url ? (
+                      <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><BookOpen size={24} className="text-muted" /></div>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-medium leading-tight line-clamp-2 group-hover:text-highlight transition-colors">{book.title}</h3>
+                  <p className="text-xs text-muted mt-0.5">{book.author}</p>
+                  {book.goodreads_data?.averageRating && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <StarRating rating={Math.round(book.goodreads_data.averageRating)} size={10} />
+                      <span className="text-xs text-muted">{book.goodreads_data.averageRating}</span>
                     </div>
                   )}
-                </div>
-                <h3 className="text-sm font-medium leading-tight line-clamp-2 group-hover:text-highlight transition-colors">{book.title}</h3>
-                <p className="text-xs text-muted mt-0.5">{book.author}</p>
-                {book.goodreads_data?.averageRating && (
-                  <div className="flex items-center gap-1 mt-1">
-                    <StarRating rating={Math.round(book.goodreads_data.averageRating)} size={10} />
-                    <span className="text-xs text-muted">{book.goodreads_data.averageRating}</span>
-                  </div>
-                )}
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* ===== WHY TOME ===== */}
+      {/* ===== WHY VYAS ===== */}
       <section className="border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-16">
           <h2 className="text-xl font-bold text-center mb-10">Why Vyas?</h2>
@@ -155,7 +140,7 @@ export function Home() {
       </section>
 
       {/* ===== NARRATOR SPOTLIGHT ===== */}
-      {FOUNDER_NARRATOR && (
+      {founderNarrator && (
         <section className="border-b border-border">
           <div className="max-w-6xl mx-auto px-4 py-16">
             <h2 className="text-xl font-bold text-center mb-2">Meet a narrator</h2>
@@ -166,14 +151,14 @@ export function Home() {
                   <User size={20} className="text-muted" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">{FOUNDER_NARRATOR.name}</h3>
-                  <p className="text-xs text-muted">{FOUNDER_NARRATOR.bio}</p>
+                  <h3 className="font-semibold">{founderNarrator.name}</h3>
+                  <p className="text-xs text-muted">{founderNarrator.bio}</p>
                 </div>
               </div>
               <p className="text-xs text-muted mb-3">Can narrate:</p>
               <div className="flex flex-wrap gap-2 mb-4">
-                {FOUNDER_NARRATOR.book_ids.map((bookId) => {
-                  const book = SEED_BOOKS.find((b) => b.id === bookId)
+                {founderNarrator.book_ids.map((bookId) => {
+                  const book = books.find((b) => b.id === bookId)
                   return book ? (
                     <Link key={bookId} to={`/books/${bookId}`}>
                       <Badge variant="muted" className="hover:text-highlight cursor-pointer">{book.title.split(':')[0]}</Badge>
@@ -182,10 +167,10 @@ export function Home() {
                 })}
               </div>
               <Button size="sm" className="w-full" onClick={() => {
-                const firstBook = FOUNDER_NARRATOR.book_ids[0]
-                navigate(`/book/${firstBook}/narrator/${FOUNDER_NARRATOR.id}/schedule`)
+                const firstBook = founderNarrator.book_ids[0]
+                if (firstBook) navigate(`/book/${firstBook}/narrator/${founderNarrator.id}/schedule`)
               }}>
-                Book a session with {FOUNDER_NARRATOR.name.split(' ')[0]} <ArrowRight size={14} className="ml-1" />
+                Book a session with {founderNarrator.name.split(' ')[0]} <ArrowRight size={14} className="ml-1" />
               </Button>
             </div>
           </div>
@@ -209,7 +194,11 @@ export function Home() {
         />
 
         <div className="mt-6">
-          <BookGrid books={filteredBooks} />
+          {loading ? (
+            <div className="text-center py-12 text-muted text-sm">Loading books...</div>
+          ) : (
+            <BookGrid books={filteredBooks} />
+          )}
         </div>
       </section>
     </div>

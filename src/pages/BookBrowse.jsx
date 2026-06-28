@@ -1,19 +1,14 @@
 import { useState } from 'react'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
-import { SEED_BOOKS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 
 export function BookBrowse() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedGenre, setSelectedGenre] = useState(null)
+  const { loading, getFilteredBooks } = useBookStore()
 
-  const filteredBooks = SEED_BOOKS.filter((book) => {
-    const matchesSearch = !searchQuery ||
-      book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesGenre = !selectedGenre || book.genre === selectedGenre
-    return matchesSearch && matchesGenre
-  })
+  const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -28,7 +23,11 @@ export function BookBrowse() {
       />
 
       <div className="mt-6">
-        <BookGrid books={filteredBooks} />
+        {loading ? (
+          <div className="text-center py-12 text-muted text-sm">Loading books...</div>
+        ) : (
+          <BookGrid books={filteredBooks} />
+        )}
       </div>
     </div>
   )

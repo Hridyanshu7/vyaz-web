@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
 import { NarratorCard } from '../components/narrators/NarratorCard'
-import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
+import { useBookStore } from '../stores/bookStore'
 import { useBookSessions } from '../hooks/useSessions'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
@@ -26,8 +26,9 @@ export function BookDetail() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const showSignup = useSignupModal((s) => s.show)
-  const book = SEED_BOOKS.find((b) => b.id === id)
-  const narrators = SEED_NARRATORS.filter((n) => n.book_ids?.includes(id))
+  const { getBook, getNarratorsForBook } = useBookStore()
+  const book = getBook(id)
+  const narrators = getNarratorsForBook(id)
 
   const isUuid = UUID_RE.test(id)
   const { sessions: upcomingSessions } = useBookSessions(isUuid ? id : null)

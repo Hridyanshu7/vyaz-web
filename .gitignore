@@ -5,3 +5,4 @@ dist
 src/data/*-raw.json
 .DS_Store
 client_secret_*.json
+.vercel
