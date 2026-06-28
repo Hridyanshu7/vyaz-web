@@ -1,4 +1,4 @@
--- Tome: Sessions model (1:1 + group) + session requests
+-- Vyas: Sessions model (1:1 + group) + session requests
 
 -- Enums
 CREATE TYPE session_type AS ENUM ('one_on_one', 'group');

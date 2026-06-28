@@ -1,4 +1,4 @@
--- Tome: User profile updates for phone OTP + calendar integrations
+-- Vyas: User profile updates for phone OTP + calendar integrations
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;

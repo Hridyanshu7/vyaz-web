@@ -1,4 +1,4 @@
--- Tome P2P: Initial Schema
+-- Vyas P2P: Initial Schema
 
 -- Enums
 CREATE TYPE user_role AS ENUM ('reader', 'narrator', 'both');
