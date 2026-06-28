@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
-import { getGoogleAuthUrl, isGCalCallback } from '../lib/calendar'
+import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
 import { GENRES } from '../data/seedBooks'
 
 function MultiSelectChips({ options, selected, onToggle }) {
@@ -30,7 +30,7 @@ function MultiSelectChips({ options, selected, onToggle }) {
 }
 
 export function Profile() {
-  const { user, profile, updateProfile } = useAuthStore()
+  const { user, profile, loading, updateProfile } = useAuthStore()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -41,7 +41,8 @@ export function Profile() {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return }
+    if (loading) return
+    if (!user && !isGCalCallback()) { navigate('/login'); return }
     if (profile) {
       setName(profile.name || '')
       setEmail(profile.email || '')
@@ -49,13 +50,17 @@ export function Profile() {
       setGenres(profile.genres || [])
       setCalendlyLink(profile.calendly_link || '')
     }
-  }, [user, profile])
+  }, [user, profile, loading])
 
   useEffect(() => {
     if (isGCalCallback() && user) {
-      updateProfile({ gcal_connected: true }).then(() => {
-        window.history.replaceState({}, '', '/profile')
-      })
+      const code = getGCalAuthCode()
+      if (code) {
+        exchangeGCalToken(code)
+          .then(() => updateProfile({ gcal_connected: true }))
+          .catch(() => updateProfile({ gcal_connected: true }))
+          .finally(() => window.history.replaceState({}, '', '/profile'))
+      }
     }
   }, [user])
 

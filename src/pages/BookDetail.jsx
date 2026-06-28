@@ -1,13 +1,24 @@
-import { useParams, Link } from 'react-router-dom'
-import { BookOpen, ArrowLeft, Clock, FileText, Star, ShoppingCart, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { BookOpen, ArrowLeft, Clock, FileText, Star, ShoppingCart, ExternalLink, Users, Calendar, MessageSquare, Loader2 } from 'lucide-react'
+import { format } from 'date-fns'
 import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
 import { NarratorCard } from '../components/narrators/NarratorCard'
 import { SEED_BOOKS, SEED_NARRATORS } from '../data/seedBooks'
+import { useBookSessions } from '../hooks/useSessions'
+import { useAuthStore } from '../stores/authStore'
+import { supabase } from '../lib/supabase'
 
 export function BookDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
   const book = SEED_BOOKS.find((b) => b.id === id)
+  const { sessions: upcomingSessions, loading: sessionsLoading } = useBookSessions(id)
+  const [requestSent, setRequestSent] = useState(false)
+  const [requesting, setRequesting] = useState(false)
   const narrators = SEED_NARRATORS.filter((n) => n.book_ids?.includes(id))
 
   if (!book) {
@@ -268,6 +279,83 @@ export function BookDetail() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Upcoming group sessions */}
+      {upcomingSessions.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-4">
+            Upcoming sessions <span className="text-muted font-normal">({upcomingSessions.length})</span>
+          </h2>
+          <div className="space-y-3">
+            {upcomingSessions.map((session) => {
+              const attendeeCount = session.attendees?.length || 0
+              const seatsLeft = session.max_attendees - attendeeCount
+              const isFull = seatsLeft <= 0
+              const alreadyJoined = session.attendees?.some((a) => a.reader_id === user?.id)
+              return (
+                <div key={session.id} className="p-4 rounded-xl border border-border flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium">{session.narrator?.name}</span>
+                      <Badge variant={session.type === 'group' ? 'highlight' : 'muted'}>
+                        {session.type === 'group' ? <><Users size={12} /> Group</> : '1:1'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted">
+                      <span className="flex items-center gap-1"><Calendar size={12} /> {format(new Date(session.scheduled_at), 'EEE, MMM d · h:mm a')}</span>
+                      <span className="flex items-center gap-1"><Clock size={12} /> {session.duration_minutes} min</span>
+                      {session.type === 'group' && (
+                        <span className="flex items-center gap-1"><Users size={12} /> {attendeeCount}/{session.max_attendees}</span>
+                      )}
+                    </div>
+                  </div>
+                  {alreadyJoined ? (
+                    <Badge variant="success">Joined</Badge>
+                  ) : isFull ? (
+                    <Badge variant="muted">Full</Badge>
+                  ) : (
+                    <Button size="sm" onClick={async () => {
+                      if (!user) { navigate('/login'); return }
+                      await supabase.from('session_attendees').insert({
+                        session_id: session.id,
+                        reader_id: user.id,
+                      })
+                      window.location.reload()
+                    }}>
+                      Join
+                    </Button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Request a session */}
+      {user && (
+        <div className="mb-8 p-4 rounded-xl border border-dashed border-border flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Want to discuss this book?</p>
+            <p className="text-xs text-muted">Request a session and narrators will be notified.</p>
+          </div>
+          {requestSent ? (
+            <Badge variant="success">Request sent</Badge>
+          ) : (
+            <Button size="sm" variant="outline" disabled={requesting} onClick={async () => {
+              setRequesting(true)
+              await supabase.from('session_requests').insert({
+                reader_id: user.id,
+                book_id: id,
+              })
+              setRequestSent(true)
+              setRequesting(false)
+            }}>
+              {requesting ? <Loader2 size={14} className="animate-spin" /> : <><MessageSquare size={14} className="mr-1" /> Request session</>}
+            </Button>
+          )}
         </div>
       )}
 

@@ -1,18 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Video, Star, Clock, BookOpen, Calendar, User, Headphones, Mic, Settings } from 'lucide-react'
+import { Video, Star, Clock, BookOpen, Calendar, User, Headphones, Mic, Settings, Users } from 'lucide-react'
 import { format, isPast, isToday, isTomorrow } from 'date-fns'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
-import { StarRating } from '../components/ui/StarRating'
 import { useAuthStore } from '../stores/authStore'
-import { useBookings } from '../hooks/useBookings'
+import { useSessions } from '../hooks/useSessions'
 
 function SessionCard({ session, currentUserId }) {
-  const isReader = session.reader_id === currentUserId
-  const otherPerson = isReader ? session.narrator : session.reader
+  const isNarrator = session.narrator_id === currentUserId
   const isUpcoming = !isPast(new Date(session.scheduled_at))
-  const hasReview = session.review?.length > 0
+  const attendeeCount = session.attendees?.length || 0
 
   const dateLabel = (() => {
     const d = new Date(session.scheduled_at)
@@ -37,9 +35,15 @@ function SessionCard({ session, currentUserId }) {
             <Badge variant={isUpcoming ? 'success' : session.status === 'completed' ? 'muted' : 'default'}>
               {isUpcoming ? 'Upcoming' : session.status}
             </Badge>
+            {session.type === 'group' && (
+              <Badge variant="highlight"><Users size={10} /> {attendeeCount}/{session.max_attendees}</Badge>
+            )}
           </div>
           <p className="text-xs text-muted">
-            {isReader ? 'with' : 'for'} {otherPerson?.name || 'Unknown'} · {isReader ? 'Listening' : 'Narrating'}
+            {isNarrator
+              ? `Narrating · ${attendeeCount} attendee${attendeeCount !== 1 ? 's' : ''}`
+              : `with ${session.narrator?.name || 'Unknown'} · Listening`
+            }
           </p>
           <div className="flex items-center gap-3 mt-1.5 text-xs text-muted">
             <span className="flex items-center gap-1">
@@ -55,15 +59,10 @@ function SessionCard({ session, currentUserId }) {
             <a href={session.meeting_link} target="_blank" rel="noopener noreferrer">
               <Button size="sm"><Video size={14} className="mr-1" /> Join</Button>
             </a>
-          ) : session.status === 'completed' && !hasReview && isReader ? (
+          ) : session.status === 'completed' && !isNarrator ? (
             <Link to={`/dashboard/review/${session.id}`}>
               <Button size="sm" variant="outline"><Star size={14} className="mr-1" /> Review</Button>
             </Link>
-          ) : hasReview ? (
-            <Badge variant="muted">
-              <Star size={12} className="fill-highlight text-highlight" />
-              {session.review[0].rating}
-            </Badge>
           ) : null}
         </div>
       </div>
@@ -93,7 +92,7 @@ function EmptyState({ message, cta, onClick }) {
 
 export function Dashboard() {
   const { user, profile } = useAuthStore()
-  const { bookings, loading, upcoming, completed, asListener, asNarrator, listenerStats, narratorStats } = useBookings()
+  const { sessions, loading, upcoming, completed, asListener, asNarrator, narratorStats, listenerStats } = useSessions()
   const navigate = useNavigate()
 
   const showNarrator = profile?.role === 'narrator' || profile?.role === 'both'
@@ -118,7 +117,6 @@ export function Dashboard() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Dashboard</h1>
@@ -136,7 +134,6 @@ export function Dashboard() {
         </Link>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-surface rounded-lg p-1 border border-border overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -154,15 +151,10 @@ export function Dashboard() {
         <div className="text-center py-12 text-muted text-sm">Loading sessions...</div>
       ) : (
         <>
-          {/* Schedule tab */}
           {tab === 'schedule' && (
             <div className="space-y-3">
-              {bookings.length === 0 ? (
-                <EmptyState
-                  message="No sessions yet"
-                  cta="Browse books"
-                  onClick={() => navigate('/books')}
-                />
+              {sessions.length === 0 ? (
+                <EmptyState message="No sessions yet" cta="Browse books" onClick={() => navigate('/books')} />
               ) : (
                 <>
                   {upcoming.length > 0 && (
@@ -186,13 +178,11 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* As Listener tab */}
           {tab === 'listener' && (
             <div>
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 <StatCard icon={Headphones} label="Sessions" value={listenerStats.totalSessions} />
                 <StatCard icon={BookOpen} label="Books" value={listenerStats.booksDiscussed} />
-                <StatCard icon={Star} label="Avg Rating" value={listenerStats.totalSessions > 0 ? listenerStats.avgRating.toFixed(1) : '—'} />
               </div>
               <div className="space-y-2">
                 {asListener.length === 0 ? (
@@ -204,13 +194,12 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* As Narrator tab */}
           {tab === 'narrator' && (
             <div>
               <div className="grid grid-cols-3 gap-3 mb-6">
                 <StatCard icon={Mic} label="Sessions" value={narratorStats.totalSessions} />
                 <StatCard icon={User} label="Readers" value={narratorStats.uniqueReaders} />
-                <StatCard icon={Star} label="Avg Rating" value={narratorStats.totalSessions > 0 ? narratorStats.avgRating.toFixed(1) : '—'} />
+                <StatCard icon={Users} label="Attendees" value={narratorStats.totalAttendees} />
               </div>
               <div className="space-y-2">
                 {asNarrator.length === 0 ? (

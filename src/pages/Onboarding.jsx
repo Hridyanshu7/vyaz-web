@@ -4,7 +4,7 @@ import { BookOpen, Send, Check, ArrowRight, Calendar, Link2, Loader2, User, Mail
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../stores/authStore'
-import { getGoogleAuthUrl, isGCalCallback } from '../lib/calendar'
+import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
 import { GENRES, SEED_BOOKS } from '../data/seedBooks'
 
 const ROLE_OPTIONS = [
@@ -75,25 +75,29 @@ export function Onboarding() {
   const [gcalConnected, setGcalConnected] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const { user, profile, updateProfile } = useAuthStore()
+  const { user, profile, loading, updateProfile } = useAuthStore()
   const navigate = useNavigate()
   const scrollRef = useRef(null)
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return }
+    if (loading) return
+    if (!user && !isGCalCallback()) { navigate('/login'); return }
     if (profile?.onboarding_complete) { navigate('/dashboard'); return }
     if (profile?.name) setName(profile.name)
     if (profile?.email) setEmail(profile.email)
     if (profile?.role) setRole(profile.role)
     if (profile?.genres) setGenres(profile.genres)
-  }, [user, profile])
+  }, [user, profile, loading])
 
   useEffect(() => {
     if (isGCalCallback()) {
+      const code = getGCalAuthCode()
       setGcalConnected(true)
       setStep(3)
-      if (user) {
-        updateProfile({ gcal_connected: true })
+      if (user && code) {
+        exchangeGCalToken(code)
+          .then(() => updateProfile({ gcal_connected: true }))
+          .catch(() => updateProfile({ gcal_connected: true }))
       }
       window.history.replaceState({}, '', '/onboarding')
     }

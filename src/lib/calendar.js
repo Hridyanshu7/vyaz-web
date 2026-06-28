@@ -1,5 +1,7 @@
+import { supabase } from './supabase'
+
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events'
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy'
 
 export function getGoogleAuthUrl() {
   const redirectUri = `${window.location.origin}${window.location.pathname}`
@@ -24,27 +26,41 @@ export function getGCalAuthCode() {
   return new URLSearchParams(window.location.search).get('code')
 }
 
-export async function createCalendarEvent({ accessToken, title, description, startTime, endTime, attendeeEmail }) {
-  const event = {
-    summary: `Tome: ${title}`,
-    description,
-    start: { dateTime: startTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-    end: { dateTime: endTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-    conferenceData: {
-      createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: 'hangoutsMeet' } },
-    },
-    attendees: attendeeEmail ? [{ email: attendeeEmail }] : [],
-  }
+async function callGCalFunction(body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
 
-  const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(event),
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gcal`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  )
+
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Edge function call failed')
+  return data
+}
+
+export async function exchangeGCalToken(code) {
+  const redirectUri = `${window.location.origin}${window.location.pathname}`
+  return callGCalFunction({ action: 'exchange-token', code, redirectUri })
+}
+
+export async function createSessionEvent(sessionId) {
+  return callGCalFunction({ action: 'create-event', sessionId })
+}
+
+export async function getNarratorAvailability(narratorId, startDate, endDate) {
+  return callGCalFunction({
+    action: 'get-availability',
+    narratorId,
+    startDate,
+    endDate,
   })
-
-  if (!res.ok) throw new Error('Failed to create calendar event')
-  return res.json()
 }
