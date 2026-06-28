@@ -4,3 +4,4 @@ dist
 .env.local
 src/data/*-raw.json
 .DS_Store
+client_secret_*.json
