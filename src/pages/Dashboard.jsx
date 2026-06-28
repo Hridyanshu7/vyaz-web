@@ -5,6 +5,7 @@ import { format, isPast, isToday, isTomorrow } from 'date-fns'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
+import { useSignupModal } from '../hooks/useSignupModal'
 import { useSessions } from '../hooks/useSessions'
 
 function SessionCard({ session, currentUserId }) {
@@ -110,7 +111,7 @@ export function Dashboard() {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <h2 className="text-xl font-bold mb-2">Sign in to view your dashboard</h2>
-        <Button onClick={() => navigate('/login')} className="mt-4">Log in</Button>
+        <Button onClick={() => useSignupModal.getState().show()} className="mt-4">Sign up</Button>
       </div>
     )
   }

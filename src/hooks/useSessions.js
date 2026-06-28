@@ -112,11 +112,13 @@ export function useBookSessions(bookId) {
           attendees:session_attendees(id, reader_id)
         `)
         .eq('book_id', bookId)
-        .in('status', ['scheduled', 'open'])
+        .eq('type', 'group')
+        .eq('status', 'open')
         .gt('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
 
-      setSessions(data || [])
+      const withSeats = (data || []).filter((s) => (s.attendees?.length || 0) < s.max_attendees)
+      setSessions(withSeats)
     } catch {
       setSessions([])
     }

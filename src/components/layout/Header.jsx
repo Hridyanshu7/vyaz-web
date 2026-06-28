@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Menu, X, BookOpen, User, LogOut, Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { useAuthStore } from '../../stores/authStore'
+import { useSignupModal } from '../../hooks/useSignupModal'
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, profile, signOut } = useAuthStore()
   const navigate = useNavigate()
+  const showSignup = useSignupModal((s) => s.show)
 
   const handleSignOut = async () => {
     await signOut()
@@ -46,7 +48,7 @@ export function Header() {
               </div>
             </>
           ) : (
-            <Button size="sm" onClick={() => navigate('/login')}>
+            <Button size="sm" onClick={showSignup}>
               Sign in
             </Button>
           )}
