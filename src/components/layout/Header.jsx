@@ -22,7 +22,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-lg">
           <BookOpen size={22} className="text-highlight" />
-          Vyas
+          Vyaz
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">

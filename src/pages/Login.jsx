@@ -76,7 +76,7 @@ export function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <BookOpen size={32} className="text-highlight mx-auto mb-3" />
-          <h1 className="text-2xl font-bold">Welcome to Vyas</h1>
+          <h1 className="text-2xl font-bold">Welcome to Vyaz</h1>
           <p className="text-sm text-muted mt-1">Sign in to get started</p>
         </div>
 

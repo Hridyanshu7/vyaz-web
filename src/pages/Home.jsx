@@ -117,11 +117,11 @@ export function Home() {
       {/* ===== WHY VYAS ===== */}
       <section className="border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-16">
-          <h2 className="text-xl font-bold text-center mb-10">Why Vyas?</h2>
+          <h2 className="text-xl font-bold text-center mb-10">Why Vyaz?</h2>
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <div className="p-5 rounded-xl border border-border">
               <h3 className="font-semibold text-sm mb-1">Not a summary. A conversation.</h3>
-              <p className="text-xs text-muted leading-relaxed">Blinkist gives you bullet points. YouTube gives you a monologue. Vyas gives you a real person who answers your specific questions.</p>
+              <p className="text-xs text-muted leading-relaxed">Blinkist gives you bullet points. YouTube gives you a monologue. Vyaz gives you a real person who answers your specific questions.</p>
             </div>
             <div className="p-5 rounded-xl border border-border">
               <h3 className="font-semibold text-sm mb-1">Ask what a book can't answer.</h3>
@@ -129,7 +129,7 @@ export function Home() {
             </div>
             <div className="p-5 rounded-xl border border-border">
               <h3 className="font-semibold text-sm mb-1">30 minutes, not 30 hours.</h3>
-              <p className="text-xs text-muted leading-relaxed">The average nonfiction book takes 6+ hours to read. A Vyas session gets you the substance in one focused conversation.</p>
+              <p className="text-xs text-muted leading-relaxed">The average nonfiction book takes 6+ hours to read. A Vyaz session gets you the substance in one focused conversation.</p>
             </div>
             <div className="p-5 rounded-xl border border-border">
               <h3 className="font-semibold text-sm mb-1">Decide if it's worth reading.</h3>

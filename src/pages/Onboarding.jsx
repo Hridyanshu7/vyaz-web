@@ -132,7 +132,7 @@ export function Onboarding() {
         {step === 0 && (
           <div>
             <ChatBubble>
-              Welcome to Vyas! Let's get you set up. What should we call you?
+              Welcome to Vyaz! Let's get you set up. What should we call you?
             </ChatBubble>
             <div className="pl-11 space-y-4">
               <Input
@@ -165,7 +165,7 @@ export function Onboarding() {
         {step === 1 && (
           <div>
             <ChatBubble>
-              Nice to meet you, {name}! How do you want to use Vyas?
+              Nice to meet you, {name}! How do you want to use Vyaz?
             </ChatBubble>
             <div className="pl-11 space-y-3">
               {ROLE_OPTIONS.map((opt) => (

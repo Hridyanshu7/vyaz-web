@@ -5,7 +5,7 @@ export const SEED_BOOKS = enrichedBooks
 export const GENRES = [...new Set(enrichedBooks.map((b) => b.genre).filter(Boolean))].sort()
 
 export const SEED_NARRATORS = [
-  { id: 'ab9c0e99-4aac-4fc0-a3eb-1153510878d6', name: 'Hridyanshu', bio: 'Founder of Vyas. Happy to discuss any book on the platform.', avatar_url: null, role: 'both', book_ids: [
+  { id: 'ab9c0e99-4aac-4fc0-a3eb-1153510878d6', name: 'Hridyanshu', bio: 'Founder of Vyaz. Happy to discuss any book on the platform.', avatar_url: null, role: 'both', book_ids: [
     '6751a33c-f1b7-4a75-af87-f9724f45401b', // Sapiens
     '095302ed-a638-4388-9fc3-697d30b14e04', // Atomic Habits
     '07a921c6-0ed7-4ab1-9757-b2115bc6901d', // Thinking Fast and Slow

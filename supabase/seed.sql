@@ -1,4 +1,4 @@
--- Vyas: Seed 20 enriched books
+-- Vyaz: Seed 20 enriched books
 -- Run this in Supabase SQL Editor after running 001_initial_schema.sql
 
 INSERT INTO books (title, author, cover_url, description, genre, page_count, isbn, amazon_data, goodreads_data)
