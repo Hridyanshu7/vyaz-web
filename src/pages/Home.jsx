@@ -147,8 +147,12 @@ export function Home() {
             <p className="text-sm text-muted text-center mb-8">Real people who've read the books and love discussing them</p>
             <div className="max-w-md mx-auto p-6 rounded-xl border border-border">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center">
-                  <User size={20} className="text-muted" />
+                <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center overflow-hidden">
+                  {founderNarrator.avatar_url ? (
+                    <img src={founderNarrator.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={20} className="text-muted" />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-semibold">{founderNarrator.name}</h3>

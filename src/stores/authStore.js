@@ -26,6 +26,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   fetchProfile: async (userId) => {
+    const { user } = get()
     let { data } = await supabase
       .from('profiles')
       .select('*')
@@ -39,6 +40,23 @@ export const useAuthStore = create((set, get) => ({
         .select()
         .single()
       data = created
+    }
+
+    const meta = user?.user_metadata
+    if (meta && data) {
+      const updates = {}
+      if (!data.name && meta.full_name) updates.name = meta.full_name
+      if (!data.email && meta.email) updates.email = meta.email
+      if (!data.avatar_url && meta.avatar_url) updates.avatar_url = meta.avatar_url
+      if (Object.keys(updates).length > 0) {
+        const { data: updated } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .select()
+          .single()
+        if (updated) data = updated
+      }
     }
 
     set({ profile: data })

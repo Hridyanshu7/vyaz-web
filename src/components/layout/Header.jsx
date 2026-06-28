@@ -39,7 +39,11 @@ export function Header() {
               </Link>
               <div className="flex items-center gap-3">
                 <Link to="/profile" className="flex items-center gap-1.5 text-sm hover:text-highlight transition-colors">
-                  <User size={16} />
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                  ) : (
+                    <User size={16} />
+                  )}
                   {profile?.name || 'Profile'}
                 </Link>
                 <button onClick={handleSignOut} className="p-1.5 text-muted hover:text-foreground cursor-pointer">
