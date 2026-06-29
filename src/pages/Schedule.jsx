@@ -87,7 +87,11 @@ export function Schedule() {
 
   if (!user) {
     useSignupModal.getState().show({ type: 'gist', bookId, narratorId })
-    return null
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <p className="text-sm text-muted">Sign in to book your session...</p>
+      </div>
+    )
   }
 
   if (booking) {

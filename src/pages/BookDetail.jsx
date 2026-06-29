@@ -10,6 +10,7 @@ import { useBookStore } from '../stores/bookStore'
 import { useBookSessions } from '../hooks/useSessions'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
+import { BookingModal } from '../components/BookingModal'
 import { supabase } from '../lib/supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -36,6 +37,8 @@ export function BookDetail() {
   const [expandedCard, setExpandedCard] = useState(null)
   const [requestSent, setRequestSent] = useState(false)
   const [requesting, setRequesting] = useState(false)
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [bookingType, setBookingType] = useState('one_on_one')
 
   if (!book) {
     return (
@@ -55,14 +58,16 @@ export function BookDetail() {
   const firstNarrator = narrators[0]
 
   const handleBookGist = () => {
-    if (!user) { showSignup({ type: 'gist', bookId: id, narratorId: firstNarrator?.id }); return }
-    if (firstNarrator) navigate(`/book/${id}/narrator/${firstNarrator.id}/schedule`)
+    if (!user) { showSignup({ type: 'gist', bookId: id }); return }
+    setBookingType('one_on_one')
+    setBookingOpen(true)
   }
 
   const handleBookChapter = (e, chapterNum) => {
     e.stopPropagation()
-    if (!user) { showSignup({ type: 'chapter', bookId: id, narratorId: firstNarrator?.id }); return }
-    if (firstNarrator) navigate(`/book/${id}/narrator/${firstNarrator.id}/schedule`)
+    if (!user) { showSignup({ type: 'chapter', bookId: id }); return }
+    setBookingType('one_on_one')
+    setBookingOpen(true)
   }
 
   return (
@@ -261,9 +266,12 @@ export function BookDetail() {
                       ) : (
                         <Button size="sm" onClick={async () => {
                           if (!user) { showSignup({ type: 'join', sessionId: session.id, bookId: id }); return }
+                          if (attendeeCount >= session.max_attendees) { alert('This session is full'); return }
                           await supabase.from('session_attendees').insert({ session_id: session.id, reader_id: user.id })
                           window.location.reload()
-                        }}>Join</Button>
+                        }} disabled={attendeeCount >= session.max_attendees}>
+                        {attendeeCount >= session.max_attendees ? 'Full' : 'Join'}
+                      </Button>
                       )}
                     </div>
                   )
@@ -311,6 +319,14 @@ export function BookDetail() {
 
         </div>
       </div>
+
+      {/* Booking Modal */}
+      <BookingModal
+        open={bookingOpen}
+        onClose={() => setBookingOpen(false)}
+        bookId={id}
+        sessionType={bookingType}
+      />
     </div>
   )
 }

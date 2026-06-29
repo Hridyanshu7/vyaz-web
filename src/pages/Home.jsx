@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, BookOpen, Users, Calendar, Star, User } from 'lucide-react'
+import { ArrowRight, BookOpen, Users, Calendar, Clock, Star, User } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { StarRating } from '../components/ui/StarRating'
@@ -9,6 +9,9 @@ import { BookSearch } from '../components/books/BookSearch'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
+import { useUpcomingSessions } from '../hooks/useUpcomingSessions'
+import { format } from 'date-fns'
+import { supabase } from '../lib/supabase'
 
 export function Home() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -17,6 +20,7 @@ export function Home() {
   const navigate = useNavigate()
   const showSignup = useSignupModal((s) => s.show)
   const { books, narrators, loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
+  const { sessions: upcomingSessions } = useUpcomingSessions(5)
 
   const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
   const featuredBooks = getFeaturedBooks()
@@ -139,6 +143,66 @@ export function Home() {
         </div>
       </section>
 
+      {/* ===== UPCOMING SESSIONS ===== */}
+      {upcomingSessions.length > 0 && (
+        <section className="border-b border-border">
+          <div className="max-w-6xl mx-auto px-4 py-16">
+            <h2 className="text-xl font-bold text-center mb-2">Upcoming sessions</h2>
+            <p className="text-sm text-muted text-center mb-8">Join a group conversation happening soon</p>
+            <div className="max-w-2xl mx-auto space-y-3">
+              {upcomingSessions.map((session) => {
+                const attendeeCount = session.attendees?.length || 0
+                const seatsLeft = session.max_attendees - attendeeCount
+                const alreadyJoined = session.attendees?.some((a) => a.reader_id === user?.id)
+                return (
+                  <div key={session.id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-foreground/20 transition-colors">
+                    <div className="w-10 h-14 rounded-lg bg-surface border border-border overflow-hidden shrink-0">
+                      {session.book?.cover_url ? (
+                        <img src={session.book.cover_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted" /></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Link to={`/books/${session.book?.id}`} className="text-sm font-medium truncate hover:text-highlight">{session.book?.title}</Link>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted">
+                        <span className="flex items-center gap-1">
+                          {session.narrator?.avatar_url ? (
+                            <img src={session.narrator.avatar_url} alt="" className="w-3.5 h-3.5 rounded-full" />
+                          ) : (
+                            <User size={10} />
+                          )}
+                          {session.narrator?.name}
+                        </span>
+                        <span className="flex items-center gap-1"><Calendar size={10} /> {format(new Date(session.scheduled_at), 'EEE, MMM d · h:mm a')}</span>
+                        <span className="flex items-center gap-1"><Clock size={10} /> {session.duration_minutes} min</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="muted"><Users size={10} /> {seatsLeft} left</Badge>
+                      {alreadyJoined ? (
+                        <Badge variant="success">Joined</Badge>
+                      ) : (
+                        <Button size="sm" onClick={async () => {
+                          if (!user) { showSignup({ type: 'join', sessionId: session.id, bookId: session.book?.id }); return }
+                          if (seatsLeft <= 0) return
+                          await supabase.from('session_attendees').insert({ session_id: session.id, reader_id: user.id })
+                          window.location.reload()
+                        }} disabled={seatsLeft <= 0}>
+                          {seatsLeft <= 0 ? 'Full' : 'Join'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ===== NARRATOR SPOTLIGHT ===== */}
       {founderNarrator && (
         <section className="border-b border-border">
@@ -172,7 +236,11 @@ export function Home() {
               </div>
               <Button size="sm" className="w-full" onClick={() => {
                 const firstBook = founderNarrator.book_ids[0]
-                if (firstBook) navigate(`/book/${firstBook}/narrator/${founderNarrator.id}/schedule`)
+                if (!user) {
+                  showSignup({ type: 'gist', bookId: firstBook })
+                } else if (firstBook) {
+                  navigate(`/books/${firstBook}`)
+                }
               }}>
                 Book a session with {founderNarrator.name.split(' ')[0]} <ArrowRight size={14} className="ml-1" />
               </Button>

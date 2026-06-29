@@ -131,7 +131,11 @@ export function Dashboard() {
 
   if (!user) {
     useSignupModal.getState().show({ type: 'signin' })
-    return null
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <p className="text-sm text-muted">Sign in to view your dashboard...</p>
+      </div>
+    )
   }
 
   return (

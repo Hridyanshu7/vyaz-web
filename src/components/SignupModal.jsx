@@ -51,6 +51,9 @@ export function SignupModal({ open, onClose }) {
     } else if (savedContext && !profile.onboarding_complete && !NEEDS_CALENDAR.includes(savedContext.type)) {
       // signin/getstarted — mark onboarded and redirect immediately
       updateProfile({ onboarding_complete: true }).then(() => completeFlow(savedContext))
+    } else if (savedContext && !profile.onboarding_complete && NEEDS_CALENDAR.includes(savedContext.type) && profile.gcal_connected) {
+      // gist/chapter/join but GCal already connected — mark onboarded and redirect
+      updateProfile({ onboarding_complete: true }).then(() => completeFlow(savedContext))
     } else if (profile.onboarding_complete && !savedContext) {
       onClose()
     }
@@ -159,11 +162,7 @@ export function SignupModal({ open, onClose }) {
       case 'gist':
       case 'chapter':
         onClose()
-        if (ctx.bookId && ctx.narratorId) {
-          navigate(`/book/${ctx.bookId}/narrator/${ctx.narratorId}/schedule`)
-        } else {
-          navigate(`/books/${ctx.bookId}`)
-        }
+        navigate(`/books/${ctx.bookId}`)
         break
       case 'join':
         if (ctx.sessionId && user) {

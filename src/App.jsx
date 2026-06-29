@@ -5,7 +5,6 @@ import { Home } from './pages/Home'
 import { BookBrowse } from './pages/BookBrowse'
 import { BookDetail } from './pages/BookDetail'
 import { NarratorProfile } from './pages/NarratorProfile'
-import { Schedule } from './pages/Schedule'
 import { Dashboard } from './pages/Dashboard'
 import { PostSession } from './pages/PostSession'
 import { AddBook } from './pages/AddBook'
@@ -30,7 +29,6 @@ export default function App() {
           <Route path="/books" element={<BookBrowse />} />
           <Route path="/books/:id" element={<BookDetail />} />
           <Route path="/narrators/:id" element={<NarratorProfile />} />
-          <Route path="/book/:bookId/narrator/:narratorId/schedule" element={<Schedule />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/review/:bookingId" element={<PostSession />} />
           <Route path="/profile" element={<Profile />} />

@@ -32,9 +32,9 @@ export function NarratorCard({ narrator, bookId, isOnline = false, rating = null
           </div>
         )}
       </div>
-      <Link to={bookId ? `/book/${bookId}/narrator/${narrator.id}/schedule` : `/narrators/${narrator.id}`}>
-        <Button size="sm" variant={isOnline ? 'primary' : 'outline'}>
-          {isOnline ? 'Book now' : 'Schedule'}
+      <Link to={`/narrators/${narrator.id}`}>
+        <Button size="sm" variant="outline">
+          View profile
         </Button>
       </Link>
     </div>
