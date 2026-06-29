@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
 import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
 import { useBookStore } from '../stores/bookStore'
+import { useSignupModal } from '../hooks/useSignupModal'
 
 function MultiSelectChips({ options, selected, onToggle }) {
   return (
@@ -37,19 +38,17 @@ export function Profile() {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
   const [genres, setGenres] = useState([])
-  const [calendlyLink, setCalendlyLink] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (loading) return
-    if (!user && !isGCalCallback()) { navigate('/login'); return }
+    if (!user && !isGCalCallback()) { useSignupModal.getState().show({ type: 'signin' }); return }
     if (profile) {
       setName(profile.name || '')
       setEmail(profile.email || '')
       setRole(profile.role || '')
       setGenres(profile.genres || [])
-      setCalendlyLink(profile.calendly_link || '')
     }
   }, [user, profile, loading])
 
@@ -74,7 +73,6 @@ export function Profile() {
         email: email.trim(),
         role,
         genres,
-        calendly_link: calendlyLink.trim() || null,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -159,22 +157,6 @@ export function Profile() {
             )}
           </div>
 
-          {(role === 'narrator' || role === 'both') && (
-            <div className="p-3 rounded-xl border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <Link2 size={16} className="text-muted" />
-                <p className="text-sm font-medium">Calendly</p>
-              </div>
-              <input
-                type="url"
-                placeholder="https://calendly.com/your-name"
-                value={calendlyLink}
-                onChange={(e) => setCalendlyLink(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm
-                  placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-              />
-            </div>
-          )}
         </section>
 
         {/* Save */}

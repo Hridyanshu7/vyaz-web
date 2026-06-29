@@ -29,9 +29,9 @@ A peer-to-peer knowledge-transfer marketplace for books. Connects people who wan
 | Book Detail | `/books/:id` | ✅ Done | Side-by-side Amazon + Goodreads data, narrator list |
 | Add Book | `/add-book` | ✅ Done | Paste Amazon/Goodreads URL → auto-import via Apify |
 | Login | `/login` | ✅ Done | Email magic link + Phone OTP + Google OAuth |
-| Onboarding | `/onboarding` | ✅ Done | 5-step: name → role → genres → GCal/Calendly → complete |
+| Onboarding | `/onboarding` | ✅ Done | 5-step: name → role → genres → GCal/→ complete |
 | Dashboard | `/dashboard` | ✅ Done | Schedule/Listener/Narrator tabs, real Supabase data |
-| Profile | `/profile` | ✅ Done | Edit name, email, role, genres, GCal, Calendly |
+| Profile | `/profile` | ✅ Done | Edit name, email, role, genres, GCal |
 | Schedule | `/book/:bookId/narrator/:narratorId/schedule` | ✅ Done | Week-view slot picker, booking creates Supabase record |
 | Narrator Profile | `/narrators/:id` | ✅ Done | Bio, books, reviews, availability |
 | Post-Session Review | `/dashboard/review/:bookingId` | ✅ Done | Star rating + comment form |
@@ -54,7 +54,7 @@ A peer-to-peer knowledge-transfer marketplace for books. Connects people who wan
 
 ### Integrations
 - Google Calendar OAuth — consent flow built, redirect handling done
-- Calendly — narrator pastes link during onboarding
+- — narrator pastes link during onboarding
 - Apify — Amazon crawler + Goodreads scraper for book import
 
 ---
@@ -129,7 +129,7 @@ src/
 supabase/
 ├── migrations/
 │   ├── 001_initial_schema.sql  — Tables, enums, RLS, indexes
-│   └── 002_user_updates.sql    — Phone, email, calendly, gcal columns
+│   └── 002_user_updates.sql    — Phone, email, gcal columns
 └── seed.sql                    — 20 enriched books INSERT
 
 .env                            — Supabase + Apify + Google credentials (gitignored)

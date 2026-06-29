@@ -34,7 +34,7 @@ export function Home() {
             Skip the reading. Have a narration from someone who understands the next title you're dying to read.
           </p>
           <div className="flex gap-3 mt-8">
-            <Button size="lg" onClick={() => user ? navigate('/books') : showSignup()}>
+            <Button size="lg" onClick={() => user ? navigate('/books') : showSignup({ type: 'getstarted' })}>
               Get started <ArrowRight size={18} className="ml-1" />
             </Button>
             <Button variant="outline" size="lg" onClick={() => {

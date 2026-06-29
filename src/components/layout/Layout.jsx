@@ -11,7 +11,7 @@ export function Layout() {
 
   useEffect(() => {
     if (!loading && user && profile && !profile.onboarding_complete) {
-      show()
+      show({ type: 'signin' })
     }
   }, [loading, user, profile])
 

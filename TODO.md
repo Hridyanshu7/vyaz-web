@@ -16,7 +16,6 @@
 
 - [ ] **Narrator profile enrichment** — Add profession, one-liner bio, credentials, LinkedIn URL to narrator profiles. Capture post-onboarding (not during signup). Show on narrator cards so users can judge credibility.
 - [ ] **Booking notifications** — Send email when someone books a session with a narrator. Send reminder email 1 hour before session. Use Supabase Edge Functions + a transactional email service (Resend/Postmark).
-- [ ] **Calendly integration testing & scoping** — Test the current Calendly link paste flow end-to-end. Scope: should Calendly replace the in-app slot picker for narrators who prefer it? Can we embed Calendly inline or redirect? Define the full Calendly flow for narrator onboarding → availability → booking.
 - [ ] **PROJECT-STATUS.md update** — Current doc is completely outdated (references Tome, local JSON, old architecture). Rewrite to reflect current state: Vyaz branding, Supabase-only data, sessions model, GCal integration, signup modal, Vercel deployment.
 
 ---

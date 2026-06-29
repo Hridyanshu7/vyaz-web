@@ -89,6 +89,15 @@ export const useAuthStore = create((set, get) => ({
     return data
   },
 
+  signInWithLinkedIn: async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'linkedin_oidc',
+      options: { redirectTo: window.location.href },
+    })
+    if (error) throw error
+    return data
+  },
+
   signOut: async () => {
     await supabase.auth.signOut()
     set({ user: null, profile: null, otpSent: false })

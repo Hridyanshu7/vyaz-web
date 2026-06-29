@@ -52,7 +52,7 @@ export function Header() {
               </div>
             </>
           ) : (
-            <Button size="sm" onClick={showSignup}>
+            <Button size="sm" onClick={() => showSignup({ type: 'signin' })}>
               Sign in
             </Button>
           )}

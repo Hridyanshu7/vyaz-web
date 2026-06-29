@@ -72,7 +72,6 @@ export function Onboarding() {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
   const [genres, setGenres] = useState([])
-  const [calendlyLink, setCalendlyLink] = useState('')
   const [gcalConnected, setGcalConnected] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -260,24 +259,6 @@ export function Onboarding() {
                 )}
               </div>
 
-              {/* Calendly (narrators only) */}
-              {(role === 'narrator' || role === 'both') && (
-                <div className="p-4 rounded-xl border border-border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Link2 size={18} className="text-muted" />
-                    <span className="text-sm font-medium">Calendly</span>
-                  </div>
-                  <p className="text-xs text-muted mb-2">Paste your Calendly link so listeners can book sessions with you.</p>
-                  <input
-                    type="url"
-                    placeholder="https://calendly.com/your-name"
-                    value={calendlyLink}
-                    onChange={(e) => setCalendlyLink(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm
-                      placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-                  />
-                </div>
-              )}
 
               {error && <p className="text-sm text-highlight">{error}</p>}
               <div className="flex gap-2">
@@ -285,7 +266,6 @@ export function Onboarding() {
                   disabled={saving}
                   onClick={() => saveAndNext({
                     gcal_connected: gcalConnected,
-                    calendly_link: calendlyLink || null,
                   }, 4)}
                 >
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
@@ -322,11 +302,6 @@ export function Onboarding() {
                 {gcalConnected && (
                   <div className="flex items-center gap-2 text-sm text-green-600">
                     <Calendar size={14} /> Google Calendar connected
-                  </div>
-                )}
-                {calendlyLink && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Link2 size={14} className="text-muted" /> Calendly linked
                   </div>
                 )}
               </div>

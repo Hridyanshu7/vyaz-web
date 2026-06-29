@@ -130,12 +130,8 @@ export function Dashboard() {
   const [tab, setTab] = useState('schedule')
 
   if (!user) {
-    return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <h2 className="text-xl font-bold mb-2">Sign in to view your dashboard</h2>
-        <Button onClick={() => useSignupModal.getState().show()} className="mt-4">Sign up</Button>
-      </div>
-    )
+    useSignupModal.getState().show({ type: 'signin' })
+    return null
   }
 
   return (

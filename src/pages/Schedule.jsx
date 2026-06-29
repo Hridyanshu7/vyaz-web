@@ -86,13 +86,8 @@ export function Schedule() {
   }
 
   if (!user) {
-    return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <h2 className="text-xl font-bold mb-2">Sign in to book a session</h2>
-        <p className="text-sm text-muted mb-6">Create a free account to schedule sessions with narrators.</p>
-        <Button onClick={() => useSignupModal.getState().show()}>Sign up</Button>
-      </div>
-    )
+    useSignupModal.getState().show({ type: 'gist', bookId, narratorId })
+    return null
   }
 
   if (booking) {

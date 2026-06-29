@@ -1,61 +1,59 @@
 import { useState, useEffect } from 'react'
-import { X, Phone, ArrowRight, Loader2, Calendar, Link2, Check, BookOpen, Plus, Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, Phone, ArrowRight, Loader2, Calendar, Check, BookOpen } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
-import { Badge } from './ui/Badge'
 import { useAuthStore } from '../stores/authStore'
+import { useSignupModal } from '../hooks/useSignupModal'
 import { supabase } from '../lib/supabase'
 import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
-import { importBookFromUrl } from '../lib/bookImport'
-import { useBookStore } from '../stores/bookStore'
+
+const NEEDS_CALENDAR = ['gist', 'chapter', 'join']
 
 export function SignupModal({ open, onClose }) {
-  const { user, profile, sendOtp, verifyOtp, signInWithGoogle, updateProfile } = useAuthStore()
-  const { books, addBook: addBookToStore } = useBookStore()
+  const navigate = useNavigate()
+  const { user, profile, sendOtp, verifyOtp, signInWithGoogle, signInWithLinkedIn, updateProfile } = useAuthStore()
+  const context = useSignupModal((s) => s.context)
+
   const [countryCode, setCountryCode] = useState('+91')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
-  const [name, setName] = useState('')
-  const [calendlyLink, setCalendlyLink] = useState('')
   const [gcalConnected, setGcalConnected] = useState(false)
-  const [wantNarrate, setWantNarrate] = useState(false)
-  const [selectedBooks, setSelectedBooks] = useState([])
-  const [bookSearch, setBookSearch] = useState('')
-  const [showBookDropdown, setShowBookDropdown] = useState(false)
-  const [addBookUrl, setAddBookUrl] = useState('')
-  const [addingBook, setAddingBook] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [loginError, setLoginError] = useState('')
 
+  const needsCalendar = NEEDS_CALENDAR.includes(context?.type)
+  const isLoggedIn = !!user
+
+  // Restore context from localStorage after OAuth redirect
   useEffect(() => {
-    const saved = localStorage.getItem('tome_signup')
-    if (saved) {
+    const saved = localStorage.getItem('vyaz_signup_context')
+    if (saved && !context) {
       try {
         const data = JSON.parse(saved)
-        if (data.name) setName(data.name)
-        if (data.calendlyLink) setCalendlyLink(data.calendlyLink)
-        if (data.wantNarrate) setWantNarrate(true)
-        if (data.selectedBooks?.length) setSelectedBooks(data.selectedBooks)
-      } catch { /* ignore */ }
+        useSignupModal.getState().show(data)
+      } catch {}
     }
   }, [])
 
+  // Handle post-auth flow
   useEffect(() => {
-    if (user && profile) {
-      if (profile.name && !name) setName(profile.name)
-      if (profile.gcal_connected) setGcalConnected(true)
-      if (profile.calendly_link && !calendlyLink) setCalendlyLink(profile.calendly_link)
+    if (!user || !profile) return
 
-      if (localStorage.getItem('tome_signup')) {
-        handleComplete()
-      } else if (profile.onboarding_complete) {
-        onClose()
-      }
+    if (profile.gcal_connected) setGcalConnected(true)
+
+    const savedContext = context || JSON.parse(localStorage.getItem('vyaz_signup_context') || 'null')
+
+    if (savedContext && profile.onboarding_complete) {
+      completeFlow(savedContext)
+    } else if (profile.onboarding_complete && !savedContext) {
+      onClose()
     }
   }, [user, profile])
 
+  // Handle GCal callback
   useEffect(() => {
     if (isGCalCallback() && user) {
       const code = getGCalAuthCode()
@@ -68,8 +66,6 @@ export function SignupModal({ open, onClose }) {
   }, [user])
 
   if (!open) return null
-
-  const isLoggedIn = !!user
 
   const fullPhone = `${countryCode}${phoneNumber.replace(/\s/g, '')}`
 
@@ -109,67 +105,89 @@ export function SignupModal({ open, onClose }) {
     setLoading(false)
   }
 
-  const handleAddBookUrl = async () => {
-    if (!addBookUrl.trim()) return
-    setAddingBook(true)
-    try {
-      const book = await importBookFromUrl(addBookUrl, () => {})
-      const saved = await addBookToStore(book)
-      setSelectedBooks((prev) => [...prev, saved.id])
-      setAddBookUrl('')
-    } catch (err) {
-      setError(err.message)
-    }
-    setAddingBook(false)
+  const saveContext = () => {
+    if (context) localStorage.setItem('vyaz_signup_context', JSON.stringify(context))
   }
 
-  const saveFormToStorage = () => {
-    localStorage.setItem('tome_signup', JSON.stringify({
-      name: name.trim(),
-      calendlyLink: calendlyLink.trim(),
-      wantNarrate,
-      selectedBooks,
-    }))
+  const handleGoogleSignIn = () => {
+    saveContext()
+    signInWithGoogle()
+  }
+
+  const handleLinkedInSignIn = () => {
+    saveContext()
+    signInWithLinkedIn()
   }
 
   const handleComplete = async () => {
-    if (!name.trim()) { setError('Please enter your name'); return }
-
-    if (!isLoggedIn) {
-      saveFormToStorage()
-      signInWithGoogle()
+    if (needsCalendar && !gcalConnected) {
+      setError('Please connect Google Calendar to book sessions')
       return
     }
 
     setLoading(true)
     setError('')
     try {
-      await updateProfile({
-        name: name.trim(),
-        role: wantNarrate ? 'both' : 'reader',
-        gcal_connected: gcalConnected,
-        calendly_link: calendlyLink.trim() || null,
-        onboarding_complete: true,
-      })
-      if (wantNarrate && selectedBooks.length > 0) {
-        const inserts = selectedBooks.map((bookId) => ({
-          narrator_id: user.id,
-          book_id: bookId,
-        }))
-        await supabase.from('narrator_books').upsert(inserts, { onConflict: 'narrator_id,book_id' })
-      }
-      localStorage.removeItem('tome_signup')
-      onClose()
+      const updates = { onboarding_complete: true }
+      if (gcalConnected) updates.gcal_connected = true
+
+      await updateProfile(updates)
+      completeFlow(context)
     } catch (err) {
       setError(err.message)
     }
     setLoading(false)
   }
 
-  const filteredCatalog = books.filter((b) =>
-    !selectedBooks.includes(b.id) &&
-    (bookSearch === '' || b.title.toLowerCase().includes(bookSearch.toLowerCase()) || b.author.toLowerCase().includes(bookSearch.toLowerCase()))
-  ).slice(0, 6)
+  const completeFlow = async (ctx) => {
+    localStorage.removeItem('vyaz_signup_context')
+
+    if (!ctx) { onClose(); return }
+
+    switch (ctx.type) {
+      case 'signin':
+        onClose()
+        navigate('/dashboard')
+        break
+      case 'getstarted':
+        onClose()
+        navigate('/books')
+        break
+      case 'gist':
+      case 'chapter':
+        onClose()
+        if (ctx.bookId && ctx.narratorId) {
+          navigate(`/book/${ctx.bookId}/narrator/${ctx.narratorId}/schedule`)
+        } else {
+          navigate(`/books/${ctx.bookId}`)
+        }
+        break
+      case 'join':
+        if (ctx.sessionId && user) {
+          await supabase.from('session_attendees').insert({
+            session_id: ctx.sessionId,
+            reader_id: user.id,
+          })
+        }
+        onClose()
+        window.location.reload()
+        break
+      default:
+        onClose()
+    }
+  }
+
+  // If logged in + onboarding complete + no calendar needed → auto-complete
+  const shouldAutoComplete = isLoggedIn && profile?.onboarding_complete && !needsCalendar
+  if (shouldAutoComplete && context) {
+    completeFlow(context)
+    return null
+  }
+
+  // If logged in + onboarding complete + calendar needed → show calendar step
+  // If logged in + NOT onboarded → show calendar step (for booking flows) or auto-complete (for browse flows)
+  const showCalendarStep = isLoggedIn && needsCalendar && !gcalConnected
+  const showAuthOnly = !isLoggedIn
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -179,7 +197,7 @@ export function SignupModal({ open, onClose }) {
         <div className="sticky top-0 bg-background flex items-center justify-between px-5 py-4 border-b border-border z-10">
           <div className="flex items-center gap-2">
             <BookOpen size={18} className="text-highlight" />
-            <h2 className="font-bold">Join Vyaz</h2>
+            <h2 className="font-bold">Welcome to Vyaz.ai</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer">
             <X size={18} />
@@ -191,239 +209,148 @@ export function SignupModal({ open, onClose }) {
             <div className="bg-highlight/10 text-highlight text-sm px-3 py-2 rounded-lg">{error}</div>
           )}
 
-          {/* ===== SECTION 1: LOG IN ===== */}
-          <div>
-            <p className="text-xs font-medium text-muted uppercase tracking-wider mb-3">
-              {isLoggedIn ? '✓ Logged in' : 'Log in'}
-            </p>
+          {/* ===== AUTH SECTION ===== */}
+          {showAuthOnly && (
+            <>
+              {isLoggedIn ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
+                  <Check size={16} className="text-green-600" />
+                  <span className="text-sm text-green-800">{profile?.email || 'Signed in'}</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted">Sign in to continue</p>
+                  {loginError && (
+                    <div className="bg-highlight/10 text-highlight text-xs px-3 py-2 rounded-lg">{loginError}</div>
+                  )}
 
-            {isLoggedIn ? (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
-                <Check size={16} className="text-green-600" />
-                <span className="text-sm text-green-800">{profile?.email || profile?.phone || 'Signed in'}</span>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-muted">Returning users only</p>
-                {loginError && (
-                  <div className="bg-highlight/10 text-highlight text-xs px-3 py-2 rounded-lg">{loginError}</div>
-                )}
-                <button
-                  onClick={signInWithGoogle}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border border-border bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
-                >
-                  <svg width="18" height="18" viewBox="0 0 48 48">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Continue with Google</span>
-                </button>
-
-                {!otpSent ? (
                   <div className="flex gap-2">
-                    <select
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      className="w-[90px] shrink-0 px-2 py-2 rounded-lg border border-border bg-background text-sm
-                        focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight cursor-pointer"
+                    <button
+                      onClick={handleGoogleSignIn}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
                     >
-                      <option value="+91">🇮🇳 +91</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+61">🇦🇺 +61</option>
-                      <option value="+971">🇦🇪 +971</option>
-                      <option value="+65">🇸🇬 +65</option>
-                      <option value="+49">🇩🇪 +49</option>
-                      <option value="+81">🇯🇵 +81</option>
-                      <option value="+86">🇨🇳 +86</option>
-                      <option value="+55">🇧🇷 +55</option>
-                      <option value="+33">🇫🇷 +33</option>
-                      <option value="+82">🇰🇷 +82</option>
-                      <option value="+234">🇳🇬 +234</option>
-                      <option value="+27">🇿🇦 +27</option>
-                      <option value="+7">🇷🇺 +7</option>
-                      <option value="+62">🇮🇩 +62</option>
-                      <option value="+52">🇲🇽 +52</option>
-                      <option value="+39">🇮🇹 +39</option>
-                      <option value="+34">🇪🇸 +34</option>
-                      <option value="+60">🇲🇾 +60</option>
-                    </select>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/[^\d\s]/g, ''))}
-                      placeholder="98765 43210"
-                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm
-                        placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-                    />
-                    <Button size="sm" disabled={loading || phoneNumber.replace(/\s/g, '').length < 6} onClick={handleSendOtp}>
-                      {loading ? <Loader2 size={14} className="animate-spin" /> : 'Send OTP'}
-                    </Button>
+                      <svg width="16" height="16" viewBox="0 0 48 48">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                      </svg>
+                      <span className="text-sm font-medium text-gray-700">Google</span>
+                    </button>
+                    <button
+                      onClick={handleLinkedInSignIn}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 48 48">
+                        <path fill="#0A66C2" d="M44.45 0H3.55A3.5 3.5 0 000 3.46v41.08A3.5 3.5 0 003.55 48h40.9A3.5 3.5 0 0048 44.54V3.46A3.5 3.5 0 0044.45 0zM14.24 40.9H7.12V18h7.12v22.9zM10.68 14.82a4.12 4.12 0 110-8.24 4.12 4.12 0 010 8.24zM40.9 40.9h-7.09V29.77c0-2.66-.05-6.08-3.7-6.08-3.7 0-4.27 2.9-4.27 5.89V40.9h-7.1V18h6.83v3.13h.1a7.48 7.48 0 016.73-3.7c7.2 0 8.53 4.74 8.53 10.9v12.57z"/>
+                      </svg>
+                      <span className="text-sm font-medium text-gray-700">LinkedIn</span>
+                    </button>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                      placeholder="123456"
-                      className="w-full text-center text-xl tracking-[0.5em] py-2.5 rounded-lg border border-border bg-background
-                        placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-                    />
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+                    <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted">or</span></div>
+                  </div>
+
+                  {!otpSent ? (
                     <div className="flex gap-2">
-                      <Button className="flex-1" disabled={loading || otp.length !== 6} onClick={handleVerifyOtp}>
-                        {loading ? <Loader2 size={14} className="animate-spin" /> : 'Verify'}
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="w-[90px] shrink-0 px-2 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight cursor-pointer"
+                      >
+                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+49">🇩🇪 +49</option>
+                        <option value="+81">🇯🇵 +81</option>
+                        <option value="+86">🇨🇳 +86</option>
+                        <option value="+55">🇧🇷 +55</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+82">🇰🇷 +82</option>
+                        <option value="+234">🇳🇬 +234</option>
+                        <option value="+27">🇿🇦 +27</option>
+                        <option value="+7">🇷🇺 +7</option>
+                        <option value="+62">🇮🇩 +62</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+39">🇮🇹 +39</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+60">🇲🇾 +60</option>
+                      </select>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value.replace(/[^\d\s]/g, ''))}
+                        placeholder="98765 43210"
+                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
+                      />
+                      <Button size="sm" disabled={loading || phoneNumber.replace(/\s/g, '').length < 6} onClick={handleSendOtp}>
+                        {loading ? <Loader2 size={14} className="animate-spin" /> : 'Send OTP'}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setOtpSent(false)}>Change</Button>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ===== DIVIDER ===== */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted uppercase tracking-wider">New here? Set up your profile</span></div>
-          </div>
-
-          {/* ===== SECTION 2: PROFILE / ONBOARDING ===== */}
-          <div className="space-y-4">
-            {/* Name */}
-            <Input
-              label="Your name"
-              placeholder="e.g., Priya Sharma"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-
-            {/* Calendar */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Calendar</label>
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-muted" />
-                  <span className="text-sm">Google Calendar</span>
-                </div>
-                {gcalConnected ? (
-                  <span className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Connected</span>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => { window.location.href = getGoogleAuthUrl() }}>
-                    Connect
-                  </Button>
-                )}
-              </div>
-              <div className="relative">
-                <Link2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  type="url"
-                  placeholder="Or paste Calendly link"
-                  value={calendlyLink}
-                  onChange={(e) => setCalendlyLink(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm
-                    placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-                />
-              </div>
-            </div>
-
-            {/* Narrator toggle */}
-            <div
-              onClick={() => setWantNarrate(!wantNarrate)}
-              className={`p-3 rounded-lg border cursor-pointer transition-colors
-                ${wantNarrate ? 'border-highlight bg-highlight/5' : 'border-border hover:border-foreground/20'}`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">I want to narrate books</p>
-                  <p className="text-xs text-muted">Share your knowledge with others</p>
-                </div>
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
-                  ${wantNarrate ? 'bg-highlight border-highlight' : 'border-border'}`}>
-                  {wantNarrate && <Check size={12} className="text-white" />}
-                </div>
-              </div>
-            </div>
-
-            {/* Book selection */}
-            {wantNarrate && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Which books can you narrate?</label>
-
-                {selectedBooks.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedBooks.map((bookId) => {
-                      const book = books.find((b) => b.id === bookId)
-                      return book ? (
-                        <Badge key={bookId} variant="highlight" className="cursor-pointer" onClick={() =>
-                          setSelectedBooks((prev) => prev.filter((id) => id !== bookId))
-                        }>
-                          {book.title.split(':')[0]} ✕
-                        </Badge>
-                      ) : null
-                    })}
-                  </div>
-                )}
-
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                  <input
-                    type="text"
-                    placeholder="Search books..."
-                    value={bookSearch}
-                    onChange={(e) => { setBookSearch(e.target.value); setShowBookDropdown(true) }}
-                    onFocus={() => setShowBookDropdown(true)}
-                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm
-                      placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-                  />
-                  {showBookDropdown && filteredCatalog.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-20 max-h-[200px] overflow-y-auto">
-                      {filteredCatalog.map((book) => (
-                        <button
-                          key={book.id}
-                          onClick={() => {
-                            setSelectedBooks((prev) => [...prev, book.id])
-                            setBookSearch('')
-                            setShowBookDropdown(false)
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-surface transition-colors cursor-pointer border-b border-border last:border-b-0"
-                        >
-                          <span className="font-medium">{book.title.split(':')[0]}</span>
-                          <span className="text-muted"> — {book.author}</span>
-                        </button>
-                      ))}
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="123456"
+                        className="w-full text-center text-xl tracking-[0.5em] py-2.5 rounded-lg border border-border bg-background placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
+                      />
+                      <div className="flex gap-2">
+                        <Button className="flex-1" disabled={loading || otp.length !== 6} onClick={handleVerifyOtp}>
+                          {loading ? <Loader2 size={14} className="animate-spin" /> : 'Verify'}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setOtpSent(false)}>Change</Button>
+                      </div>
                     </div>
                   )}
                 </div>
+              )}
+            </>
+          )}
 
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Plus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                    <input
-                      type="url"
-                      placeholder="Add book via Amazon/Goodreads URL"
-                      value={addBookUrl}
-                      onChange={(e) => setAddBookUrl(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm
-                        placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
-                    />
-                  </div>
-                  <Button size="sm" variant="outline" disabled={!addBookUrl.trim() || addingBook} onClick={handleAddBookUrl}>
-                    {addingBook ? <Loader2 size={14} className="animate-spin" /> : 'Add'}
-                  </Button>
-                </div>
+          {/* ===== CALENDAR STEP (only for booking flows) ===== */}
+          {isLoggedIn && showCalendarStep && (
+            <>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 mb-2">
+                <Check size={16} className="text-green-600" />
+                <span className="text-sm text-green-800">Signed in as {profile?.name || profile?.email}</span>
               </div>
-            )}
 
-            {/* Complete */}
-            <Button className="w-full" disabled={!name.trim() || loading} onClick={handleComplete}>
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <>Join the wave! <ArrowRight size={16} className="ml-1" /></>}
-            </Button>
-          </div>
+              <p className="text-sm font-medium">Connect your calendar to book sessions</p>
+              <p className="text-xs text-muted mb-2">So we can create events and send you reminders.</p>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-muted" />
+                    <span className="text-sm">Google Calendar</span>
+                  </div>
+                  {gcalConnected ? (
+                    <span className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Connected</span>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => {
+                      if (context) localStorage.setItem('vyaz_signup_context', JSON.stringify(context))
+                      window.location.href = getGoogleAuthUrl()
+                    }}>
+                      Connect
+                    </Button>
+                  )}
+                </div>
+                </div>
+
+              <Button className="w-full" disabled={loading} onClick={handleComplete}>
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

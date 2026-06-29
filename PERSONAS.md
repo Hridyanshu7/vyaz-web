@@ -52,7 +52,7 @@ A bibliophile who reads voraciously and has deeply internalized one or more titl
 
 **How they use Vyaz:**
 1. Sign up as narrator → go through verification for each title
-2. Set availability → connect Google Calendar / Calendly
+2. Set availability → connect Google Calendar
 3. Receive session bookings → host 1:1 or group sessions
 4. Build ratings and reviews → attract more listeners
 5. Get paid per session (future)

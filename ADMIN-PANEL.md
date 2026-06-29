@@ -41,7 +41,7 @@ The admin panel is a protected section of Vyaz (`/admin`) accessible only to use
 - Sort by signup date, session count
 
 **Actions per user:**
-- View full profile (name, email, phone, avatar, bio, genres, calendly link, gcal status)
+- View full profile (name, email, phone, avatar, bio, genres link, gcal status)
 - Change role (reader → narrator → both → admin)
 - View their sessions (as narrator and as listener)
 - View their reviews (given and received)
