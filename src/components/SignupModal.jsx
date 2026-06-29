@@ -48,6 +48,9 @@ export function SignupModal({ open, onClose }) {
 
     if (savedContext && profile.onboarding_complete) {
       completeFlow(savedContext)
+    } else if (savedContext && !profile.onboarding_complete && !NEEDS_CALENDAR.includes(savedContext.type)) {
+      // signin/getstarted — mark onboarded and redirect immediately
+      updateProfile({ onboarding_complete: true }).then(() => completeFlow(savedContext))
     } else if (profile.onboarding_complete && !savedContext) {
       onClose()
     }

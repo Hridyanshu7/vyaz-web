@@ -8,8 +8,6 @@ import { NarratorProfile } from './pages/NarratorProfile'
 import { Schedule } from './pages/Schedule'
 import { Dashboard } from './pages/Dashboard'
 import { PostSession } from './pages/PostSession'
-import { Onboarding } from './pages/Onboarding'
-import { Login } from './pages/Login'
 import { AddBook } from './pages/AddBook'
 import { Profile } from './pages/Profile'
 import { useAuthStore } from './stores/authStore'
@@ -36,8 +34,6 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/review/:bookingId" element={<PostSession />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/login" element={<Login />} />
           <Route path="/add-book" element={<AddBook />} />
         </Route>
       </Routes>
