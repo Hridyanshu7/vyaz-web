@@ -525,6 +525,65 @@ function GenreTags() {
 // ─────────────────────────────────────────
 // 5. CHAPTERS
 // ─────────────────────────────────────────
+function GeminiSettings() {
+  const [apiKey, setApiKey] = useState('')
+  const [prompt, setPrompt] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    supabase.from('platform_settings')
+      .select('key, value')
+      .in('key', ['gemini_api_key', 'gemini_chapters_prompt'])
+      .then(({ data }) => {
+        ;(data || []).forEach((r) => {
+          if (r.key === 'gemini_api_key') setApiKey(r.value)
+          if (r.key === 'gemini_chapters_prompt') setPrompt(r.value)
+        })
+      })
+  }, [])
+
+  const save = async () => {
+    setSaving(true)
+    await Promise.all([
+      supabase.from('platform_settings').upsert({ key: 'gemini_api_key', value: apiKey, updated_at: new Date().toISOString() }),
+      supabase.from('platform_settings').upsert({ key: 'gemini_chapters_prompt', value: prompt, updated_at: new Date().toISOString() }),
+    ])
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="p-3 rounded-xl border border-border bg-surface mb-4 space-y-3">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted">Gemini Settings</p>
+      <div>
+        <label className="text-xs text-muted mb-1 block">API Key</label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="AIza..."
+          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono"
+        />
+      </div>
+      <div>
+        <label className="text-xs text-muted mb-1 block">Prompt — use <code className="bg-background px-1 rounded">{'{title}'}</code> and <code className="bg-background px-1 rounded">{'{author}'}</code></label>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={5}
+          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y"
+        />
+      </div>
+      <Button size="sm" onClick={save} disabled={saving}>
+        {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+        {saved ? '✓ Saved' : 'Save Settings'}
+      </Button>
+    </div>
+  )
+}
+
 function Chapters() {
   const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -578,6 +637,7 @@ function Chapters() {
 
   return (
     <div>
+      <GeminiSettings />
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-xs text-muted">{done.length}/{books.length} books have chapters</p>
