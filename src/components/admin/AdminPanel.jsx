@@ -7,6 +7,7 @@ import { importBookFromUrl } from '../../lib/bookImport'
 import { useBookStore, getBookGenres } from '../../stores/bookStore'
 import { generateChapters, generateOneliners } from '../../lib/gemini'
 import { parseEpub } from '../../lib/epub'
+import { splitIntoSections } from '../../lib/sections'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -692,6 +693,23 @@ function Chapters() {
     }
   }
 
+  const splitSections = async (book) => {
+    if (!book.chapters?.some((ch) => ch.content)) return
+    setStatus((s) => ({ ...s, [book.id]: 'splitting' }))
+    try {
+      const updated = book.chapters.map((ch) => ({
+        ...ch,
+        sections: ch.content ? splitIntoSections(ch.content) : (ch.sections || []),
+      }))
+      await saveChapters(book.id, updated)
+      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, chapters: updated } : b))
+      const totalSections = updated.reduce((acc, ch) => acc + (ch.sections?.length || 0), 0)
+      setStatus((s) => ({ ...s, [book.id]: `split-done:${totalSections}` }))
+    } catch (err) {
+      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
+    }
+  }
+
   const syncToKB = async (book) => {
     setStatus((s) => ({ ...s, [book.id]: 'syncing' }))
     try {
@@ -761,6 +779,11 @@ function Chapters() {
                     {hasChapters && (
                       <span className="text-[10px] text-muted">{book.chapters.length} chapters</span>
                     )}
+                    {hasChapters && book.chapters.some((ch) => ch.sections?.length > 0) && (
+                      <span className="text-[10px] text-muted">
+                        · {book.chapters.reduce((a, ch) => a + (ch.sections?.length || 0), 0)} sections
+                      </span>
+                    )}
                     {book.cartesia_folder_id ? (
                       <span className="text-[10px] text-green-600">✓ KB synced</span>
                     ) : hasChapters && book.chapters.some((ch) => ch.content) ? (
@@ -768,12 +791,14 @@ function Chapters() {
                     ) : null}
                   </div>
                   {s && (
-                    <p className={`text-xs mt-0.5 ${s === 'done' || s.startsWith('kb-done') ? 'text-green-600' : s.startsWith('error') ? 'text-highlight' : 'text-muted'}`}>
+                    <p className={`text-xs mt-0.5 ${s === 'done' || s.startsWith('kb-done') || s.startsWith('split-done') ? 'text-green-600' : s.startsWith('error') ? 'text-highlight' : 'text-muted'}`}>
                       {s === 'done' ? `✓ chapters saved` :
                        s === 'generating' ? 'Generating via Gemini...' :
                        s === 'parsing' ? 'Parsing EPUB...' :
+                       s === 'splitting' ? 'Splitting into sections...' :
                        s === 'syncing' ? 'Syncing to Cartesia KB...' :
-                       s.startsWith('kb-done') ? `✓ KB synced (${s.split(':')[1]} chapters)` : s}
+                       s.startsWith('split-done') ? `✓ ${s.split(':')[1]} sections created` :
+                       s.startsWith('kb-done') ? `✓ KB synced (${s.split(':')[1]})` : s}
                     </p>
                   )}
                 </div>
@@ -788,6 +813,18 @@ function Chapters() {
                       onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }}
                     />
                   </label>
+                  {/* Split into sections */}
+                  {hasChapters && book.chapters.some((ch) => ch.content) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={s === 'splitting' || generatingAll}
+                      onClick={() => splitSections(book)}
+                    >
+                      {s === 'splitting' ? <Loader2 size={12} className="animate-spin" /> : 'Split'}
+                    </Button>
+                  )}
+
                   {/* Sync to Cartesia KB */}
                   {hasChapters && book.chapters.some((ch) => ch.content) && (
                     <Button

@@ -34,7 +34,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch settings + book
     const [{ data: settings }, { data: book }] = await Promise.all([
       supabase.from("platform_settings").select("key, value").in("key", ["cartesia_api_key", "cartesia_agent_id"]),
       supabase.from("books").select("id, title, author, chapters, cartesia_folder_id").eq("id", bookId).single(),
@@ -53,60 +52,85 @@ serve(async (req) => {
     const apiKey = map.cartesia_api_key;
     const agentId = map.cartesia_agent_id;
 
-    // 1. Get or create folder for this book
+    // Get or create folder for this book
     let folderId = book.cartesia_folder_id;
     if (!folderId) {
       const folder = await cartesia(apiKey, "POST", "/agents/folders", {
         name: `${book.title} — Vyaz`,
       });
       folderId = folder.id;
-
-      // Attach folder to agent
       await cartesia(apiKey, "PATCH", `/agents/folders/${folderId}`, {
         agent_ids: [agentId],
       });
-
       await supabase.from("books").update({ cartesia_folder_id: folderId }).eq("id", bookId);
     }
 
-    // 2. Upload each chapter as a document
-    const results: { number: number; success: boolean; error?: string }[] = [];
-    const updatedChapters = [...chapters];
+    const results: { chapter: number; section?: number; success: boolean; error?: string }[] = [];
+    const updatedChapters = JSON.parse(JSON.stringify(chapters));
 
     for (let i = 0; i < chapters.length; i++) {
       const ch = chapters[i];
-      if (!ch.content) {
-        results.push({ number: ch.number, success: false, error: "No content" });
-        continue;
-      }
+      const sections: any[] = ch.sections || [];
 
-      try {
-        // Delete existing document if re-syncing
-        if (ch.cartesia_document_id) {
+      // If chapter has sections, sync each section as a separate document
+      if (sections.length > 0) {
+        for (let s = 0; s < sections.length; s++) {
+          const sec = sections[s];
           try {
-            await cartesia(apiKey, "DELETE", `/agents/documents/${ch.cartesia_document_id}`);
-          } catch { /* ignore if already deleted */ }
+            // Delete old doc if re-syncing
+            if (sec.cartesia_document_id) {
+              try { await cartesia(apiKey, "DELETE", `/agents/documents/${sec.cartesia_document_id}`); } catch { /* ignore */ }
+            }
+
+            const doc = await cartesia(apiKey, "POST", "/agents/documents", {
+              folder_id: folderId,
+              name: `${book.title} — Ch ${ch.number}: ${ch.title} — Section ${sec.number}`,
+              content: sec.text,
+              metadata: {
+                book_id: bookId,
+                chapter_number: String(ch.number),
+                chapter_title: ch.title,
+                section_number: String(sec.number),
+              },
+            });
+
+            updatedChapters[i].sections[s] = { ...sec, cartesia_document_id: doc.id };
+            results.push({ chapter: ch.number, section: sec.number, success: true });
+          } catch (err: any) {
+            results.push({ chapter: ch.number, section: sec.number, success: false, error: err.message });
+          }
         }
 
-        const doc = await cartesia(apiKey, "POST", "/agents/documents", {
-          folder_id: folderId,
-          name: `Ch ${ch.number}: ${ch.title}`,
-          content: ch.content,
-          metadata: {
-            book_id: bookId,
-            chapter_number: String(ch.number),
-            chapter_title: ch.title,
-          },
-        });
+        // Also delete old whole-chapter doc if exists (replaced by sections)
+        if (ch.cartesia_document_id) {
+          try { await cartesia(apiKey, "DELETE", `/agents/documents/${ch.cartesia_document_id}`); } catch { /* ignore */ }
+          updatedChapters[i].cartesia_document_id = null;
+        }
 
-        updatedChapters[i] = { ...ch, cartesia_document_id: doc.id };
-        results.push({ number: ch.number, success: true });
-      } catch (err: any) {
-        results.push({ number: ch.number, success: false, error: err.message });
+      } else if (ch.content) {
+        // No sections — sync whole chapter as one document
+        try {
+          if (ch.cartesia_document_id) {
+            try { await cartesia(apiKey, "DELETE", `/agents/documents/${ch.cartesia_document_id}`); } catch { /* ignore */ }
+          }
+          const doc = await cartesia(apiKey, "POST", "/agents/documents", {
+            folder_id: folderId,
+            name: `Ch ${ch.number}: ${ch.title}`,
+            content: ch.content,
+            metadata: {
+              book_id: bookId,
+              chapter_number: String(ch.number),
+              chapter_title: ch.title,
+            },
+          });
+          updatedChapters[i] = { ...updatedChapters[i], cartesia_document_id: doc.id };
+          results.push({ chapter: ch.number, success: true });
+        } catch (err: any) {
+          results.push({ chapter: ch.number, success: false, error: err.message });
+        }
       }
     }
 
-    // 3. Save updated chapters (with document IDs) back to Supabase
     await supabase.from("books").update({ chapters: updatedChapters }).eq("id", bookId);
 
     const synced = results.filter((r) => r.success).length;

@@ -16,7 +16,7 @@ export async function getCartesiaSession(book, chapter) {
   })
   if (error) throw new Error(error.message)
   if (data.error) throw new Error(data.error)
-  return data // { accessToken, agentId, systemPrompt }
+  return data // { accessToken, agentId, systemPrompt, sessionId, totalSections }
 }
 
 export class VoiceAgentSession {

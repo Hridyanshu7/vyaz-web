@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Mic, MicOff, Loader2, PhoneOff } from 'lucide-react'
+import { X, Mic, MicOff, Loader2, PhoneOff, CheckCircle2, Circle } from 'lucide-react'
 import { getCartesiaSession, VoiceAgentSession } from '../lib/voiceAgent'
+import { supabase } from '../lib/supabase'
 
 const STATE_LABELS = {
   idle: 'Starting...',
@@ -14,8 +15,12 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
   const [agentState, setAgentState] = useState('idle')
   const [muted, setMuted] = useState(false)
   const [error, setError] = useState(null)
+  const [sessionId, setSessionId] = useState(null)
+  const [totalSections, setTotalSections] = useState(0)
+  const [completedSections, setCompletedSections] = useState([])
   const sessionRef = useRef(null)
 
+  // Connect voice session
   useEffect(() => {
     if (!open || !book || !chapter) return
     let cancelled = false
@@ -24,9 +29,17 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
       setAgentState('idle')
       setMuted(false)
       setError(null)
+      setSessionId(null)
+      setTotalSections(0)
+      setCompletedSections([])
+
       try {
         const sessionData = await getCartesiaSession(book, chapter)
         if (cancelled) return
+
+        setSessionId(sessionData.sessionId)
+        setTotalSections(sessionData.totalSections || 0)
+
         const session = new VoiceAgentSession({
           ...sessionData,
           onStateChange: (s) => { if (!cancelled) setAgentState(s) },
@@ -47,6 +60,29 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
     }
   }, [open, book, chapter])
 
+  // Supabase Realtime: subscribe to progress updates for this session
+  useEffect(() => {
+    if (!sessionId) return
+
+    const channel = supabase
+      .channel(`voice_progress:${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'voice_progress',
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          setCompletedSections(payload.new.completed_sections || [])
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [sessionId])
+
   const handleClose = () => {
     sessionRef.current?.end()
     sessionRef.current = null
@@ -58,13 +94,8 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
 
   const toggleMute = () => {
     if (!sessionRef.current) return
-    if (muted) {
-      sessionRef.current.unmute()
-      setMuted(false)
-    } else {
-      sessionRef.current.mute()
-      setMuted(true)
-    }
+    if (muted) { sessionRef.current.unmute(); setMuted(false) }
+    else { sessionRef.current.mute(); setMuted(true) }
   }
 
   if (!open) return null
@@ -72,6 +103,8 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
   const isActive = agentState === 'listening' || agentState === 'speaking'
   const isConnecting = agentState === 'idle' || agentState === 'connecting'
   const isEnded = agentState === 'ended'
+  const hasSections = totalSections > 0
+  const progressPct = hasSections ? Math.round((completedSections.length / totalSections) * 100) : 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-6 sm:pb-0">
@@ -90,8 +123,24 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
           </button>
         </div>
 
+        {/* Progress bar */}
+        {hasSections && (
+          <div className="px-4 pt-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-muted">Progress</p>
+              <p className="text-xs font-medium">{completedSections.length}/{totalSections} sections</p>
+            </div>
+            <div className="w-full h-1.5 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-highlight rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Orb */}
-        <div className="flex flex-col items-center justify-center py-10 px-6 gap-5">
+        <div className="flex flex-col items-center justify-center py-6 px-6 gap-4">
           <div className="relative flex items-center justify-center">
             {isActive && !muted && (
               <>
@@ -147,23 +196,43 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
           )}
         </div>
 
+        {/* Section list */}
+        {hasSections && (
+          <div className="mx-4 mb-3 rounded-xl border border-border overflow-hidden">
+            <div className="px-3 py-2 bg-surface border-b border-border">
+              <p className="text-xs font-medium text-muted uppercase tracking-wider">Sections</p>
+            </div>
+            <div className="max-h-36 overflow-y-auto divide-y divide-border">
+              {Array.from({ length: totalSections }, (_, i) => i + 1).map((n) => {
+                const done = completedSections.includes(n)
+                return (
+                  <div key={n} className={`flex items-center gap-2 px-3 py-2 ${done ? 'bg-green-50' : ''}`}>
+                    {done
+                      ? <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                      : <Circle size={12} className="text-muted shrink-0" />
+                    }
+                    <span className={`text-xs ${done ? 'text-green-700 line-through' : 'text-muted'}`}>
+                      Section {n}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Controls */}
-        <div className="flex items-center gap-3 px-4 pb-5">
-          {/* Mute toggle */}
+        <div className="flex items-center gap-3 px-4 pb-4">
           <button
             onClick={toggleMute}
             disabled={isConnecting || isEnded}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-              muted
-                ? 'bg-highlight/10 border-highlight text-highlight'
-                : 'bg-surface border-border hover:bg-background'
+              muted ? 'bg-highlight/10 border-highlight text-highlight' : 'bg-surface border-border hover:bg-background'
             }`}
           >
             {muted ? <MicOff size={14} /> : <Mic size={14} />}
             {muted ? 'Unmute' : 'Mute'}
           </button>
-
-          {/* End session */}
           <button
             onClick={handleClose}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium cursor-pointer transition-colors"
