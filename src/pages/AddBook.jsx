@@ -101,7 +101,7 @@ export function AddBook() {
               placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
           />
         </div>
-        <Button className="w-full" disabled={loading || !url.trim()}>
+        <Button className="w-full" disabled={loading || !url.trim() || !!book}>
           {loading ? (
             <><Loader2 size={16} className="mr-2 animate-spin" /> {status || 'Fetching...'}</>
           ) : (
