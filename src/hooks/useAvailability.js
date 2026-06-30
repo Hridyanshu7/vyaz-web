@@ -5,7 +5,7 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export const DEFAULT_AVAILABILITY = DAYS.map((_, i) => ({
   day_of_week: i + 1,
-  enabled: i < 5,
+  enabled: true,
   start_time: '18:00',
   end_time: '21:00',
 }))
