@@ -11,6 +11,7 @@ import { useBookSessions } from '../hooks/useSessions'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 import { BookingModal } from '../components/BookingModal'
+import { VoiceAgentModal } from '../components/VoiceAgentModal'
 import { supabase } from '../lib/supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -39,6 +40,7 @@ export function BookDetail() {
   const [bookingType, setBookingType] = useState('one_on_one')
   const [preselectedNarrator, setPreselectedNarrator] = useState(null)
   const [bookingChapter, setBookingChapter] = useState(null)
+  const [voiceChapter, setVoiceChapter] = useState(null)
 
   if (!book) {
     return (
@@ -223,7 +225,7 @@ export function BookDetail() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); alert('Voice agent coming soon') }}
+                          onClick={(e) => { e.stopPropagation(); setVoiceChapter(ch) }}
                           className="flex items-center gap-1"
                         >
                           <Mic size={11} /> Talk
@@ -353,6 +355,12 @@ export function BookDetail() {
         sessionType={bookingType}
         preselectedNarrator={preselectedNarrator}
         chapter={bookingChapter}
+      />
+      <VoiceAgentModal
+        open={!!voiceChapter}
+        onClose={() => setVoiceChapter(null)}
+        book={book}
+        chapter={voiceChapter}
       />
     </div>
   )
