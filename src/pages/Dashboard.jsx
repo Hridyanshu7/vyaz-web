@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 import { useSessions } from '../hooks/useSessions'
 import { useAvailability } from '../hooks/useAvailability'
+import { AdminPanel } from '../components/admin/AdminPanel'
 import { isGCalCallback, getGCalAuthCode, exchangeGCalToken, getGoogleAuthUrl } from '../lib/calendar'
 import { supabase } from '../lib/supabase'
 
@@ -297,13 +298,7 @@ export function Dashboard() {
               </div>
             </div>
           )}
-          {tab === 'admin' && isAdmin && (
-            <div className="text-center py-16 text-muted">
-              <Settings size={32} className="mx-auto mb-3 text-muted" />
-              <p className="text-sm font-medium">Admin panel coming soon</p>
-              <p className="text-xs mt-1">Share what you'd like to see here.</p>
-            </div>
-          )}
+          {tab === 'admin' && isAdmin && <AdminPanel />}
         </>
       )}
     </div>
