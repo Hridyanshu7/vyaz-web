@@ -526,7 +526,7 @@ function GenreTags() {
 // ─────────────────────────────────────────
 // 5. CHAPTERS
 // ─────────────────────────────────────────
-const SETTINGS_KEYS = ['gemini_api_key', 'gemini_chapters_prompt', 'cartesia_api_key', 'cartesia_voice_id', 'voice_agent_system_prompt']
+const SETTINGS_KEYS = ['gemini_api_key', 'gemini_chapters_prompt', 'cartesia_api_key', 'cartesia_agent_id', 'cartesia_voice_id', 'voice_agent_system_prompt']
 
 function GeminiSettings() {
   const [vals, setVals] = useState({})
@@ -588,6 +588,11 @@ function GeminiSettings() {
             <label className="text-xs text-muted mb-1 block">API Key</label>
             <input type="password" value={vals.cartesia_api_key || ''} onChange={(e) => set('cartesia_api_key', e.target.value)}
               placeholder="sk-..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-muted mb-1 block">Agent ID</label>
+            <input type="text" value={vals.cartesia_agent_id || ''} onChange={(e) => set('cartesia_agent_id', e.target.value)}
+              placeholder="agent uuid..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
           </div>
           <div>
             <label className="text-xs text-muted mb-1 block">Voice ID</label>
