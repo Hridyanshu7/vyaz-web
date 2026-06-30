@@ -33,6 +33,7 @@ export const useBookStore = create((set, get) => ({
     const { data, error } = await supabase
       .from('books')
       .select('*')
+      .eq('is_published', true)
       .order('title')
 
     if (!error && data) {
