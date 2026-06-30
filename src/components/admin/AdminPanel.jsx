@@ -5,7 +5,7 @@ import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { importBookFromUrl } from '../../lib/bookImport'
 import { useBookStore, getBookGenres } from '../../stores/bookStore'
-import { generateChapters } from '../../lib/gemini'
+import { generateChapters, generateOneliners } from '../../lib/gemini'
 import { parseEpub } from '../../lib/epub'
 
 const TABS = [
@@ -637,8 +637,22 @@ function Chapters() {
   const generate = async (book) => {
     setStatus((s) => ({ ...s, [book.id]: 'generating' }))
     try {
-      const chapters = await generateChapters(book.title, book.author)
-      await saveChapters(book.id, chapters)
+      const hasContent = book.chapters?.some((ch) => ch.content)
+
+      if (hasContent) {
+        // EPUB content available — generate oneliners grounded in actual text
+        const oneliners = await generateOneliners(book.title, book.author, book.chapters)
+        const merged = book.chapters.map((ch) => {
+          const match = oneliners.find((o) => o.number === ch.number)
+          return { ...ch, oneliner: match?.oneliner || ch.oneliner || '' }
+        })
+        await saveChapters(book.id, merged)
+      } else {
+        // No EPUB content — generate chapters + oneliners from model memory
+        const chapters = await generateChapters(book.title, book.author)
+        await saveChapters(book.id, chapters)
+      }
+
       setStatus((s) => ({ ...s, [book.id]: 'done' }))
     } catch (err) {
       setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
