@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-const SAMPLE_RATE = 16000
+const SAMPLE_RATE = 44100
 const CHUNK_SIZE = 4096
 
 export async function getCartesiaSession(book, chapter) {
@@ -54,22 +54,30 @@ export class VoiceAgentSession {
     this.scheduledAt = this.audioContext.currentTime
 
     // Connect WebSocket
-    const wsUrl = `wss://api.cartesia.ai/agents/stream/${this.agentId}?token=${this.accessToken}`
+    const wsUrl = `wss://api.cartesia.ai/agents/stream/${this.agentId}?token=${this.accessToken}&cartesia-version=2025-04-16`
+    console.log('[VoiceAgent] Connecting to:', wsUrl.replace(this.accessToken, 'TOKEN'))
     this.ws = new WebSocket(wsUrl)
 
     this.ws.onopen = () => {
-      // Send start event with dynamic system prompt
+      console.log('[VoiceAgent] WebSocket open, sending start event')
       this.ws.send(JSON.stringify({
         event: 'start',
-        config: { input_format: 'pcm_16000' },
+        config: { input_format: 'pcm_44100' },
         agent: { system_prompt: this.systemPrompt },
       }))
     }
 
     this.ws.onmessage = (e) => this._handleMessage(e)
-    this.ws.onerror = () => this.onError?.('WebSocket connection failed.')
-    this.ws.onclose = () => {
-      if (this.state !== 'ended') this.setState('ended')
+    this.ws.onerror = (e) => {
+      console.error('[VoiceAgent] WebSocket error:', e)
+      this.onError?.('WebSocket connection failed. Check Agent ID and API key in Admin settings.')
+    }
+    this.ws.onclose = (e) => {
+      console.warn('[VoiceAgent] WebSocket closed:', e.code, e.reason)
+      if (this.state !== 'ended') {
+        if (e.code !== 1000) this.onError?.(`Connection closed (code ${e.code}): ${e.reason || 'Unknown reason'}`)
+        this.setState('ended')
+      }
     }
 
     // Keep-alive ping every 60s
