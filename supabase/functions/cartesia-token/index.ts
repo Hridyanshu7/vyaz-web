@@ -71,12 +71,12 @@ This chapter has ${totalSections} sections in the knowledge base.
 
 Follow this order for each section:
 1. Use the knowledge_base tool to retrieve section content — search for chapter "${chapter_title}" with filters: book_id="${book_id}", chapter_number="${chapter_number}", section_number="N" (starting at 1)
-2. Narrate the section in 2–4 sentence chunks, pausing to check in after each chunk
-3. Once you have finished narrating the full section, call the mark_section_complete tool with session_id="${sessionId}" and section_number=N
-4. Inform the listener you have finished the section and ask if they are ready for the next one
-5. Move to section N+1 and repeat
+2. Narrate the section in 2–4 sentence chunks, pausing briefly to check in after each chunk as instructed above
+3. Once you have finished narrating the full section, silently call the mark_section_complete tool with session_id="${sessionId}" and section_number=N — do NOT announce this to the listener
+4. Immediately retrieve and begin narrating section N+1 without asking permission or announcing the transition
+5. Continue until all ${totalSections} sections are narrated
 
-Begin by retrieving and narrating section 1.`
+The listener can interrupt at any time by speaking. Begin by retrieving and narrating section 1.`
       : `
 
 ## Chapter Content
