@@ -526,57 +526,85 @@ function GenreTags() {
 // ─────────────────────────────────────────
 // 5. CHAPTERS
 // ─────────────────────────────────────────
+const SETTINGS_KEYS = ['gemini_api_key', 'gemini_chapters_prompt', 'cartesia_api_key', 'cartesia_voice_id', 'voice_agent_system_prompt']
+
 function GeminiSettings() {
-  const [apiKey, setApiKey] = useState('')
-  const [prompt, setPrompt] = useState('')
+  const [vals, setVals] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     supabase.from('platform_settings')
       .select('key, value')
-      .in('key', ['gemini_api_key', 'gemini_chapters_prompt'])
+      .in('key', SETTINGS_KEYS)
       .then(({ data }) => {
-        ;(data || []).forEach((r) => {
-          if (r.key === 'gemini_api_key') setApiKey(r.value)
-          if (r.key === 'gemini_chapters_prompt') setPrompt(r.value)
-        })
+        const map = {}
+        ;(data || []).forEach((r) => { map[r.key] = r.value })
+        setVals(map)
       })
   }, [])
 
+  const set = (key, value) => setVals((v) => ({ ...v, [key]: value }))
+
   const save = async () => {
     setSaving(true)
-    await Promise.all([
-      supabase.from('platform_settings').upsert({ key: 'gemini_api_key', value: apiKey, updated_at: new Date().toISOString() }),
-      supabase.from('platform_settings').upsert({ key: 'gemini_chapters_prompt', value: prompt, updated_at: new Date().toISOString() }),
-    ])
+    await Promise.all(
+      SETTINGS_KEYS.map((key) =>
+        supabase.from('platform_settings').upsert({ key, value: vals[key] || '', updated_at: new Date().toISOString() })
+      )
+    )
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const placeholders = (keys) => keys.map((k) => <code key={k} className="bg-background px-1 rounded mx-0.5">{`{${k}}`}</code>)
+
   return (
-    <div className="p-3 rounded-xl border border-border bg-surface mb-4 space-y-3">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted">Gemini Settings</p>
-      <div>
-        <label className="text-xs text-muted mb-1 block">API Key</label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="AIza..."
-          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono"
-        />
+    <div className="p-3 rounded-xl border border-border bg-surface mb-4 space-y-4">
+
+      {/* Gemini */}
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted">Gemini (Chapter Generation)</p>
+        <div>
+          <label className="text-xs text-muted mb-1 block">API Key</label>
+          <input type="password" value={vals.gemini_api_key || ''} onChange={(e) => set('gemini_api_key', e.target.value)}
+            placeholder="AIza..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+        </div>
+        <div>
+          <label className="text-xs text-muted mb-1 block">Chapters Prompt — use {placeholders(['title', 'author'])}</label>
+          <textarea value={vals.gemini_chapters_prompt || ''} onChange={(e) => set('gemini_chapters_prompt', e.target.value)}
+            rows={4} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+        </div>
       </div>
-      <div>
-        <label className="text-xs text-muted mb-1 block">Prompt — use <code className="bg-background px-1 rounded">{'{title}'}</code> and <code className="bg-background px-1 rounded">{'{author}'}</code></label>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={5}
-          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y"
-        />
+
+      <hr className="border-border" />
+
+      {/* Cartesia */}
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted">Cartesia (Voice Agent)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-muted mb-1 block">API Key</label>
+            <input type="password" value={vals.cartesia_api_key || ''} onChange={(e) => set('cartesia_api_key', e.target.value)}
+              placeholder="sk-..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-muted mb-1 block">Voice ID</label>
+            <input type="text" value={vals.cartesia_voice_id || ''} onChange={(e) => set('cartesia_voice_id', e.target.value)}
+              placeholder="voice uuid..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-muted mb-1 block">
+            Voice Agent System Prompt — use {placeholders(['book_title', 'author', 'chapter_title', 'oneliner', 'content'])}
+          </label>
+          <textarea value={vals.voice_agent_system_prompt || ''} onChange={(e) => set('voice_agent_system_prompt', e.target.value)}
+            rows={10} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y"
+            placeholder={`You are a Socratic guide for the chapter "{chapter_title}" from {book_title} by {author}.\n\nChapter summary: {oneliner}\n\nChapter content:\n{content}\n\nHelp the reader explore the ideas...`} />
+        </div>
       </div>
+
       <Button size="sm" onClick={save} disabled={saving}>
         {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
         {saved ? '✓ Saved' : 'Save Settings'}
