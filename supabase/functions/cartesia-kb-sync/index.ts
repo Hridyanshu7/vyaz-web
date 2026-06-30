@@ -61,6 +61,11 @@ serve(async (req) => {
       });
       folderId = folder.id;
       await supabase.from("books").update({ cartesia_folder_id: folderId }).eq("id", bookId);
+    } else {
+      // Always re-attach folder to current agent (handles agent ID changes)
+      await cartesia(apiKey, "PATCH", `/agents/folders/${folderId}`, {
+        agents: [{ id: agentId }],
+      });
     }
 
     const results: { chapter: number; section?: number; success: boolean; error?: string }[] = [];
