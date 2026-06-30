@@ -1,10 +1,9 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
-const CURATED = ['Self Help', 'Philosophy', 'Memoir', 'Classics']
-const NOISE = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
+export const NOISE = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
 
-function getBookGenres(book) {
+export function getBookGenres(book) {
   if (book.genres?.length > 0) return book.genres.filter((g) => !NOISE.has(g))
   return (book.goodreads_data?.genres || []).filter((g) => !NOISE.has(g))
 }
@@ -13,13 +12,22 @@ export const useBookStore = create((set, get) => ({
   books: [],
   narrators: [],
   genres: [],
+  filterPills: [],
   loading: true,
   initialized: false,
 
   initialize: async () => {
     if (get().initialized) return
-    await Promise.all([get().fetchBooks(), get().fetchNarrators()])
+    await Promise.all([get().fetchBooks(), get().fetchNarrators(), get().fetchFilterPills()])
     set({ initialized: true })
+  },
+
+  fetchFilterPills: async () => {
+    const { data } = await supabase
+      .from('genre_filters')
+      .select('name, sort_order')
+      .order('sort_order')
+    if (data) set({ filterPills: data.map((r) => r.name) })
   },
 
   fetchBooks: async () => {
@@ -30,18 +38,11 @@ export const useBookStore = create((set, get) => ({
       .order('title')
 
     if (!error && data) {
-      const genreCount = {}
-      data.forEach((b) => {
-        getBookGenres(b).forEach((g) => {
-          genreCount[g] = (genreCount[g] || 0) + 1
-        })
-      })
-
-      const hasMiscellaneous = data.some((b) => {
-        return !getBookGenres(b).some((g) => CURATED.includes(g))
-      })
-
-      const genres = [...CURATED, ...(hasMiscellaneous ? ['Miscellaneous'] : [])]
+      const pills = get().filterPills
+      const hasMiscellaneous = data.some((b) =>
+        !getBookGenres(b).some((g) => pills.includes(g))
+      )
+      const genres = [...pills, ...(hasMiscellaneous ? ['Miscellaneous'] : [])]
       set({ books: data, genres, loading: false })
     } else {
       set({ loading: false })
@@ -86,7 +87,7 @@ export const useBookStore = create((set, get) => ({
       if (selectedGenre) {
         const bookGenres = getBookGenres(book)
         if (selectedGenre === 'Miscellaneous') {
-          matchesGenre = !bookGenres.some((g) => CURATED.includes(g))
+          matchesGenre = !bookGenres.some((g) => get().filterPills.includes(g))
         } else {
           matchesGenre = bookGenres.includes(selectedGenre)
         }
@@ -154,4 +155,3 @@ export const useBookStore = create((set, get) => ({
   },
 }))
 
-export { getBookGenres }

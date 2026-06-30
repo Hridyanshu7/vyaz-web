@@ -4,7 +4,7 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { importBookFromUrl } from '../../lib/bookImport'
-import { useBookStore } from '../../stores/bookStore'
+import { useBookStore, getBookGenres } from '../../stores/bookStore'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -316,17 +316,71 @@ function BookRequests() {
 // ─────────────────────────────────────────
 // 4. GENRE TAGS
 // ─────────────────────────────────────────
-const NOISE = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
+
+function FilterPillManager({ pills, onRefresh }) {
+  const [newPill, setNewPill] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const addPill = async () => {
+    const name = newPill.trim()
+    if (!name || pills.includes(name)) return
+    setSaving(true)
+    await supabase.from('genre_filters').insert({ name, sort_order: pills.length + 1 })
+    setNewPill('')
+    setSaving(false)
+    onRefresh()
+  }
+
+  const removePill = async (name) => {
+    await supabase.from('genre_filters').delete().eq('name', name)
+    onRefresh()
+  }
+
+  return (
+    <div className="p-3 rounded-xl border border-border bg-surface mb-4">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted mb-2">Filter Pills (Browse page)</p>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {pills.map((p) => (
+          <span key={p} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-background border border-border text-xs font-medium">
+            {p}
+            <button onClick={() => removePill(p)} className="text-muted hover:text-highlight cursor-pointer">
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={newPill}
+          onChange={(e) => setNewPill(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addPill()}
+          placeholder="Add filter pill..."
+          className="flex-1 px-2 py-1 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-highlight/20"
+        />
+        <Button size="sm" disabled={saving || !newPill.trim()} onClick={addPill}>
+          {saving ? <Loader2 size={12} className="animate-spin" /> : <><Plus size={12} className="mr-1" /> Add</>}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 function GenreTags() {
   const [books, setBooks] = useState([])
+  const [pills, setPills] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState({})
   const [newTag, setNewTag] = useState({})
   const [search, setSearch] = useState('')
   const updateBookGenres = useBookStore((s) => s.updateBookGenres)
 
-  useEffect(() => { fetchBooks() }, [])
+  useEffect(() => { fetchBooks(); fetchPills() }, [])
+
+  const fetchPills = async () => {
+    const { data } = await supabase.from('genre_filters').select('name').order('sort_order')
+    if (data) setPills(data.map((r) => r.name))
+  }
 
   const fetchBooks = async () => {
     setLoading(true)
@@ -361,10 +415,7 @@ function GenreTags() {
     setSaving((s) => ({ ...s, [bookId]: false }))
   }
 
-  const getDisplayGenres = (book) => {
-    if (book.genres?.length > 0) return book.genres
-    return (book.goodreads_data?.genres || []).filter((g) => !NOISE.has(g)).slice(0, 5)
-  }
+  const getDisplayGenres = (book) => getBookGenres(book)
 
   const filtered = books.filter((b) =>
     !search || b.title.toLowerCase().includes(search.toLowerCase())
@@ -372,6 +423,8 @@ function GenreTags() {
 
   return (
     <div>
+      <FilterPillManager pills={pills} onRefresh={() => { fetchPills(); useBookStore.getState().fetchFilterPills() }} />
+
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-muted">{books.length} books</p>
         <input
@@ -387,9 +440,13 @@ function GenreTags() {
         <div className="text-center py-8 text-muted text-sm">Loading books...</div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((book) => (
+          {filtered.map((book) => {
+            const bookGenres = getDisplayGenres(book)
+            const matchingPills = pills.filter((p) => bookGenres.includes(p))
+            const noMatch = matchingPills.length === 0
+            return (
             <div key={book.id} className="p-3 rounded-xl border border-border">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-1.5">
                 {book.cover_url && (
                   <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
                 )}
@@ -398,6 +455,15 @@ function GenreTags() {
                   <p className="text-xs text-muted">{book.author}</p>
                 </div>
                 {saving[book.id] && <Loader2 size={12} className="animate-spin text-muted shrink-0" />}
+              </div>
+              {/* Filter pill indicator */}
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-[10px] text-muted uppercase tracking-wider">Under:</span>
+                {matchingPills.length > 0 ? matchingPills.map((p) => (
+                  <span key={p} className="text-[10px] px-2 py-0.5 rounded-full bg-highlight/10 text-highlight font-medium">{p}</span>
+                )) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface border border-border text-muted">Miscellaneous</span>
+                )}
               </div>
 
               {/* Current tags */}
@@ -436,7 +502,8 @@ function GenreTags() {
                 </button>
               </div>
             </div>
-          ))}
+          )
+          })}
         </div>
       )}
     </div>
