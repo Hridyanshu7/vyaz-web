@@ -139,6 +139,7 @@ export function Dashboard() {
 
   const showNarrator = profile?.role === 'narrator' || profile?.role === 'both'
   const showListener = profile?.role === 'reader' || profile?.role === 'both'
+  const isAdmin = profile?.role === 'admin'
 
   const { hasAvailability, loading: availLoading } = useAvailability(showNarrator ? user?.id : null)
   const gcalConnected = profile?.gcal_connected
@@ -149,6 +150,7 @@ export function Dashboard() {
     { id: 'schedule', label: 'Schedule', icon: Calendar },
     ...(showListener ? [{ id: 'listener', label: 'As Listener', icon: Headphones }] : []),
     ...(showNarrator ? [{ id: 'narrator', label: 'As Narrator', icon: Mic }] : []),
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),
   ]
 
   const [tab, setTab] = useState('schedule')
@@ -293,6 +295,13 @@ export function Dashboard() {
                   asNarrator.map((s) => <SessionCard key={s.id} session={s} currentUserId={user.id} onRefresh={refetch} />)
                 )}
               </div>
+            </div>
+          )}
+          {tab === 'admin' && isAdmin && (
+            <div className="text-center py-16 text-muted">
+              <Settings size={32} className="mx-auto mb-3 text-muted" />
+              <p className="text-sm font-medium">Admin panel coming soon</p>
+              <p className="text-xs mt-1">Share what you'd like to see here.</p>
             </div>
           )}
         </>
