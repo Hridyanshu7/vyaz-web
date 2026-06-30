@@ -45,9 +45,9 @@ export const useAuthStore = create((set, get) => ({
     const meta = user?.user_metadata
     if (meta && data) {
       const updates = {}
-      if (!data.name && meta.full_name) updates.name = meta.full_name
+      if (!data.name && (meta.full_name || meta.name)) updates.name = meta.full_name || meta.name
       if (!data.email && meta.email) updates.email = meta.email
-      if (!data.avatar_url && meta.avatar_url) updates.avatar_url = meta.avatar_url
+      if (!data.avatar_url && (meta.avatar_url || meta.picture)) updates.avatar_url = meta.avatar_url || meta.picture
       if (Object.keys(updates).length > 0) {
         const { data: updated } = await supabase
           .from('profiles')

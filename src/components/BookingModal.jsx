@@ -47,6 +47,7 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
   const [booking, setBooking] = useState(null)
   const [requesting, setRequesting] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
+  const [error, setError] = useState('')
 
   const weekStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -87,6 +88,7 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
 
   const handleSelectNarrator = (narrator) => {
     setSelectedNarrator(narrator)
+    setError('')
     setStep('schedule')
   }
 
@@ -133,6 +135,7 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
       setStep('confirm')
     } catch (err) {
       console.error('Booking failed:', err)
+      setError(err.message || 'Booking failed. Please try again.')
     } finally {
       setCreating(false)
     }
@@ -177,6 +180,10 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
         </div>
 
         <div className="p-5">
+
+          {error && (
+            <div className="bg-highlight/10 text-highlight text-sm px-3 py-2 rounded-lg mb-2">{error}</div>
+          )}
 
           {/* ===== STEP 1: NARRATOR SELECTION ===== */}
           {step === 'narrator' && (
