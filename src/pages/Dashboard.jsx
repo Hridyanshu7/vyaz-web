@@ -117,7 +117,7 @@ function EmptyState({ message, cta, onClick }) {
 
 export function Dashboard() {
   const { user, profile } = useAuthStore()
-  const { sessions, loading, upcoming, completed, asListener, asNarrator, narratorStats, listenerStats } = useSessions()
+  const { sessions, loading, upcoming, completed, asListener, asNarrator, narratorStats, listenerStats, refetch } = useSessions()
   const navigate = useNavigate()
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const { updateProfile } = useAuthStore()
