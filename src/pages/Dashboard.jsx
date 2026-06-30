@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Video, Star, Clock, BookOpen, Calendar, User, Headphones, Mic, Settings, Users, AlertTriangle, X } from 'lucide-react'
 import { format, isPast, isToday, isTomorrow } from 'date-fns'
@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 import { useSessions } from '../hooks/useSessions'
 import { useAvailability } from '../hooks/useAvailability'
+import { isGCalCallback, getGCalAuthCode, exchangeGCalToken, getGoogleAuthUrl } from '../lib/calendar'
 import { supabase } from '../lib/supabase'
 
 function SessionCard({ session, currentUserId, onRefresh }) {
@@ -119,12 +120,30 @@ export function Dashboard() {
   const { sessions, loading, upcoming, completed, asListener, asNarrator, narratorStats, listenerStats } = useSessions()
   const navigate = useNavigate()
   const [bannerDismissed, setBannerDismissed] = useState(false)
+  const { updateProfile } = useAuthStore()
+
+  useEffect(() => {
+    if (isGCalCallback() && user) {
+      const code = getGCalAuthCode()
+      if (code) {
+        exchangeGCalToken(code)
+          .then(() => updateProfile({ gcal_connected: true }))
+          .catch(() => updateProfile({ gcal_connected: true }))
+          .finally(() => {
+            window.history.replaceState({}, '', '/dashboard')
+            navigate('/availability')
+          })
+      }
+    }
+  }, [user])
 
   const showNarrator = profile?.role === 'narrator' || profile?.role === 'both'
   const showListener = profile?.role === 'reader' || profile?.role === 'both'
 
   const { hasAvailability, loading: availLoading } = useAvailability(showNarrator ? user?.id : null)
-  const showAvailabilityBanner = showNarrator && !availLoading && !hasAvailability && !bannerDismissed
+  const gcalConnected = profile?.gcal_connected
+  const showGCalBanner = showNarrator && !gcalConnected && !bannerDismissed
+  const showAvailabilityBanner = showNarrator && gcalConnected && !availLoading && !hasAvailability && !bannerDismissed
 
   const tabs = [
     { id: 'schedule', label: 'Schedule', icon: Calendar },
@@ -162,7 +181,26 @@ export function Dashboard() {
         </Link>
       </div>
 
-      {/* ===== AVAILABILITY BANNER ===== */}
+      {/* ===== BANNER: Connect GCal (narrator, no GCal yet) ===== */}
+      {showGCalBanner && (
+        <div className="flex items-center gap-3 p-3 mb-4 rounded-xl border border-blue-200 bg-blue-50">
+          <Calendar size={16} className="text-blue-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-blue-900">Connect Google Calendar</p>
+            <p className="text-xs text-blue-700">Required to receive session bookings and set your availability.</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" onClick={() => { window.location.href = getGoogleAuthUrl() }} className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+              Connect GCal
+            </Button>
+            <button onClick={() => setBannerDismissed(true)} className="p-1 text-blue-400 hover:text-blue-700 cursor-pointer">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== BANNER: Set availability (narrator, GCal connected, no availability) ===== */}
       {showAvailabilityBanner && (
         <div className="flex items-center gap-3 p-3 mb-4 rounded-xl border border-amber-200 bg-amber-50">
           <AlertTriangle size={16} className="text-amber-600 shrink-0" />
@@ -171,7 +209,7 @@ export function Dashboard() {
             <p className="text-xs text-amber-700">Listeners can't find the right time to book you without your hours.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button size="sm" onClick={() => { setTab('narrator') }} className="bg-amber-600 hover:bg-amber-700 text-white border-0">
+            <Button size="sm" onClick={() => navigate('/availability')} className="bg-amber-600 hover:bg-amber-700 text-white border-0">
               Set hours
             </Button>
             <button onClick={() => setBannerDismissed(true)} className="p-1 text-amber-500 hover:text-amber-700 cursor-pointer">
@@ -243,19 +281,6 @@ export function Dashboard() {
 
           {tab === 'narrator' && (
             <div>
-              {/* Availability empty state (B) */}
-              {!availLoading && !hasAvailability && (
-                <div className="flex items-start gap-3 p-4 mb-4 rounded-xl border border-amber-200 bg-amber-50">
-                  <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-900 mb-0.5">Your availability isn't set</p>
-                    <p className="text-xs text-amber-700 mb-2">Listeners can't book you without knowing when you're free.</p>
-                    <Button size="sm" onClick={() => navigate('/availability')} className="bg-amber-600 hover:bg-amber-700 text-white border-0">
-                      Set your hours
-                    </Button>
-                  </div>
-                </div>
-              )}
               <div className="grid grid-cols-3 gap-3 mb-6">
                 <StatCard icon={Mic} label="Sessions" value={narratorStats.totalSessions} />
                 <StatCard icon={User} label="Readers" value={narratorStats.uniqueReaders} />
