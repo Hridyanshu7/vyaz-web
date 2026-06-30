@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase'
 export const NOISE = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
 
 export function getBookGenres(book) {
-  if (book.genres?.length > 0) return book.genres.filter((g) => !NOISE.has(g))
-  return (book.goodreads_data?.genres || []).filter((g) => !NOISE.has(g))
+  if (book.genres?.length > 0) return book.genres // admin-set — respect as-is
+  return (book.goodreads_data?.genres || []).filter((g) => !NOISE.has(g)) // auto-imported — filter noise
 }
 
 export const useBookStore = create((set, get) => ({
