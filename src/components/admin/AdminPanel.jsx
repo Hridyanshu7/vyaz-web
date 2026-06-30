@@ -5,12 +5,14 @@ import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { importBookFromUrl } from '../../lib/bookImport'
 import { useBookStore, getBookGenres } from '../../stores/bookStore'
+import { generateChapters } from '../../lib/gemini'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'sessions', label: 'Group Sessions', icon: Calendar },
   { id: 'books', label: 'Book Requests', icon: BookOpen },
   { id: 'genres', label: 'Genre Tags', icon: Tag },
+  { id: 'chapters', label: 'Chapters', icon: BookOpen },
 ]
 
 // ─────────────────────────────────────────
@@ -521,6 +523,125 @@ function GenreTags() {
 }
 
 // ─────────────────────────────────────────
+// 5. CHAPTERS
+// ─────────────────────────────────────────
+function Chapters() {
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState({})
+  const [generatingAll, setGeneratingAll] = useState(false)
+
+  useEffect(() => { fetchBooks() }, [])
+
+  const fetchBooks = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('books')
+      .select('id, title, author, cover_url, chapters')
+      .order('title')
+    setBooks(data || [])
+    setLoading(false)
+  }
+
+  const saveChapters = async (bookId, chapters) => {
+    await supabase.from('books').update({ chapters }).eq('id', bookId)
+    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
+  }
+
+  const generate = async (book) => {
+    setStatus((s) => ({ ...s, [book.id]: 'generating' }))
+    try {
+      const chapters = await generateChapters(book.title, book.author)
+      await saveChapters(book.id, chapters)
+      setStatus((s) => ({ ...s, [book.id]: 'done' }))
+    } catch (err) {
+      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
+    }
+  }
+
+  const generateAll = async () => {
+    setGeneratingAll(true)
+    const pending = books.filter((b) => !b.chapters?.length)
+    for (let i = 0; i < pending.length; i++) {
+      const book = pending[i]
+      await generate(book)
+      if (i < pending.length - 1) {
+        // 4.5s between requests to respect 15 req/min free tier
+        await new Promise((r) => setTimeout(r, 4500))
+      }
+    }
+    setGeneratingAll(false)
+  }
+
+  const pending = books.filter((b) => !b.chapters?.length)
+  const done = books.filter((b) => b.chapters?.length > 0)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs text-muted">{done.length}/{books.length} books have chapters</p>
+          {pending.length > 0 && (
+            <p className="text-xs text-muted">{pending.length} pending</p>
+          )}
+        </div>
+        {pending.length > 0 && (
+          <Button size="sm" disabled={generatingAll} onClick={generateAll}>
+            {generatingAll ? <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</> : `Generate All (${pending.length})`}
+          </Button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-muted text-sm">Loading books...</div>
+      ) : (
+        <div className="space-y-2">
+          {books.map((book) => {
+            const s = status[book.id]
+            const hasChapters = book.chapters?.length > 0
+            return (
+              <div key={book.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">
+                {book.cover_url && (
+                  <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{book.title}</p>
+                  <p className="text-xs text-muted">{book.author}</p>
+                  {s && (
+                    <p className={`text-xs mt-0.5 ${s === 'done' ? 'text-green-600' : s === 'generating' ? 'text-muted' : 'text-highlight'}`}>
+                      {s === 'done' ? `✓ ${book.chapters?.length} chapters saved` : s === 'generating' ? 'Generating...' : s}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {hasChapters && !s && (
+                    <Badge variant="success">{book.chapters.length} chapters</Badge>
+                  )}
+                  <Button
+                    size="sm"
+                    variant={hasChapters ? 'outline' : 'primary'}
+                    disabled={s === 'generating' || generatingAll}
+                    onClick={() => generate(book)}
+                  >
+                    {s === 'generating' ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : hasChapters ? (
+                      'Regenerate'
+                    ) : (
+                      'Generate'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────
 // MAIN ADMIN PANEL
 // ─────────────────────────────────────────
 export function AdminPanel() {
@@ -545,6 +666,7 @@ export function AdminPanel() {
       {activeTab === 'sessions' && <GroupSessions />}
       {activeTab === 'books' && <BookRequests />}
       {activeTab === 'genres' && <GenreTags />}
+      {activeTab === 'chapters' && <Chapters />}
     </div>
   )
 }
