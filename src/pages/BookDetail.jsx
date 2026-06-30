@@ -39,6 +39,7 @@ export function BookDetail() {
   const [requesting, setRequesting] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [bookingType, setBookingType] = useState('one_on_one')
+  const [preselectedNarrator, setPreselectedNarrator] = useState(null)
 
   if (!book) {
     return (
@@ -283,7 +284,20 @@ export function BookDetail() {
             {narrators.length > 0 ? (
               <div className="space-y-2">
                 {narrators.map((narrator, i) => (
-                  <NarratorCard key={narrator.id} narrator={narrator} bookId={id} isOnline={false} rating={4.2 + (i * 0.15)} reviewCount={8 + i * 3} />
+                  <NarratorCard
+                    key={narrator.id}
+                    narrator={narrator}
+                    bookId={id}
+                    isOnline={false}
+                    rating={4.2 + (i * 0.15)}
+                    reviewCount={8 + i * 3}
+                    onBook={(n) => {
+                      if (!user) { showSignup({ type: 'gist', bookId: id }); return }
+                      setPreselectedNarrator(n)
+                      setBookingType('one_on_one')
+                      setBookingOpen(true)
+                    }}
+                  />
                 ))}
               </div>
             ) : (
@@ -323,9 +337,10 @@ export function BookDetail() {
       {/* Booking Modal */}
       <BookingModal
         open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
+        onClose={() => { setBookingOpen(false); setPreselectedNarrator(null) }}
         bookId={id}
         sessionType={bookingType}
+        preselectedNarrator={preselectedNarrator}
       />
     </div>
   )

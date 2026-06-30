@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
-import { User, Star } from 'lucide-react'
+import { User, Star, Zap } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 
-export function NarratorCard({ narrator, bookId, isOnline = false, rating = null, reviewCount = 0 }) {
+export function NarratorCard({ narrator, bookId, isOnline = false, rating = null, reviewCount = 0, onBook }) {
   return (
     <div className="flex items-start gap-4 p-4 rounded-xl border border-border">
-      <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center shrink-0">
+      <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center shrink-0 overflow-hidden">
         {narrator.avatar_url ? (
           <img src={narrator.avatar_url} alt={narrator.name} className="w-full h-full rounded-full object-cover" />
         ) : (
@@ -32,11 +32,16 @@ export function NarratorCard({ narrator, bookId, isOnline = false, rating = null
           </div>
         )}
       </div>
-      <Link to={`/narrators/${narrator.id}`}>
-        <Button size="sm" variant="outline">
-          View profile
-        </Button>
-      </Link>
+      <div className="flex flex-col gap-1.5 shrink-0">
+        {onBook && (
+          <Button size="sm" onClick={() => onBook(narrator)}>
+            <Zap size={12} className="mr-1" /> Book
+          </Button>
+        )}
+        <Link to={`/narrators/${narrator.id}`}>
+          <Button size="sm" variant="outline" className="w-full">Profile</Button>
+        </Link>
+      </div>
     </div>
   )
 }

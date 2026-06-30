@@ -27,15 +27,15 @@ function isSlotBusy(slotTime, duration, busySlots) {
   })
 }
 
-export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one' }) {
+export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one', preselectedNarrator = null }) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { getBook, getNarratorsForBook } = useBookStore()
   const book = getBook(bookId)
   const narrators = getNarratorsForBook(bookId)
 
-  const [step, setStep] = useState('narrator')
-  const [selectedNarrator, setSelectedNarrator] = useState(null)
+  const [step, setStep] = useState(preselectedNarrator ? 'schedule' : 'narrator')
+  const [selectedNarrator, setSelectedNarrator] = useState(preselectedNarrator)
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [duration, setDuration] = useState(30)
