@@ -22,10 +22,13 @@ export const useBookStore = create((set, get) => ({
       .order('title')
 
     if (!error && data) {
-      const genres = [...new Set(
-        data.flatMap((b) => b.goodreads_data?.genres || [])
-          .filter((g) => !['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'].includes(g))
-      )].sort()
+      const CURATED = ['Self Help', 'Philosophy', 'Memoir', 'Classics']
+      const noise = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
+      const hasMiscellaneous = data.some((b) => {
+        const genres = (b.goodreads_data?.genres || []).filter((g) => !noise.has(g))
+        return !genres.some((g) => CURATED.includes(g))
+      })
+      const genres = [...CURATED, ...(hasMiscellaneous ? ['Miscellaneous'] : [])]
       set({ books: data, genres, loading: false })
     } else {
       set({ loading: false })
@@ -61,13 +64,21 @@ export const useBookStore = create((set, get) => ({
     get().narrators.filter((n) => n.book_ids.includes(bookId)),
 
   getFilteredBooks: (searchQuery, selectedGenre) => {
+    const CURATED = ['Self Help', 'Philosophy', 'Memoir', 'Classics']
+    const noise = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
     return get().books.filter((book) => {
       const matchesSearch = !searchQuery ||
         book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         book.author.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesGenre = !selectedGenre ||
-        book.goodreads_data?.genres?.includes(selectedGenre) ||
-        book.genre === selectedGenre
+      let matchesGenre = true
+      if (selectedGenre) {
+        const bookGenres = (book.goodreads_data?.genres || []).filter((g) => !noise.has(g))
+        if (selectedGenre === 'Miscellaneous') {
+          matchesGenre = !bookGenres.some((g) => CURATED.includes(g))
+        } else {
+          matchesGenre = bookGenres.includes(selectedGenre)
+        }
+      }
       return matchesSearch && matchesGenre
     })
   },
