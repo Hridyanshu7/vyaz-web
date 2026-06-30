@@ -86,18 +86,29 @@ export function AvailabilityPicker({ availability, setAvailability, timezone, se
             const slot = availability[i]
             return (
               <div key={day} className={`rounded-lg border p-2.5 transition-colors ${slot.enabled ? 'border-border bg-background' : 'border-border/50 bg-surface'}`}>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => toggleDay(i)}
-                    className={`w-10 text-xs font-medium rounded-md py-1 cursor-pointer transition-colors shrink-0 ${slot.enabled ? 'bg-foreground text-white' : 'bg-surface text-muted border border-border'}`}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 cursor-pointer transition-colors
+                      ${slot.enabled ? 'bg-foreground border-foreground' : 'bg-background border-border hover:border-foreground/40'}`}
+                  >
+                    {slot.enabled && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 5l2.5 2.5L8 2.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </button>
+                  <span
+                    onClick={() => toggleDay(i)}
+                    className={`text-sm font-medium w-8 cursor-pointer select-none ${slot.enabled ? 'text-foreground' : 'text-muted'}`}
                   >
                     {day}
-                  </button>
-                  {!slot.enabled && <span className="text-xs text-muted">Unavailable</span>}
+                  </span>
+                  {!slot.enabled && <span className="text-xs text-muted">— Not available</span>}
                 </div>
 
                 {slot.enabled && (
-                  <div className="space-y-1.5 pl-12">
+                  <div className="space-y-1.5 mt-2 pl-8">
                     {slot.ranges.map((range, ri) => (
                       <div key={ri} className="flex items-center gap-1.5">
                         <select
