@@ -13,7 +13,6 @@ const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'sessions', label: 'Group Sessions', icon: Calendar },
   { id: 'books', label: 'Book Requests', icon: BookOpen },
-  { id: 'catalog', label: 'Catalog', icon: Eye },
   { id: 'genres', label: 'Genre Tags', icon: Tag },
   { id: 'chapters', label: 'Chapters', icon: BookOpen },
 ]
@@ -318,85 +317,6 @@ function BookRequests() {
   )
 }
 
-// ─────────────────────────────────────────
-// 4. CATALOG
-// ─────────────────────────────────────────
-function Catalog() {
-  const [books, setBooks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [toggling, setToggling] = useState({})
-
-  useEffect(() => { fetchBooks() }, [])
-
-  const fetchBooks = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('books')
-      .select('id, title, author, cover_url, is_published')
-      .order('title')
-    setBooks(data || [])
-    setLoading(false)
-  }
-
-  const toggle = async (book) => {
-    setToggling((t) => ({ ...t, [book.id]: true }))
-    const { error } = await supabase
-      .from('books')
-      .update({ is_published: !book.is_published })
-      .eq('id', book.id)
-    if (!error) {
-      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, is_published: !b.is_published } : b))
-    }
-    setToggling((t) => ({ ...t, [book.id]: false }))
-  }
-
-  const published = books.filter((b) => b.is_published).length
-
-  return (
-    <div>
-      <p className="text-xs text-muted mb-4">{published} of {books.length} books listed</p>
-      {loading ? (
-        <div className="text-center py-8 text-muted text-sm">Loading...</div>
-      ) : (
-        <div className="space-y-2">
-          {books.map((book) => (
-            <div key={book.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${book.is_published ? 'border-border' : 'border-border bg-surface opacity-60'}`}>
-              {book.cover_url && (
-                <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{book.title}</p>
-                <p className="text-xs text-muted">{book.author}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-[10px] font-medium ${book.is_published ? 'text-green-600' : 'text-muted'}`}>
-                  {book.is_published ? 'Listed' : 'De-listed'}
-                </span>
-                <button
-                  onClick={() => toggle(book)}
-                  disabled={toggling[book.id]}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium cursor-pointer transition-colors disabled:opacity-40 ${
-                    book.is_published
-                      ? 'border-border bg-surface hover:bg-background'
-                      : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
-                  }`}
-                >
-                  {toggling[book.id] ? (
-                    <Loader2 size={11} className="animate-spin" />
-                  ) : book.is_published ? (
-                    <><EyeOff size={11} /> De-list</>
-                  ) : (
-                    <><Eye size={11} /> List</>
-                  )}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ─────────────────────────────────────────
 // 5. GENRE TAGS
@@ -471,10 +391,17 @@ function GenreTags() {
     setLoading(true)
     const { data } = await supabase
       .from('books')
-      .select('id, title, author, cover_url, genres, goodreads_data')
+      .select('id, title, author, cover_url, genres, goodreads_data, is_published')
       .order('title')
     setBooks(data || [])
     setLoading(false)
+  }
+
+  const togglePublished = async (book) => {
+    setSaving((s) => ({ ...s, [`pub_${book.id}`]: true }))
+    await supabase.from('books').update({ is_published: !book.is_published }).eq('id', book.id)
+    setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, is_published: !b.is_published } : b))
+    setSaving((s) => ({ ...s, [`pub_${book.id}`]: false }))
   }
 
   const removeTag = async (bookId, tag) => {
@@ -540,7 +467,7 @@ function GenreTags() {
             const matchingPills = pills.filter((p) => bookGenres.includes(p))
             const noMatch = matchingPills.length === 0
             return (
-            <div key={book.id} className="p-3 rounded-xl border border-border">
+            <div key={book.id} className={`p-3 rounded-xl border border-border transition-opacity ${!book.is_published ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-2 mb-1.5">
                 {book.cover_url && (
                   <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
@@ -549,6 +476,18 @@ function GenreTags() {
                   <p className="text-sm font-medium truncate">{book.title}</p>
                   <p className="text-xs text-muted">{book.author}</p>
                 </div>
+                <button
+                  onClick={() => togglePublished(book)}
+                  disabled={saving[`pub_${book.id}`]}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-medium cursor-pointer shrink-0 transition-colors ${
+                    book.is_published
+                      ? 'border-border text-muted hover:border-highlight hover:text-highlight'
+                      : 'border-green-200 bg-green-50 text-green-700'
+                  }`}
+                >
+                  {saving[`pub_${book.id}`] ? <Loader2 size={10} className="animate-spin" /> :
+                   book.is_published ? <><EyeOff size={10} /> De-list</> : <><Eye size={10} /> List</>}
+                </button>
                 {saving[book.id] && <Loader2 size={12} className="animate-spin text-muted shrink-0" />}
               </div>
               {/* Filter pill indicator */}
@@ -965,8 +904,7 @@ export function AdminPanel() {
       {activeTab === 'users' && <UserAccess />}
       {activeTab === 'sessions' && <GroupSessions />}
       {activeTab === 'books' && <BookRequests />}
-      {activeTab === 'catalog' && <Catalog />}
-      {activeTab === 'genres' && <GenreTags />}
+{activeTab === 'genres' && <GenreTags />}
       {activeTab === 'chapters' && <Chapters />}
     </div>
   )
