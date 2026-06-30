@@ -104,7 +104,18 @@ export class VoiceAgentSession {
     }
   }
 
+  mute() {
+    this.muted = true
+    this.micStream?.getTracks().forEach((t) => { t.enabled = false })
+  }
+
+  unmute() {
+    this.muted = false
+    this.micStream?.getTracks().forEach((t) => { t.enabled = true })
+  }
+
   _startMic() {
+    this.muted = false
     const source = this.audioContext.createMediaStreamSource(this.micStream)
     this.processor = this.audioContext.createScriptProcessor(CHUNK_SIZE, 1, 1)
 
@@ -112,7 +123,7 @@ export class VoiceAgentSession {
     this.processor.connect(this.audioContext.destination)
 
     this.processor.onaudioprocess = (e) => {
-      if (this.ws?.readyState !== WebSocket.OPEN) return
+      if (this.ws?.readyState !== WebSocket.OPEN || this.muted) return
       const float32 = e.inputBuffer.getChannelData(0)
       const int16 = new Int16Array(float32.length)
       for (let i = 0; i < float32.length; i++) {
