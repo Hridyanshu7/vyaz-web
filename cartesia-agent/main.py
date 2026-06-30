@@ -1,4 +1,5 @@
 import os
+from line import VoiceAgentApp
 from line.llm_agent import LlmAgent, LlmConfig, knowledge_base, http_server_tool
 
 mark_section_complete = http_server_tool(
@@ -23,18 +24,23 @@ mark_section_complete = http_server_tool(
     timeout=10.0,
 )
 
-agent = LlmAgent(
-    model="anthropic/claude-haiku-4-5-20251001",
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
-    tools=[
-        knowledge_base(),
-        mark_section_complete,
-    ],
-    config=LlmConfig(
-        system_prompt="You are a helpful narrator. Your full instructions will be provided at the start of each session.",
-    ),
-)
+async def get_agent(env, call):
+    return LlmAgent(
+        model="anthropic/claude-haiku-4-5-20251001",
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        tools=[
+            knowledge_base(),
+            mark_section_complete,
+        ],
+        config=LlmConfig(
+            system_prompt=call.agent_config.system_prompt if call.agent_config else (
+                "You are a helpful narrator. Your full instructions will be provided at the start of each session."
+            ),
+        ),
+    )
+
+app = VoiceAgentApp(get_agent=get_agent)
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    agent.run(port=port)
+    app.run(port=port)

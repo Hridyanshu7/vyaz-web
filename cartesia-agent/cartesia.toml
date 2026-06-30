@@ -5,4 +5,4 @@ name = "cartesia-agent"
 cmd = "pip install -r requirements.txt"
 
 [run]
-cmd = "python main.py"
+cmd = "uvicorn main:app --host 0.0.0.0 --port 8000"
