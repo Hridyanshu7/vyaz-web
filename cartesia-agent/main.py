@@ -33,9 +33,7 @@ async def get_agent(env, call):
             mark_section_complete,
         ],
         config=LlmConfig(
-            system_prompt=call.agent_config.system_prompt if call.agent_config else (
-                "You are a helpful narrator. Your full instructions will be provided at the start of each session."
-            ),
+            system_prompt="You are a helpful narrator. Your full instructions will be provided at the start of each session.",
         ),
     )
 
