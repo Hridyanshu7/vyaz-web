@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Link2, BookOpen, Loader2, Check, AlertCircle, Info, Star, ShoppingCart } from 'lucide-react'
+import { Link2, BookOpen, Loader2, Check, AlertCircle, Info, Star, ShoppingCart, MessageSquare } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { importBookFromUrl } from '../lib/bookImport'
 import { useBookStore } from '../stores/bookStore'
+import { useAuthStore } from '../stores/authStore'
+import { supabase } from '../lib/supabase'
 
 export function AddBook() {
   const navigate = useNavigate()
@@ -38,18 +40,42 @@ export function AddBook() {
   }
 
   const [addedBookId, setAddedBookId] = useState(null)
+  const [requestSent, setRequestSent] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+  const { user } = useAuthStore()
 
   const handleAdd = async () => {
     if (!book) return
     setLoading(true)
+    setError('')
     try {
       const saved = await addBookToStore(book)
       setAddedBookId(saved.id)
       setAdded(true)
     } catch (err) {
-      setError(err.message)
+      if (err.message?.includes('row-level security')) {
+        setError('__rls__')
+      } else {
+        setError(err.message)
+      }
     }
     setLoading(false)
+  }
+
+  const handleRequest = async () => {
+    if (!book || !user) return
+    setRequesting(true)
+    try {
+      await supabase.from('book_requests').insert({
+        user_id: user.id,
+        book_title: book.title,
+        book_author: book.author,
+        book_url: url,
+      })
+      setRequestSent(true)
+      setError('')
+    } catch {}
+    setRequesting(false)
   }
 
   const az = book?.amazon
@@ -57,9 +83,9 @@ export function AddBook() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-xl font-bold mb-1">Add a book</h1>
+      <h1 className="text-xl font-bold mb-1">Request a book</h1>
       <p className="text-sm text-muted mb-6">
-        Paste an Amazon or Goodreads link — we'll pull data from both platforms automatically.
+        Can't find a book on Vyaz? Paste its Amazon or Goodreads link and request it — our team will review and add it.
       </p>
 
       <form onSubmit={handleImport} className="space-y-3">
@@ -83,10 +109,27 @@ export function AddBook() {
         </Button>
       </form>
 
-      {error && (
+      {error && error !== '__rls__' && (
         <div className="mt-4 flex items-start gap-2 bg-highlight/10 text-highlight text-sm px-4 py-3 rounded-lg">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {error === '__rls__' && (
+        <div className="mt-4 p-4 rounded-xl border border-border bg-surface">
+          <p className="text-sm font-medium mb-1">This book isn't in our catalog yet</p>
+          <p className="text-xs text-muted mb-3">
+            Only our team can add new books. But you can request it — we'll review and add it soon.
+          </p>
+          {requestSent ? (
+            <Badge variant="success"><Check size={12} className="mr-1" /> Request sent! We'll notify you when it's added.</Badge>
+          ) : (
+            <Button size="sm" disabled={requesting} onClick={handleRequest}>
+              {requesting ? <Loader2 size={14} className="animate-spin mr-1" /> : <MessageSquare size={14} className="mr-1" />}
+              Request this book
+            </Button>
+          )}
         </div>
       )}
 

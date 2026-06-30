@@ -30,7 +30,7 @@ export function Header() {
             Browse Books
           </Link>
           <Link to="/add-book" className="text-sm text-muted hover:text-foreground transition-colors flex items-center gap-1">
-            <Plus size={14} /> Add Book
+            <Plus size={14} /> Request Book
           </Link>
           {user ? (
             <>
@@ -73,7 +73,7 @@ export function Header() {
               Browse Books
             </Link>
             <Link to="/add-book" className="py-2 text-sm text-muted hover:text-foreground flex items-center gap-1" onClick={() => setMobileOpen(false)}>
-              <Plus size={14} /> Add Book
+              <Plus size={14} /> Request Book
             </Link>
             {user ? (
               <>
