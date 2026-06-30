@@ -396,9 +396,14 @@ function GenreTags() {
     const book = books.find((b) => b.id === bookId)
     const updated = (book.genres || []).filter((g) => g !== tag)
     setSaving((s) => ({ ...s, [bookId]: true }))
-    await updateBookGenres(bookId, updated)
-    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
-    setSaving((s) => ({ ...s, [bookId]: false }))
+    try {
+      await updateBookGenres(bookId, updated)
+      setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving((s) => ({ ...s, [bookId]: false }))
+    }
   }
 
   const addTag = async (bookId) => {
@@ -409,10 +414,15 @@ function GenreTags() {
     if (existing.includes(tag)) { setNewTag((n) => ({ ...n, [bookId]: '' })); return }
     const updated = [...existing, tag]
     setSaving((s) => ({ ...s, [bookId]: true }))
-    await updateBookGenres(bookId, updated)
-    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
-    setNewTag((n) => ({ ...n, [bookId]: '' }))
-    setSaving((s) => ({ ...s, [bookId]: false }))
+    try {
+      await updateBookGenres(bookId, updated)
+      setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
+      setNewTag((n) => ({ ...n, [bookId]: '' }))
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSaving((s) => ({ ...s, [bookId]: false }))
+    }
   }
 
   const getDisplayGenres = (book) => getBookGenres(book)
