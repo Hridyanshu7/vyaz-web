@@ -24,8 +24,8 @@ mark_section_complete = http_server_tool(
 )
 
 agent = LlmAgent(
-    model="gemini/gemini-2.0-flash",
-    api_key=os.getenv("GEMINI_API_KEY"),
+    model="anthropic/claude-haiku-4-5-20251001",
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
     tools=[
         knowledge_base(),
         mark_section_complete,
