@@ -139,7 +139,7 @@ export function Dashboard() {
 
   const showNarrator = profile?.role === 'narrator' || profile?.role === 'both'
   const showListener = profile?.role === 'reader' || profile?.role === 'both'
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = profile?.is_admin === true
 
   const { hasAvailability, loading: availLoading } = useAvailability(showNarrator ? user?.id : null)
   const gcalConnected = profile?.gcal_connected
