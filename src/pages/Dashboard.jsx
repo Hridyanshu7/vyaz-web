@@ -191,7 +191,7 @@ export function Dashboard() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button size="sm" onClick={() => { window.location.href = getGoogleAuthUrl() }} className="bg-blue-600 hover:bg-blue-700 text-white border-0">
-              Connect GCal
+              Connect
             </Button>
             <button onClick={() => setBannerDismissed(true)} className="p-1 text-blue-400 hover:text-blue-700 cursor-pointer">
               <X size={14} />
