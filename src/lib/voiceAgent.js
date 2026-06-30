@@ -54,7 +54,7 @@ export class VoiceAgentSession {
     this.scheduledAt = this.audioContext.currentTime
 
     // Connect WebSocket
-    const wsUrl = `wss://api.cartesia.ai/agents/stream/${this.agentId}?token=${this.accessToken}&cartesia-version=2025-04-16`
+    const wsUrl = `wss://api.cartesia.ai/agents/stream/${this.agentId}?access_token=${this.accessToken}&cartesia_version=2025-11-04`
     console.log('[VoiceAgent] Connecting to:', wsUrl.replace(this.accessToken, 'TOKEN'))
     this.ws = new WebSocket(wsUrl)
 
