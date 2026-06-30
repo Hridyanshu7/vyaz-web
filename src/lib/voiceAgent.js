@@ -6,11 +6,12 @@ const CHUNK_SIZE = 4096
 export async function getCartesiaSession(book, chapter) {
   const { data, error } = await supabase.functions.invoke('cartesia-token', {
     body: {
+      book_id: book.id,
       book_title: book.title,
       author: book.author,
       chapter_title: chapter.title,
+      chapter_number: String(chapter.number),
       oneliner: chapter.oneliner || '',
-      content: chapter.content || '',
     },
   })
   if (error) throw new Error(error.message)

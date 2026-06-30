@@ -692,6 +692,22 @@ function Chapters() {
     }
   }
 
+  const syncToKB = async (book) => {
+    setStatus((s) => ({ ...s, [book.id]: 'syncing' }))
+    try {
+      const { data, error } = await supabase.functions.invoke('cartesia-kb-sync', {
+        body: { bookId: book.id },
+      })
+      if (error) throw new Error(error.message)
+      if (data.error) throw new Error(data.error)
+      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: data.folderId } : b))
+      setStatus((s) => ({ ...s, [book.id]: `kb-done:${data.synced}/${data.synced + data.failed}` }))
+      await fetchBooks()
+    } catch (err) {
+      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
+    }
+  }
+
   const generateAll = async () => {
     setGeneratingAll(true)
     const pending = books.filter((b) => !b.chapters?.length)
@@ -741,16 +757,27 @@ function Chapters() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{book.title}</p>
                   <p className="text-xs text-muted">{book.author}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {hasChapters && (
+                      <span className="text-[10px] text-muted">{book.chapters.length} chapters</span>
+                    )}
+                    {book.cartesia_folder_id ? (
+                      <span className="text-[10px] text-green-600">✓ KB synced</span>
+                    ) : hasChapters && book.chapters.some((ch) => ch.content) ? (
+                      <span className="text-[10px] text-amber-600">KB not synced</span>
+                    ) : null}
+                  </div>
                   {s && (
-                    <p className={`text-xs mt-0.5 ${s === 'done' ? 'text-green-600' : s.startsWith('error') ? 'text-highlight' : 'text-muted'}`}>
-                      {s === 'done' ? `✓ ${book.chapters?.length} chapters saved` : s === 'generating' ? 'Generating via Gemini...' : s === 'parsing' ? 'Parsing EPUB...' : s}
+                    <p className={`text-xs mt-0.5 ${s === 'done' || s.startsWith('kb-done') ? 'text-green-600' : s.startsWith('error') ? 'text-highlight' : 'text-muted'}`}>
+                      {s === 'done' ? `✓ chapters saved` :
+                       s === 'generating' ? 'Generating via Gemini...' :
+                       s === 'parsing' ? 'Parsing EPUB...' :
+                       s === 'syncing' ? 'Syncing to Cartesia KB...' :
+                       s.startsWith('kb-done') ? `✓ KB synced (${s.split(':')[1]} chapters)` : s}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {hasChapters && !s && (
-                    <Badge variant="success">{book.chapters.length} chapters</Badge>
-                  )}
                   {/* Upload EPUB */}
                   <label className={`px-2 py-1 text-xs rounded border border-border bg-surface hover:bg-background cursor-pointer transition-colors ${(s === 'parsing' || generatingAll) ? 'opacity-50 pointer-events-none' : ''}`}>
                     {s === 'parsing' ? <Loader2 size={12} className="animate-spin" /> : 'EPUB'}
@@ -761,6 +788,17 @@ function Chapters() {
                       onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }}
                     />
                   </label>
+                  {/* Sync to Cartesia KB */}
+                  {hasChapters && book.chapters.some((ch) => ch.content) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={s === 'syncing' || generatingAll}
+                      onClick={() => syncToKB(book)}
+                    >
+                      {s === 'syncing' ? <Loader2 size={12} className="animate-spin" /> : book.cartesia_folder_id ? 'Re-sync KB' : 'Sync KB'}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant={hasChapters ? 'outline' : 'primary'}

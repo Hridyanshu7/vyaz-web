@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { book_title, author, chapter_title, oneliner, content } = await req.json();
+    const { book_id, book_title, author, chapter_title, chapter_number, oneliner } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -31,13 +31,22 @@ serve(async (req) => {
     if (!map.cartesia_api_key) throw new Error("Cartesia API key not configured in Admin settings.");
     if (!map.cartesia_agent_id) throw new Error("Cartesia Agent ID not configured in Admin settings.");
 
-    // Fill system prompt placeholders with chapter data
+    // KB retrieval instruction appended to system prompt
+    const kbInstruction = `
+
+## Chapter Content
+The full text of this chapter is stored in your knowledge base.
+Use the knowledge_base tool to retrieve it by searching for: "${chapter_title}" with filter book_id="${book_id}" and chapter_number="${chapter_number}".
+Retrieve the content BEFORE you begin narrating.`;
+
+    // Fill system prompt placeholders — no {content}, content comes from KB
     const systemPrompt = (map.voice_agent_system_prompt || "")
       .replace(/{book_title}/g, book_title || "")
       .replace(/{author}/g, author || "")
       .replace(/{chapter_title}/g, chapter_title || "")
       .replace(/{oneliner}/g, oneliner || "")
-      .replace(/{content}/g, content || "");
+      .replace(/{content}/g, "") // content is in KB, not injected here
+      + kbInstruction;
 
     // Exchange API key for short-lived access token
     const tokenRes = await fetch("https://api.cartesia.ai/access-token", {
