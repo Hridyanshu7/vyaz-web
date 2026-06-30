@@ -10,7 +10,7 @@ export function Layout() {
   const { user, profile, loading } = useAuthStore()
 
   useEffect(() => {
-    if (!loading && user && profile && !profile.onboarding_complete) {
+    if (!loading && user && profile && !profile.onboarding_complete && profile.role !== 'admin') {
       show({ type: 'signin' })
     }
   }, [loading, user, profile])
