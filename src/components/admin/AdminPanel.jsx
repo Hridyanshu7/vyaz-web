@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { importBookFromUrl } from '../../lib/bookImport'
 import { useBookStore, getBookGenres } from '../../stores/bookStore'
 import { generateChapters } from '../../lib/gemini'
+import { parseEpub } from '../../lib/epub'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -607,6 +608,32 @@ function Chapters() {
     setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
   }
 
+  const uploadEpub = async (book, file) => {
+    setStatus((s) => ({ ...s, [book.id]: 'parsing' }))
+    try {
+      const epubChapters = await parseEpub(file)
+
+      // Merge: if book already has chapters from Gemini, keep title+oneliner, add content
+      const existing = book.chapters || []
+      const merged = epubChapters.map((ec, i) => {
+        const match = existing[i] || existing.find((e) =>
+          e.title?.toLowerCase().includes(ec.title?.toLowerCase().slice(0, 10))
+        )
+        return {
+          number: ec.number,
+          title: match?.title || ec.title,
+          oneliner: match?.oneliner || '',
+          content: ec.content,
+        }
+      })
+
+      await saveChapters(book.id, merged)
+      setStatus((s) => ({ ...s, [book.id]: 'done' }))
+    } catch (err) {
+      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
+    }
+  }
+
   const generate = async (book) => {
     setStatus((s) => ({ ...s, [book.id]: 'generating' }))
     try {
@@ -668,8 +695,8 @@ function Chapters() {
                   <p className="text-sm font-medium truncate">{book.title}</p>
                   <p className="text-xs text-muted">{book.author}</p>
                   {s && (
-                    <p className={`text-xs mt-0.5 ${s === 'done' ? 'text-green-600' : s === 'generating' ? 'text-muted' : 'text-highlight'}`}>
-                      {s === 'done' ? `✓ ${book.chapters?.length} chapters saved` : s === 'generating' ? 'Generating...' : s}
+                    <p className={`text-xs mt-0.5 ${s === 'done' ? 'text-green-600' : s.startsWith('error') ? 'text-highlight' : 'text-muted'}`}>
+                      {s === 'done' ? `✓ ${book.chapters?.length} chapters saved` : s === 'generating' ? 'Generating via Gemini...' : s === 'parsing' ? 'Parsing EPUB...' : s}
                     </p>
                   )}
                 </div>
@@ -677,10 +704,20 @@ function Chapters() {
                   {hasChapters && !s && (
                     <Badge variant="success">{book.chapters.length} chapters</Badge>
                   )}
+                  {/* Upload EPUB */}
+                  <label className={`px-2 py-1 text-xs rounded border border-border bg-surface hover:bg-background cursor-pointer transition-colors ${(s === 'parsing' || generatingAll) ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {s === 'parsing' ? <Loader2 size={12} className="animate-spin" /> : 'EPUB'}
+                    <input
+                      type="file"
+                      accept=".epub"
+                      className="hidden"
+                      onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }}
+                    />
+                  </label>
                   <Button
                     size="sm"
                     variant={hasChapters ? 'outline' : 'primary'}
-                    disabled={s === 'generating' || generatingAll}
+                    disabled={s === 'generating' || s === 'parsing' || generatingAll}
                     onClick={() => generate(book)}
                   >
                     {s === 'generating' ? (
