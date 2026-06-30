@@ -57,11 +57,9 @@ serve(async (req) => {
     if (!folderId) {
       const folder = await cartesia(apiKey, "POST", "/agents/folders", {
         name: `${book.title} — Vyaz`,
+        agents: [{ id: agentId }],
       });
       folderId = folder.id;
-      await cartesia(apiKey, "PATCH", `/agents/folders/${folderId}`, {
-        agent_ids: [agentId],
-      });
       await supabase.from("books").update({ cartesia_folder_id: folderId }).eq("id", bookId);
     }
 
