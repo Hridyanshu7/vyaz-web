@@ -101,7 +101,7 @@ async function createEvent(sessionId: string) {
     .map((email: string) => ({ email }));
 
   const event = {
-    summary: `Vyaz: ${session.book?.title}${isGroup ? " (Group)" : ""}`,
+    summary: `Vyaz: ${session.book?.title}${session.chapter_title ? ` — ${session.chapter_title}` : ''}${isGroup ? " (Group)" : ""}`,
     description: [
       `Book: ${session.book?.title} by ${session.book?.author}`,
       `Narrator: ${session.narrator?.name}`,

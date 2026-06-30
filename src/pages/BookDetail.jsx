@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { BookOpen, ArrowLeft, Clock, FileText, Users, Calendar, MessageSquare, Loader2, ChevronDown, ChevronRight, ExternalLink, Zap, BookMarked } from 'lucide-react'
+import { BookOpen, ArrowLeft, Clock, FileText, Users, Calendar, MessageSquare, Loader2, ChevronDown, ChevronRight, ExternalLink, Zap, BookMarked, Mic } from 'lucide-react'
 import { format } from 'date-fns'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -38,6 +38,7 @@ export function BookDetail() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [bookingType, setBookingType] = useState('one_on_one')
   const [preselectedNarrator, setPreselectedNarrator] = useState(null)
+  const [bookingChapter, setBookingChapter] = useState(null)
 
   if (!book) {
     return (
@@ -62,9 +63,10 @@ export function BookDetail() {
     setBookingOpen(true)
   }
 
-  const handleBookChapter = (e, chapterNum) => {
+  const handleBookChapter = (e, chapter) => {
     e.stopPropagation()
     if (!user) { showSignup({ type: 'chapter', bookId: id }); return }
+    setBookingChapter(chapter)
     setBookingType('one_on_one')
     setBookingOpen(true)
   }
@@ -192,37 +194,48 @@ export function BookDetail() {
           <div className="mb-6">
             <p className="text-xs font-medium uppercase tracking-wider text-muted mb-3">Chapters</p>
             {chapters.length > 0 ? (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {chapters.map((ch, i) => {
-                  const isOpen = expandedChapter === i
+                  const estimatedPages = ch.content
+                    ? Math.ceil(ch.content.split(/\s+/).length / 250)
+                    : null
                   return (
-                    <div key={i} className="border border-border rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => setExpandedChapter(isOpen ? null : i)}
-                        className="w-full flex items-center justify-between p-3 text-left cursor-pointer hover:bg-surface transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <span className="text-[10px] text-muted font-mono w-5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{ch.title}</p>
-                            {ch.oneliner && !isOpen && <p className="text-xs text-muted truncate">{ch.oneliner}</p>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <Button size="sm" variant="outline" onClick={(e) => handleBookChapter(e, i + 1)}>Book</Button>
-                          {isOpen ? <ChevronDown size={14} className="text-muted" /> : <ChevronRight size={14} className="text-muted" />}
-                        </div>
-                      </button>
-                      {isOpen && (
-                        <div className="px-3 pb-3 pl-10">
-                          {ch.oneliner && <p className="text-xs font-medium mb-1">{ch.oneliner}</p>}
-                          {ch.summary ? (
-                            <p className="text-xs text-muted leading-relaxed">{ch.summary}</p>
-                          ) : (
-                            <p className="text-xs text-muted italic">AI summary coming soon.</p>
+                    <div key={i} className="border border-border rounded-xl p-3">
+                      <div className="flex items-start gap-3">
+                        {/* S. No. */}
+                        <span className="text-xs text-muted font-mono mt-0.5 w-5 shrink-0">
+                          {String(ch.number ?? i + 1).padStart(2, '0')}
+                        </span>
+                        {/* Title + oneliner */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium leading-snug">{ch.title}</p>
+                          {ch.oneliner && (
+                            <p className="text-xs text-muted mt-0.5 leading-relaxed">{ch.oneliner}</p>
                           )}
                         </div>
-                      )}
+                        {/* Pages */}
+                        {estimatedPages && (
+                          <span className="text-[10px] text-muted shrink-0 mt-0.5 whitespace-nowrap">~{estimatedPages} pp</span>
+                        )}
+                      </div>
+                      {/* CTAs */}
+                      <div className="flex items-center gap-2 mt-2.5 pl-8">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); alert('Voice agent coming soon') }}
+                          className="flex items-center gap-1"
+                        >
+                          <Mic size={11} /> Talk
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => handleBookChapter(e, ch)}
+                        >
+                          Book a Narrator
+                        </Button>
+                      </div>
                     </div>
                   )
                 })}
@@ -335,10 +348,11 @@ export function BookDetail() {
       {/* Booking Modal */}
       <BookingModal
         open={bookingOpen}
-        onClose={() => { setBookingOpen(false); setPreselectedNarrator(null) }}
+        onClose={() => { setBookingOpen(false); setPreselectedNarrator(null); setBookingChapter(null) }}
         bookId={id}
         sessionType={bookingType}
         preselectedNarrator={preselectedNarrator}
+        chapter={bookingChapter}
       />
     </div>
   )

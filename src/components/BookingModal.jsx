@@ -28,7 +28,7 @@ function isSlotBusy(slotTime, duration, busySlots) {
   })
 }
 
-export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one', preselectedNarrator = null }) {
+export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one', preselectedNarrator = null, chapter = null }) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { getBook, getNarratorsForBook } = useBookStore()
@@ -120,6 +120,7 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
         scheduled_at: selectedSlot.time.toISOString(),
         duration_minutes: duration,
         max_attendees: isGroup ? maxAttendees : 1,
+        ...(chapter ? { chapter_title: `Ch ${chapter.number}: ${chapter.title}` } : {}),
       }).select().single()
 
       if (error) throw error
@@ -174,6 +175,9 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
             )}
             <div>
               <h2 className="font-bold text-sm">{book.title}</h2>
+              {chapter && (
+                <p className="text-xs text-highlight font-medium">Ch {chapter.number}: {chapter.title}</p>
+              )}
               <p className="text-xs text-muted">
                 {step === 'narrator' && 'Choose a narrator'}
                 {step === 'schedule' && `Schedule with ${selectedNarrator?.name}`}
