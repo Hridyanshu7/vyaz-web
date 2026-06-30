@@ -34,3 +34,7 @@ agent = LlmAgent(
         system_prompt="You are a helpful narrator. Your full instructions will be provided at the start of each session.",
     ),
 )
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    agent.run(port=port)
