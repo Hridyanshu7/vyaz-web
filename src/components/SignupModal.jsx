@@ -7,6 +7,8 @@ import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 import { supabase } from '../lib/supabase'
 import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
+import { AvailabilityPicker } from './AvailabilityPicker'
+import { useAvailability, DEFAULT_AVAILABILITY } from '../hooks/useAvailability'
 
 const NEEDS_CALENDAR = ['gist', 'chapter', 'join']
 
@@ -20,6 +22,10 @@ export function SignupModal({ open, onClose }) {
   const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [gcalConnected, setGcalConnected] = useState(false)
+  const [showAvailability, setShowAvailability] = useState(false)
+  const [availSlots, setAvailSlots] = useState(DEFAULT_AVAILABILITY)
+  const [availTimezone, setAvailTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const [savingAvail, setSavingAvail] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [loginError, setLoginError] = useState('')
@@ -125,9 +131,17 @@ export function SignupModal({ open, onClose }) {
     signInWithLinkedIn()
   }
 
+  const isNarrator = profile?.role === 'narrator' || profile?.role === 'both'
+
   const handleComplete = async () => {
     if (needsCalendar && !gcalConnected) {
       setError('Please connect Google Calendar to book sessions')
+      return
+    }
+
+    // For narrators: show availability step before completing
+    if (isNarrator && gcalConnected && !showAvailability) {
+      setShowAvailability(true)
       return
     }
 
@@ -138,6 +152,40 @@ export function SignupModal({ open, onClose }) {
       if (gcalConnected) updates.gcal_connected = true
 
       await updateProfile(updates)
+      completeFlow(context)
+    } catch (err) {
+      setError(err.message)
+    }
+    setLoading(false)
+  }
+
+  const handleSaveAvailability = async () => {
+    if (!user) return
+    setSavingAvail(true)
+    try {
+      await supabase.from('availability').delete().eq('narrator_id', user.id)
+      const inserts = availSlots
+        .filter((s) => s.enabled)
+        .map((s) => ({
+          narrator_id: user.id,
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          timezone: availTimezone,
+        }))
+      if (inserts.length > 0) {
+        await supabase.from('availability').insert(inserts)
+      }
+    } catch {}
+    setSavingAvail(false)
+    setShowAvailability(false)
+    // Now complete the flow
+    setLoading(true)
+    try {
+      const updates = { onboarding_complete: true }
+      if (gcalConnected) updates.gcal_connected = true
+      await updateProfile(updates)
+      localStorage.removeItem('vyaz_signup_context')
       completeFlow(context)
     } catch (err) {
       setError(err.message)
@@ -358,9 +406,35 @@ export function SignupModal({ open, onClose }) {
                 </div>
                 </div>
 
-              <Button className="w-full" disabled={loading} onClick={handleComplete}>
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
-              </Button>
+              {/* Availability step for narrators */}
+              {showAvailability ? (
+                <div>
+                  <p className="text-sm font-medium mb-1">Set your availability</p>
+                  <p className="text-xs text-muted mb-3">When are you free for sessions? Listeners will only see these hours.</p>
+                  <AvailabilityPicker
+                    availability={availSlots}
+                    setAvailability={setAvailSlots}
+                    timezone={availTimezone}
+                    setTimezone={setAvailTimezone}
+                    saving={savingAvail}
+                    onSave={handleSaveAvailability}
+                    onSkip={async () => {
+                      setShowAvailability(false)
+                      setLoading(true)
+                      try {
+                        await updateProfile({ onboarding_complete: true, gcal_connected: gcalConnected })
+                        localStorage.removeItem('vyaz_signup_context')
+                        completeFlow(context)
+                      } catch {}
+                      setLoading(false)
+                    }}
+                  />
+                </div>
+              ) : (
+                <Button className="w-full" disabled={loading} onClick={handleComplete}>
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <>Continue <ArrowRight size={16} className="ml-1" /></>}
+                </Button>
+              )}
             </>
           )}
         </div>

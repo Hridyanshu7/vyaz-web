@@ -8,6 +8,7 @@ import { StarRating } from './ui/StarRating'
 import { useAuthStore } from '../stores/authStore'
 import { useBookStore } from '../stores/bookStore'
 import { supabase } from '../lib/supabase'
+import { useAvailability, generateSlotsFromAvailability } from '../hooks/useAvailability'
 import { createSessionEvent, getNarratorAvailability } from '../lib/calendar'
 
 const TIME_SLOTS = [
@@ -52,7 +53,13 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
   const weekStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
+  const { availability: narratorAvailability } = useAvailability(selectedNarrator?.id)
+
   const baseSlots = useMemo(() => {
+    if (narratorAvailability && narratorAvailability.some((s) => s.enabled)) {
+      return generateSlotsFromAvailability(narratorAvailability, weekStart)
+    }
+    // Fallback: show all slots if no availability set
     const slots = []
     for (let day = 0; day < 7; day++) {
       const date = addDays(weekStart, day)
@@ -64,7 +71,7 @@ export function BookingModal({ open, onClose, bookId, sessionType = 'one_on_one'
       })
     }
     return slots
-  }, [weekOffset])
+  }, [weekOffset, narratorAvailability])
 
   const availableSlots = useMemo(
     () => baseSlots.filter((s) => !isSlotBusy(s.time, duration, busySlots)),

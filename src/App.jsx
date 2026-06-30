@@ -9,6 +9,7 @@ import { Dashboard } from './pages/Dashboard'
 import { PostSession } from './pages/PostSession'
 import { AddBook } from './pages/AddBook'
 import { Profile } from './pages/Profile'
+import { Availability } from './pages/Availability'
 import { useAuthStore } from './stores/authStore'
 import { useBookStore } from './stores/bookStore'
 
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/review/:bookingId" element={<PostSession />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/availability" element={<Availability />} />
           <Route path="/add-book" element={<AddBook />} />
         </Route>
       </Routes>
