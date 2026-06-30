@@ -20,12 +20,13 @@ export async function getCartesiaSession(book, chapter) {
 }
 
 export class VoiceAgentSession {
-  constructor({ accessToken, agentId, systemPrompt, onStateChange, onError }) {
+  constructor({ accessToken, agentId, systemPrompt, onStateChange, onError, onTranscript }) {
     this.accessToken = accessToken
     this.agentId = agentId
     this.systemPrompt = systemPrompt
     this.onStateChange = onStateChange
     this.onError = onError
+    this.onTranscript = onTranscript
 
     this.ws = null
     this.audioContext = null
@@ -91,24 +92,37 @@ export class VoiceAgentSession {
     let msg
     try { msg = JSON.parse(e.data) } catch { return }
 
-    if (msg.event === 'ack') {
+    // Log all events to discover transcript event names
+    const evt = msg.event || msg.type
+    if (evt && evt !== 'media_output') {
+      console.log('[VoiceAgent] Event:', evt, JSON.stringify(msg).slice(0, 200))
+    }
+
+    if (evt === 'ack') {
       this.setState('listening')
       this._startMic()
     }
 
-    if (msg.event === 'agent_speaking') {
-      this.setState('speaking')
-    }
+    if (evt === 'agent_speaking') this.setState('speaking')
+    if (evt === 'agent_done_speaking') this.setState('listening')
 
-    if (msg.event === 'agent_done_speaking') {
-      this.setState('listening')
-    }
-
-    if (msg.event === 'media_output' && msg.media?.payload) {
+    if (evt === 'media_output' && msg.media?.payload) {
       this._playAudioChunk(msg.media.payload)
     }
 
-    if (msg.event === 'error') {
+    // Agent text — appears BEFORE audio (natural order: text → TTS → audio)
+    const agentText = msg.text || msg.content || msg.transcript
+    if ((evt === 'agent_text' || evt === 'AgentTextSent' || evt === 'agent_transcript') && agentText) {
+      this.onTranscript?.({ role: 'agent', text: agentText })
+    }
+
+    // User transcript
+    const userText = msg.text || msg.content || msg.transcript
+    if ((evt === 'user_text' || evt === 'UserTextSent' || evt === 'user_transcript') && userText) {
+      this.onTranscript?.({ role: 'user', text: userText })
+    }
+
+    if (evt === 'error') {
       this.onError?.(msg.message || 'Agent error')
     }
   }

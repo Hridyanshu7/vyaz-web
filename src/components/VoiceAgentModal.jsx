@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Mic, MicOff, Loader2, PhoneOff, CheckCircle2, Circle } from 'lucide-react'
+import { X, Mic, MicOff, Loader2, PhoneOff, CheckCircle2, Circle, Volume2 } from 'lucide-react'
 import { getCartesiaSession, VoiceAgentSession } from '../lib/voiceAgent'
 import { supabase } from '../lib/supabase'
 
@@ -18,7 +18,9 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
   const [sessionId, setSessionId] = useState(null)
   const [totalSections, setTotalSections] = useState(0)
   const [completedSections, setCompletedSections] = useState([])
+  const [conversation, setConversation] = useState([])
   const sessionRef = useRef(null)
+  const bubblesRef = useRef(null)
 
   // Connect voice session
   useEffect(() => {
@@ -32,6 +34,7 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
       setSessionId(null)
       setTotalSections(0)
       setCompletedSections([])
+      setConversation([])
 
       try {
         const sessionData = await getCartesiaSession(book, chapter)
@@ -44,6 +47,11 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
           ...sessionData,
           onStateChange: (s) => { if (!cancelled) setAgentState(s) },
           onError: (msg) => { if (!cancelled) setError(msg) },
+          onTranscript: ({ role, text }) => {
+            if (!cancelled) {
+              setConversation((prev) => [...prev, { role, text, id: Date.now() + Math.random() }])
+            }
+          },
         })
         sessionRef.current = session
         await session.start()
@@ -59,6 +67,13 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
       sessionRef.current = null
     }
   }, [open, book, chapter])
+
+  // Auto-scroll bubbles to bottom when new message arrives
+  useEffect(() => {
+    if (bubblesRef.current) {
+      bubblesRef.current.scrollTop = bubblesRef.current.scrollHeight
+    }
+  }, [conversation])
 
   // Supabase Realtime: subscribe to progress updates for this session
   useEffect(() => {
@@ -195,6 +210,31 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
             </div>
           )}
         </div>
+
+        {/* Conversation bubbles */}
+        {conversation.length > 0 && (
+          <div
+            ref={bubblesRef}
+            className="mx-4 mb-3 max-h-48 overflow-y-auto space-y-2 scroll-smooth"
+          >
+            {conversation.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                  msg.role === 'agent'
+                    ? 'bg-surface border border-border text-foreground rounded-tl-sm'
+                    : 'bg-highlight/10 border border-highlight/20 text-foreground rounded-tr-sm'
+                }`}>
+                  {msg.role === 'agent' && (
+                    <div className="flex items-center gap-1 mb-0.5 text-[10px] text-muted">
+                      <Volume2 size={9} /> Narrator
+                    </div>
+                  )}
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Section list */}
         {hasSections && (
