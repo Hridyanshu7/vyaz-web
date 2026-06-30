@@ -1,6 +1,6 @@
 # Vyaz — Project To-Do List
 
-*Last updated: June 28, 2026*
+*Last updated: June 30, 2026*
 
 ---
 
@@ -26,6 +26,7 @@
 - [ ] **Payment integration** — Stripe (global) or Razorpay (India-first) for session payments. Listener pays per session or subscription. Narrator gets paid out minus platform cut. Needs Supabase Edge Function for checkout + webhooks.
 - [ ] **Custom domain** — Point vyaz.ai to the Vercel deployment. Add domain in Vercel project settings + DNS configuration.
 - [ ] **Narrator verification system** — Comprehension quiz per book to verify narrator actually read it. Prevents faking. Gate the "narrator for this book" status behind passing the quiz.
+- [ ] **WhatsApp OTP via AISensy** — Replace Supabase SMS OTP with WhatsApp OTP delivery using AISensy (Meta WhatsApp Business API). Requires: AISensy account + WhatsApp Business Account + Meta-approved OTP template ("Your Vyaz verification code is {{1}}.") + Supabase Edge Function for custom OTP generation/verification. UI is already labeled as WhatsApp. Cost: ~₹350/month for 1,000 OTPs + AISensy platform fee. **Defer until post-PMF** — Google + LinkedIn OAuth covers auth for first 100 users at zero cost.
 
 ---
 
@@ -52,3 +53,12 @@
 - [x] Favicon + OG meta tags
 - [x] Deployed to Vercel (vyaz.vercel.app)
 - [x] Rebranded: BookLoop → Tome → Vyas → Vyaz
+- [x] LinkedIn OAuth login (side-by-side with Google)
+- [x] Contextual signup modal (5 trigger types with different post-auth redirects)
+- [x] Booking flow redesign: BookingModal replaces Schedule page
+- [x] Narrator selection step before slot picker
+- [x] No-narrator fallback with Request a session CTA
+- [x] Seat validation for group sessions
+- [x] Upcoming group sessions on homepage
+- [x] WhatsApp branding on phone auth (UI ready, backend pending)
+- [x] Profile page: avatar display + editable WhatsApp number
