@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Mail, Phone, BookOpen, Calendar, Link2, Check, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, User, Mail, Phone, BookOpen, Calendar, Check, Loader2, Save } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
@@ -36,6 +36,7 @@ export function Profile() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [role, setRole] = useState('')
   const [genres, setGenres] = useState([])
   const [saving, setSaving] = useState(false)
@@ -47,6 +48,7 @@ export function Profile() {
     if (profile) {
       setName(profile.name || '')
       setEmail(profile.email || '')
+      setPhone(profile.phone || user?.phone || '')
       setRole(profile.role || '')
       setGenres(profile.genres || [])
     }
@@ -71,6 +73,7 @@ export function Profile() {
       await updateProfile({
         name: name.trim(),
         email: email.trim(),
+        phone: phone.trim() || null,
         role,
         genres,
       })
@@ -89,7 +92,20 @@ export function Profile() {
         <ArrowLeft size={16} /> Dashboard
       </button>
 
-      <h1 className="text-xl font-bold mb-6">Profile</h1>
+      {/* Avatar + name header */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-16 h-16 rounded-full bg-surface border border-border flex items-center justify-center overflow-hidden shrink-0">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile.name} className="w-full h-full object-cover" />
+          ) : (
+            <User size={24} className="text-muted" />
+          )}
+        </div>
+        <div>
+          <h1 className="text-xl font-bold">{profile?.name || 'Profile'}</h1>
+          <p className="text-sm text-muted">{profile?.email || user?.email || ''}</p>
+        </div>
+      </div>
 
       <div className="space-y-6">
         {/* Basic info */}
@@ -98,9 +114,16 @@ export function Profile() {
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <div>
             <label className="block text-sm font-medium mb-1.5">Phone</label>
-            <div className="flex items-center gap-2 text-sm text-muted px-3 py-2 rounded-lg bg-surface border border-border">
-              <Phone size={14} />
-              {profile?.phone || user?.phone || 'Not set'}
+            <div className="relative">
+              <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm
+                  placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-highlight/20 focus:border-highlight"
+              />
             </div>
           </div>
         </section>
