@@ -14,11 +14,9 @@ import { BookingModal } from '../components/BookingModal'
 import { supabase } from '../lib/supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const NOISE_GENRES = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
-
 function getTopGenres(book) {
-  const genres = book.genres?.length > 0 ? book.genres : (book.goodreads_data?.genres || [])
-  return genres.filter((g) => !NOISE_GENRES.has(g))
+  if (book.genres?.length > 0) return book.genres
+  return book.goodreads_data?.genres || []
 }
 
 export function BookDetail() {
