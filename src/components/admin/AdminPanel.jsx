@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, ChevronDown } from 'lucide-react'
+import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
@@ -10,6 +10,7 @@ const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'sessions', label: 'Group Sessions', icon: Calendar },
   { id: 'books', label: 'Book Requests', icon: BookOpen },
+  { id: 'genres', label: 'Genre Tags', icon: Tag },
 ]
 
 // ─────────────────────────────────────────
@@ -313,6 +314,136 @@ function BookRequests() {
 }
 
 // ─────────────────────────────────────────
+// 4. GENRE TAGS
+// ─────────────────────────────────────────
+const NOISE = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
+
+function GenreTags() {
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState({})
+  const [newTag, setNewTag] = useState({})
+  const [search, setSearch] = useState('')
+  const updateBookGenres = useBookStore((s) => s.updateBookGenres)
+
+  useEffect(() => { fetchBooks() }, [])
+
+  const fetchBooks = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('books')
+      .select('id, title, author, cover_url, genres, goodreads_data')
+      .order('title')
+    setBooks(data || [])
+    setLoading(false)
+  }
+
+  const removeTag = async (bookId, tag) => {
+    const book = books.find((b) => b.id === bookId)
+    const updated = (book.genres || []).filter((g) => g !== tag)
+    setSaving((s) => ({ ...s, [bookId]: true }))
+    await updateBookGenres(bookId, updated)
+    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
+    setSaving((s) => ({ ...s, [bookId]: false }))
+  }
+
+  const addTag = async (bookId) => {
+    const tag = (newTag[bookId] || '').trim()
+    if (!tag) return
+    const book = books.find((b) => b.id === bookId)
+    const existing = book.genres || []
+    if (existing.includes(tag)) { setNewTag((n) => ({ ...n, [bookId]: '' })); return }
+    const updated = [...existing, tag]
+    setSaving((s) => ({ ...s, [bookId]: true }))
+    await updateBookGenres(bookId, updated)
+    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
+    setNewTag((n) => ({ ...n, [bookId]: '' }))
+    setSaving((s) => ({ ...s, [bookId]: false }))
+  }
+
+  const getDisplayGenres = (book) => {
+    if (book.genres?.length > 0) return book.genres
+    return (book.goodreads_data?.genres || []).filter((g) => !NOISE.has(g)).slice(0, 5)
+  }
+
+  const filtered = books.filter((b) =>
+    !search || b.title.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-muted">{books.length} books</p>
+        <input
+          type="text"
+          placeholder="Search books..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none w-48"
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-muted text-sm">Loading books...</div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((book) => (
+            <div key={book.id} className="p-3 rounded-xl border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                {book.cover_url && (
+                  <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{book.title}</p>
+                  <p className="text-xs text-muted">{book.author}</p>
+                </div>
+                {saving[book.id] && <Loader2 size={12} className="animate-spin text-muted shrink-0" />}
+              </div>
+
+              {/* Current tags */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {getDisplayGenres(book).map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-border text-xs">
+                    {tag}
+                    <button
+                      onClick={() => removeTag(book.id, tag)}
+                      className="text-muted hover:text-highlight cursor-pointer"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                {getDisplayGenres(book).length === 0 && (
+                  <span className="text-xs text-muted italic">No tags set</span>
+                )}
+              </div>
+
+              {/* Add tag */}
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={newTag[book.id] || ''}
+                  onChange={(e) => setNewTag((n) => ({ ...n, [book.id]: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && addTag(book.id)}
+                  placeholder="Add genre tag..."
+                  className="flex-1 px-2 py-1 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-highlight/20"
+                />
+                <button
+                  onClick={() => addTag(book.id)}
+                  className="px-2 py-1 rounded border border-border bg-surface hover:bg-background text-xs cursor-pointer"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────
 // MAIN ADMIN PANEL
 // ─────────────────────────────────────────
 export function AdminPanel() {
@@ -336,6 +467,7 @@ export function AdminPanel() {
       {activeTab === 'users' && <UserAccess />}
       {activeTab === 'sessions' && <GroupSessions />}
       {activeTab === 'books' && <BookRequests />}
+      {activeTab === 'genres' && <GenreTags />}
     </div>
   )
 }

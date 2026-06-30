@@ -16,9 +16,9 @@ import { supabase } from '../lib/supabase'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const NOISE_GENRES = new Set(['Nonfiction', 'Fiction', 'Audiobook', 'Book Club', 'Novels', 'Buisness', 'Adult', 'School'])
 
-function getTopGenres(gr) {
-  if (!gr?.genres) return []
-  return gr.genres.filter((g) => !NOISE_GENRES.has(g))
+function getTopGenres(book) {
+  const genres = book.genres?.length > 0 ? book.genres : (book.goodreads_data?.genres || [])
+  return genres.filter((g) => !NOISE_GENRES.has(g))
 }
 
 export function BookDetail() {
@@ -52,8 +52,8 @@ export function BookDetail() {
 
   const az = book.amazon_data
   const gr = book.goodreads_data
-  const topGenres = getTopGenres(gr)
-  const description = gr?.description || az?.description || book.description || ''
+  const topGenres = getTopGenres(book)
+  const description = book.description || gr?.description || az?.description || ''
   const chapters = book.chapters || []
   const hasNarrators = narrators.length > 0
   const firstNarrator = narrators[0]
@@ -103,19 +103,19 @@ export function BookDetail() {
 
           {/* Ratings */}
           <div className="mt-3 space-y-1.5">
-            {gr?.averageRating && (
+            {book.goodreads_rating && (
               <div className="flex items-center gap-1.5">
-                <StarRating rating={Math.round(gr.averageRating)} size={12} />
-                <span className="text-xs font-semibold">{gr.averageRating}</span>
-                <span className="text-[10px] text-muted">({gr.ratingsCount?.toLocaleString()})</span>
+                <StarRating rating={Math.round(book.goodreads_rating)} size={12} />
+                <span className="text-xs font-semibold">{book.goodreads_rating}</span>
+                <span className="text-[10px] text-muted">({book.goodreads_ratings_count?.toLocaleString()})</span>
                 <span className="text-[10px] text-green-700">Goodreads</span>
               </div>
             )}
-            {az?.stars && (
+            {book.amazon_rating && (
               <div className="flex items-center gap-1.5">
-                <StarRating rating={Math.round(az.stars)} size={12} />
-                <span className="text-xs font-semibold">{az.stars}</span>
-                <span className="text-[10px] text-muted">({az.reviewsCount?.toLocaleString()})</span>
+                <StarRating rating={Math.round(book.amazon_rating)} size={12} />
+                <span className="text-xs font-semibold">{book.amazon_rating}</span>
+                <span className="text-[10px] text-muted">({book.amazon_reviews_count?.toLocaleString()})</span>
                 <span className="text-[10px] text-orange-600">Amazon</span>
               </div>
             )}
@@ -163,7 +163,7 @@ export function BookDetail() {
             <div className="mt-4 p-3 rounded-lg bg-surface border border-border">
               <p className="text-xs font-medium uppercase tracking-wider text-muted mb-1">What readers say</p>
               <p className="text-xs leading-relaxed italic">"{az.aiSummary}"</p>
-              <p className="text-[10px] text-muted mt-1">{az.reviewsCount?.toLocaleString()} reviews</p>
+              <p className="text-[10px] text-muted mt-1">{book.amazon_reviews_count?.toLocaleString()} reviews</p>
             </div>
           )}
 

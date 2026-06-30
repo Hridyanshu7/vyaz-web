@@ -105,10 +105,10 @@ export function Home() {
                   </div>
                   <h3 className="text-sm font-medium leading-tight line-clamp-2 group-hover:text-highlight transition-colors">{book.title}</h3>
                   <p className="text-xs text-muted mt-0.5">{book.author}</p>
-                  {book.goodreads_data?.averageRating && (
+                  {book.goodreads_rating && (
                     <div className="flex items-center gap-1 mt-1">
-                      <StarRating rating={Math.round(book.goodreads_data.averageRating)} size={10} />
-                      <span className="text-xs text-muted">{book.goodreads_data.averageRating}</span>
+                      <StarRating rating={Math.round(book.goodreads_rating)} size={10} />
+                      <span className="text-xs text-muted">{book.goodreads_rating}</span>
                     </div>
                   )}
                 </Link>
