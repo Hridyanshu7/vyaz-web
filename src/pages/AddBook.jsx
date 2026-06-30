@@ -42,7 +42,8 @@ export function AddBook() {
   const [addedBookId, setAddedBookId] = useState(null)
   const [requestSent, setRequestSent] = useState(false)
   const [requesting, setRequesting] = useState(false)
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
+  const isAdmin = profile?.is_admin === true
 
   const handleAdd = async () => {
     if (!book) return
@@ -116,22 +117,6 @@ export function AddBook() {
         </div>
       )}
 
-      {error === '__rls__' && (
-        <div className="mt-4 p-4 rounded-xl border border-border bg-surface">
-          <p className="text-sm font-medium mb-1">This book isn't in our catalog yet</p>
-          <p className="text-xs text-muted mb-3">
-            Only our team can add new books. But you can request it — we'll review and add it soon.
-          </p>
-          {requestSent ? (
-            <Badge variant="success"><Check size={12} className="mr-1" /> Request sent! We'll notify you when it's added.</Badge>
-          ) : (
-            <Button size="sm" disabled={requesting} onClick={handleRequest}>
-              {requesting ? <Loader2 size={14} className="animate-spin mr-1" /> : <MessageSquare size={14} className="mr-1" />}
-              Request this book
-            </Button>
-          )}
-        </div>
-      )}
 
       {book && (
         <div className="mt-6 space-y-4">
@@ -310,24 +295,36 @@ export function AddBook() {
             <EditableField label="Pages" value={book.page_count ? String(book.page_count) : ''} onChange={(v) => setBook({ ...book, page_count: parseInt(v) || null })} />
           </div>
 
-          {/* Add button */}
+          {/* Add / Request button */}
           <div>
-            {added ? (
-              <div className="flex items-center gap-2">
-                <Button variant="secondary" disabled>
-                  <Check size={16} className="mr-1" /> Added to catalog
+            {isAdmin ? (
+              added ? (
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" disabled>
+                    <Check size={16} className="mr-1" /> Added to catalog
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate(`/books/${addedBookId}`)}>
+                    View book
+                  </Button>
+                  <Button variant="ghost" onClick={() => { setBook(null); setUrl(''); setAdded(false) }}>
+                    Add another
+                  </Button>
+                </div>
+              ) : (
+                <Button className="w-full" onClick={handleAdd} disabled={!book.title || loading}>
+                  {loading ? <Loader2 size={16} className="animate-spin mr-1" /> : null}
+                  Add to catalog
                 </Button>
-                <Button variant="outline" onClick={() => navigate(`/books/${addedBookId}`)}>
-                  View book
-                </Button>
-                <Button variant="ghost" onClick={() => { setBook(null); setUrl(''); setAdded(false) }}>
-                  Add another
-                </Button>
-              </div>
+              )
             ) : (
-              <Button className="w-full" onClick={handleAdd} disabled={!book.title}>
-                Add to catalog
-              </Button>
+              requestSent ? (
+                <Badge variant="success"><Check size={12} className="mr-1" /> Request sent! We'll notify you when it's added.</Badge>
+              ) : (
+                <Button className="w-full" disabled={requesting} onClick={handleRequest}>
+                  {requesting ? <Loader2 size={14} className="animate-spin mr-1" /> : <MessageSquare size={14} className="mr-1" />}
+                  Request this book
+                </Button>
+              )
             )}
           </div>
         </div>
