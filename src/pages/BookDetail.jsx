@@ -12,6 +12,8 @@ import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 import { BookingModal } from '../components/BookingModal'
 import { VoiceAgentModal } from '../components/VoiceAgentModal'
+import { VoicePipelineModal } from '../components/VoicePipelineModal'
+import { useAdminDataStore } from '../stores/adminDataStore'
 import { supabase } from '../lib/supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -43,6 +45,7 @@ export function BookDetail() {
   const [preselectedNarrator, setPreselectedNarrator] = useState(null)
   const [bookingChapter, setBookingChapter] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
+  const voiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider) || 'cartesia'
 
   if (!book) {
     return (
@@ -368,12 +371,21 @@ export function BookDetail() {
         preselectedNarrator={preselectedNarrator}
         chapter={bookingChapter}
       />
-      <VoiceAgentModal
-        open={!!voiceChapter}
-        onClose={() => setVoiceChapter(null)}
-        book={book}
-        chapter={voiceChapter}
-      />
+      {voiceProvider === 'pipeline' ? (
+        <VoicePipelineModal
+          open={!!voiceChapter}
+          onClose={() => setVoiceChapter(null)}
+          book={book}
+          chapter={voiceChapter}
+        />
+      ) : (
+        <VoiceAgentModal
+          open={!!voiceChapter}
+          onClose={() => setVoiceChapter(null)}
+          book={book}
+          chapter={voiceChapter}
+        />
+      )}
     </div>
   )
 }

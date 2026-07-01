@@ -756,7 +756,7 @@ function ph(keys) {
 }
 
 function GeminiCard() {
-  const { vals, set, save, saving, saved } = useProviderSettings(['gemini_api_key', 'gemini_chapters_prompt'])
+  const { vals, set, save, saving, saved } = useProviderSettings(['gemini_api_key', 'gemini_chapters_prompt', 'voice_narration_prompt', 'voice_answering_prompt'])
   return (
     <ProviderCard
       title="Gemini"
@@ -775,10 +775,27 @@ function GeminiCard() {
         </div>
       }
       promptsContent={
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <label className="text-xs text-muted mb-1 block">Chapters Prompt — use {ph(['title', 'author'])}</label>
             <textarea value={vals.gemini_chapters_prompt || ''} onChange={(e) => set('gemini_chapters_prompt', e.target.value)}
+              rows={4} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+          </div>
+          <hr className="border-border" />
+          <div>
+            <label className="text-xs text-muted mb-1 block">
+              Narration Prompt — use {ph(['book_title', 'author', 'chapter_title', 'oneliner'])}
+            </label>
+            <p className="text-[10px] text-muted mb-1">Return JSON: {`{"text":"...","check_in":"Shall I continue?"}`}</p>
+            <textarea value={vals.voice_narration_prompt || ''} onChange={(e) => set('voice_narration_prompt', e.target.value)}
+              rows={8} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+          </div>
+          <div>
+            <label className="text-xs text-muted mb-1 block">
+              Answering Prompt — use {ph(['book_title', 'author', 'chapter_title'])}
+            </label>
+            <p className="text-[10px] text-muted mb-1">Return JSON: {`{"text":"..."}`}</p>
+            <textarea value={vals.voice_answering_prompt || ''} onChange={(e) => set('voice_answering_prompt', e.target.value)}
               rows={6} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
           </div>
           <Button size="sm" onClick={save} disabled={saving}>
@@ -841,9 +858,52 @@ function CartesiaCard() {
   )
 }
 
+function ProviderSwitcher() {
+  const { platformSettings, updateSetting } = useAdminDataStore()
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const provider = platformSettings.voice_provider || 'cartesia'
+
+  const setProvider = async (val) => {
+    setSaving(true)
+    await supabase.from('platform_settings').upsert({ key: 'voice_provider', value: val, updated_at: new Date().toISOString() })
+    updateSetting('voice_provider', val)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+  }
+
+  return (
+    <div className="p-3 rounded-xl border border-border bg-surface">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Active Voice Provider</p>
+          <p className="text-xs text-muted mt-0.5">Controls which engine powers the Talk button</p>
+        </div>
+        {saved && <span className="text-xs text-green-600">✓ Saved</span>}
+      </div>
+      <div className="flex gap-2 mt-3">
+        {[
+          { id: 'cartesia', label: 'Cartesia Line', desc: 'Voice agent, benchmark' },
+          { id: 'pipeline', label: 'Pipeline', desc: 'STT → LLM → TTS' },
+        ].map((p) => (
+          <button key={p.id} onClick={() => setProvider(p.id)} disabled={saving}
+            className={`flex-1 p-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
+              provider === p.id ? 'border-highlight bg-highlight/5' : 'border-border hover:bg-surface'
+            }`}>
+            <p className={`text-xs font-medium ${provider === p.id ? 'text-highlight' : ''}`}>{p.label}</p>
+            <p className="text-[10px] text-muted mt-0.5">{p.desc}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Agents() {
   return (
     <div className="space-y-4">
+      <ProviderSwitcher />
       <GeminiCard />
       <CartesiaCard />
     </div>
