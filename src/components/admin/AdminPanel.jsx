@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
 import { importBookFromUrl } from '../../lib/bookImport'
 import { useBookStore, getBookGenres } from '../../stores/bookStore'
+import { useAdminStore } from '../../stores/adminStore'
 import { generateChapters, generateOneliners } from '../../lib/gemini'
 import { parseEpub } from '../../lib/epub'
 import { splitIntoSections } from '../../lib/sections'
@@ -21,10 +22,10 @@ const TABS = [
 // ─────────────────────────────────────────
 function UserAccess() {
   const [original, setOriginal] = useState([])
-  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const { userChanges, setUserChange, clearUserChanges } = useAdminStore()
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -35,26 +36,28 @@ function UserAccess() {
       .select('id, name, email, role, is_admin, is_active, created_at, avatar_url')
       .order('created_at', { ascending: false })
     setOriginal(data || [])
-    setUsers(data || [])
     setLoading(false)
   }
 
-  const patch = (userId, changes) =>
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, ...changes } : u))
+  // Merge original DB data with any pending changes from store
+  const users = original.map((u) => ({ ...u, ...(userChanges[u.id] || {}) }))
 
-  // Compute which users changed vs original
-  const dirty = users.filter((u) => {
-    const o = original.find((x) => x.id === u.id)
-    return o && (o.role !== u.role || o.is_admin !== u.is_admin || o.is_active !== u.is_active)
-  })
+  const patch = (userId, changes) => setUserChange(userId, changes)
+
+  const dirty = Object.keys(userChanges)
+  const dirtyCount = dirty.length
 
   const saveAll = async () => {
     setSaving(true)
     await Promise.all(
-      dirty.map((u) => supabase.from('profiles').update({
-        role: u.role, is_admin: u.is_admin, is_active: u.is_active,
-      }).eq('id', u.id))
+      dirty.map((userId) => {
+        const u = users.find((x) => x.id === userId)
+        return supabase.from('profiles').update({
+          role: u.role, is_admin: u.is_admin, is_active: u.is_active,
+        }).eq('id', userId)
+      })
     )
+    clearUserChanges()
     setOriginal(users)
     setSaving(false)
   }
@@ -68,10 +71,10 @@ function UserAccess() {
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-muted">{users.filter((u) => u.is_active !== false).length} active · {users.length} total</p>
         <div className="flex items-center gap-2">
-          {dirty.length > 0 && (
+          {dirtyCount > 0 && (
             <Button size="sm" onClick={saveAll} disabled={saving}>
               {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
-              Save {dirty.length} change{dirty.length > 1 ? 's' : ''}
+              Save {dirtyCount} change{dirtyCount > 1 ? 's' : ''}
             </Button>
           )}
           <input type="text" placeholder="Search..." value={search}
@@ -86,7 +89,7 @@ function UserAccess() {
         <div className="space-y-2">
           {filtered.map((u) => {
             const isActive = u.is_active !== false
-            const isDirty = dirty.some((d) => d.id === u.id)
+            const isDirty = !!userChanges[u.id]
             return (
               <div key={u.id} className={`p-3 rounded-xl border transition-opacity ${!isActive ? 'opacity-50' : ''} ${isDirty ? 'border-highlight/40 bg-highlight/5' : 'border-border'}`}>
                 <div className="flex items-center gap-3">
@@ -384,14 +387,14 @@ function FilterPillManager({ pills, onRefresh }) {
 
 function GenreTags() {
   const [original, setOriginal] = useState([])
-  const [books, setBooks] = useState([])
   const [pills, setPills] = useState([])
   const [loading, setLoading] = useState(true)
   const [savingAll, setSavingAll] = useState(false)
-  const [opStatus, setOpStatus] = useState({}) // chapter operation status per book
+  const [opStatus, setOpStatus] = useState({})
   const [newTag, setNewTag] = useState({})
   const [search, setSearch] = useState('')
   const updateBookGenres = useBookStore((s) => s.updateBookGenres)
+  const { bookChanges, setBookChange, clearBookChanges } = useAdminStore()
 
   useEffect(() => { fetchBooks(); fetchPills() }, [])
 
@@ -407,27 +410,28 @@ function GenreTags() {
       .select('id, title, author, cover_url, genres, goodreads_data, is_published, chapters, cartesia_folder_id')
       .order('title')
     setOriginal(data || [])
-    setBooks(data || [])
     setLoading(false)
   }
 
-  // Books whose genres or is_published changed vs original
-  const dirty = books.filter((b) => {
-    const o = original.find((x) => x.id === b.id)
-    return o && (o.is_published !== b.is_published || JSON.stringify(o.genres) !== JSON.stringify(b.genres))
-  })
+  // Merge original with pending changes from store
+  const books = original.map((b) => ({ ...b, ...(bookChanges[b.id] || {}) }))
+  const dirtyBookIds = Object.keys(bookChanges)
 
   const saveAll = async () => {
     setSavingAll(true)
     await Promise.all(
-      dirty.map((b) => supabase.from('books').update({ genres: b.genres, is_published: b.is_published }).eq('id', b.id))
+      dirtyBookIds.map((bookId) => {
+        const b = books.find((x) => x.id === bookId)
+        return supabase.from('books').update({ genres: b.genres, is_published: b.is_published }).eq('id', bookId)
+      })
     )
+    clearBookChanges()
     setOriginal(books)
     setSavingAll(false)
   }
 
   const togglePublished = (book) =>
-    setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, is_published: !b.is_published } : b))
+    setBookChange(book.id, { is_published: !book.is_published, genres: book.genres })
 
   // ── Chapter actions ──
   const setOp = (bookId, val) => setOpStatus((s) => ({ ...s, [bookId]: val }))
@@ -491,19 +495,16 @@ function GenreTags() {
   }
 
   const removeTag = (bookId, tag) => {
-    setBooks((prev) => prev.map((b) => b.id === bookId
-      ? { ...b, genres: (b.genres || []).filter((g) => g !== tag) }
-      : b))
+    const book = books.find((b) => b.id === bookId)
+    setBookChange(bookId, { genres: (book.genres || []).filter((g) => g !== tag), is_published: book.is_published })
   }
 
   const addTag = (bookId) => {
     const tag = (newTag[bookId] || '').trim()
     if (!tag) return
-    setBooks((prev) => prev.map((b) => {
-      if (b.id !== bookId) return b
-      if ((b.genres || []).includes(tag)) return b
-      return { ...b, genres: [...(b.genres || []), tag] }
-    }))
+    const book = books.find((b) => b.id === bookId)
+    if ((book.genres || []).includes(tag)) return
+    setBookChange(bookId, { genres: [...(book.genres || []), tag], is_published: book.is_published })
     setNewTag((n) => ({ ...n, [bookId]: '' }))
   }
 
@@ -520,10 +521,10 @@ function GenreTags() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <p className="text-xs text-muted">{books.length} books</p>
-          {dirty.length > 0 && (
+          {dirtyBookIds.length > 0 && (
             <Button size="sm" onClick={saveAll} disabled={savingAll}>
               {savingAll ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
-              Save {dirty.length} change{dirty.length > 1 ? 's' : ''}
+              Save {dirtyBookIds.length} change{dirtyBookIds.length > 1 ? 's' : ''}
             </Button>
           )}
         </div>
@@ -544,8 +545,9 @@ function GenreTags() {
             const bookGenres = getDisplayGenres(book)
             const matchingPills = pills.filter((p) => bookGenres.includes(p))
             const noMatch = matchingPills.length === 0
+            const isBookDirty = !!bookChanges[book.id]
             return (
-            <div key={book.id} className={`p-3 rounded-xl border border-border transition-opacity ${!book.is_published ? 'opacity-50' : ''}`}>
+            <div key={book.id} className={`p-3 rounded-xl border transition-opacity ${!book.is_published ? 'opacity-50' : ''} ${isBookDirty ? 'border-highlight/40 bg-highlight/5' : 'border-border'}`}>
               <div className="flex items-center gap-2 mb-1.5">
                 {book.cover_url && (
                   <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
