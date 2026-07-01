@@ -23,6 +23,7 @@ export async function getVoicePipelineSession(book, chapter) {
 
 // ─── Gemini helpers ────────────────────────────────────────────────────────────
 async function callGeminiText(apiKey, prompt, userMessage) {
+  console.log('[Pipeline] LLM call — prompt length:', prompt?.length, '| message length:', userMessage?.length)
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
     {
@@ -36,7 +37,10 @@ async function callGeminiText(apiKey, prompt, userMessage) {
     }
   )
   const data = await res.json()
-  if (data.error) throw new Error(data.error.message)
+  if (data.error) {
+    console.error('[Pipeline] Gemini error:', JSON.stringify(data.error))
+    throw new Error(data.error.message)
+  }
   let raw = data.candidates[0].content.parts[0].text.trim()
   raw = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   return JSON.parse(raw)
