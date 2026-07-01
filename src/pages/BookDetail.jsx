@@ -222,6 +222,16 @@ export function BookDetail() {
                           <span className="text-[10px] text-muted shrink-0 mt-0.5 whitespace-nowrap">~{estimatedPages} pp</span>
                         )}
                       </div>
+                      {/* Section titles */}
+                      {ch.sections?.some((s) => s.title) && (
+                        <div className="pl-8 mt-1.5 space-y-0.5">
+                          {ch.sections.filter((s) => s.title).map((s) => (
+                            <p key={s.number} className="text-[10px] text-muted">
+                              <span className="text-muted/50 mr-1">{s.number}.</span>{s.title}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                       {/* CTAs */}
                       <div className="flex items-center gap-2 mt-2.5 pl-8">
                         <Button

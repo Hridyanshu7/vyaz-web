@@ -478,8 +478,15 @@ function GenreTags() {
     try {
       const hasContent = book.chapters?.some((ch) => ch.content)
       if (hasContent) {
-        const oneliners = await generateOneliners(book.title, book.author, book.chapters)
-        const merged = book.chapters.map((ch) => ({ ...ch, oneliner: oneliners.find((o) => o.number === ch.number)?.oneliner || ch.oneliner || '' }))
+        const results = await generateOneliners(book.title, book.author, book.chapters)
+        const merged = book.chapters.map((ch) => {
+          const match = results.find((o) => o.number === ch.number)
+          const updatedSections = (ch.sections || []).map((s) => {
+            const secMatch = match?.sections?.find((ms) => ms.number === s.number)
+            return secMatch?.title ? { ...s, title: secMatch.title } : s
+          })
+          return { ...ch, oneliner: match?.oneliner || ch.oneliner || '', sections: updatedSections }
+        })
         await saveChapters(book.id, merged)
       } else {
         const chapters = await generateChapters(book.title, book.author)

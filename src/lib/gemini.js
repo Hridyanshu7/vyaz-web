@@ -81,7 +81,7 @@ export async function generateChapters(title, author) {
   return chapters
 }
 
-// Generate oneliners using sampled content (first para + section openers + last para)
+// Generate chapter oneliners + section titles from sampled content
 export async function generateOneliners(title, author, chapters) {
   const settings = await getSettings()
   const apiKey = settings.gemini_api_key || import.meta.env.VITE_GEMINI_API_KEY
@@ -89,17 +89,27 @@ export async function generateOneliners(title, author, chapters) {
 
   const chapterList = chapters.map((ch) => {
     const sample = sampleChapter(ch)
-    return `Chapter ${ch.number}: "${ch.title}"\n${sample}`
+    const sections = (ch.sections || [])
+    const sectionList = sections.length > 0
+      ? `\nSections: ${sections.map((s) => `[${s.number}]`).join(', ')}`
+      : ''
+    return `Chapter ${ch.number}: "${ch.title}"${sectionList}\n${sample}`
   }).join('\n\n---\n\n')
 
   const prompt = `You are reading "${title}" by ${author}.
 
-For each chapter below, write a single sentence that captures its core idea. Base it on the sampled content: the opening paragraph, the arc through section openers, and the closing paragraph.
+For each chapter:
+1. Write one sentence capturing the chapter's core argument (oneliner)
+2. For each section listed, write a 3-6 word title based on the sampled content
 
 ${chapterList}
 
 Return ONLY a valid JSON array with no markdown:
-[{"number":1,"oneliner":"One sentence capturing the chapter's core idea."}]`
+[{
+  "number": 1,
+  "oneliner": "One sentence capturing the chapter's core idea.",
+  "sections": [{"number": 1, "title": "Short section title"}]
+}]`
 
   const result = await callGemini(apiKey, prompt)
   if (!Array.isArray(result)) throw new Error('Invalid response format')
