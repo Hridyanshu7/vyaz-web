@@ -12,8 +12,7 @@ import { splitIntoSections } from '../../lib/sections'
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'sessions', label: 'Group Sessions', icon: Calendar },
-  { id: 'books', label: 'Book Requests', icon: BookOpen },
-  { id: 'genres', label: 'Genre Tags', icon: Tag },
+  { id: 'books', label: 'Books', icon: BookOpen },
   { id: 'chapters', label: 'Chapters', icon: BookOpen },
 ]
 
@@ -32,40 +31,36 @@ function UserAccess() {
     setLoading(true)
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, email, role, is_admin, created_at, avatar_url')
+      .select('id, name, email, role, is_admin, is_active, created_at, avatar_url')
       .order('created_at', { ascending: false })
     setUsers(data || [])
     setLoading(false)
   }
 
-  const updateRole = async (userId, role) => {
-    setSaving((s) => ({ ...s, [userId]: true }))
-    await supabase.from('profiles').update({ role }).eq('id', userId)
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role } : u))
-    setSaving((s) => ({ ...s, [userId]: false }))
-  }
-
-  const toggleAdmin = async (userId, current) => {
-    setSaving((s) => ({ ...s, [`${userId}_admin`]: true }))
-    await supabase.from('profiles').update({ is_admin: !current }).eq('id', userId)
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, is_admin: !current } : u))
-    setSaving((s) => ({ ...s, [`${userId}_admin`]: false }))
+  const update = async (userId, patch) => {
+    const key = Object.keys(patch)[0]
+    setSaving((s) => ({ ...s, [`${userId}_${key}`]: true }))
+    await supabase.from('profiles').update(patch).eq('id', userId)
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, ...patch } : u))
+    setSaving((s) => ({ ...s, [`${userId}_${key}`]: false }))
   }
 
   const filtered = users.filter((u) =>
     !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const active = users.filter((u) => u.is_active !== false).length
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-muted">{users.length} users</p>
+        <p className="text-xs text-muted">{active} active · {users.length} total</p>
         <input
           type="text"
           placeholder="Search name or email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-highlight/20 w-56"
+          className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none w-56"
         />
       </div>
 
@@ -73,44 +68,62 @@ function UserAccess() {
         <div className="text-center py-8 text-muted text-sm">Loading users...</div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">
-              <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
-                {u.avatar_url ? (
-                  <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <User size={14} className="text-muted" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{u.name || '—'}</p>
-                <p className="text-xs text-muted truncate">{u.email}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Role dropdown */}
-                <select
-                  value={u.role || 'reader'}
-                  onChange={(e) => updateRole(u.id, e.target.value)}
-                  disabled={saving[u.id]}
-                  className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background cursor-pointer focus:outline-none focus:ring-2 focus:ring-highlight/20"
-                >
-                  <option value="reader">Listener</option>
-                  <option value="narrator">Narrator</option>
-                  <option value="both">Both</option>
-                </select>
+          {filtered.map((u) => {
+            const isActive = u.is_active !== false
+            return (
+              <div key={u.id} className={`p-3 rounded-xl border border-border transition-opacity ${!isActive ? 'opacity-50' : ''}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                    {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={14} className="text-muted" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">{u.name || '—'}</p>
+                      {u.is_admin && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-highlight/10 text-highlight font-medium">Admin</span>}
+                      {!isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted">Suspended</span>}
+                    </div>
+                    <p className="text-xs text-muted truncate">{u.email}</p>
+                  </div>
+                </div>
 
-                {/* Admin toggle */}
-                <button
-                  onClick={() => toggleAdmin(u.id, u.is_admin)}
-                  disabled={saving[`${u.id}_admin`]}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer
-                    ${u.is_admin ? 'bg-highlight text-white' : 'bg-surface border border-border text-muted hover:text-foreground'}`}
-                >
-                  {saving[`${u.id}_admin`] ? <Loader2 size={10} className="animate-spin" /> : 'Admin'}
-                </button>
+                {/* Controls */}
+                <div className="flex items-center gap-2 mt-2 pl-11">
+                  <select
+                    value={u.role || 'reader'}
+                    onChange={(e) => update(u.id, { role: e.target.value })}
+                    disabled={saving[`${u.id}_role`]}
+                    className="text-xs px-2 py-1 rounded-lg border border-border bg-background cursor-pointer focus:outline-none"
+                  >
+                    <option value="reader">Listener</option>
+                    <option value="narrator">Narrator</option>
+                    <option value="both">Both</option>
+                  </select>
+
+                  {/* Admin toggle */}
+                  <button
+                    onClick={() => update(u.id, { is_admin: !u.is_admin })}
+                    disabled={!!saving[`${u.id}_is_admin`]}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
+                      u.is_admin ? 'bg-highlight/10 border-highlight text-highlight' : 'border-border text-muted hover:text-foreground'
+                    }`}
+                  >
+                    {saving[`${u.id}_is_admin`] ? <Loader2 size={10} className="animate-spin" /> : u.is_admin ? 'Revoke Admin' : 'Make Admin'}
+                  </button>
+
+                  {/* Suspend / Activate */}
+                  <button
+                    onClick={() => update(u.id, { is_active: !isActive })}
+                    disabled={!!saving[`${u.id}_is_active`]}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
+                      isActive ? 'border-border text-muted hover:border-red-300 hover:text-red-600' : 'border-green-200 bg-green-50 text-green-700'
+                    }`}
+                  >
+                    {saving[`${u.id}_is_active`] ? <Loader2 size={10} className="animate-spin" /> : isActive ? 'Suspend' : 'Activate'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -881,6 +894,33 @@ function Chapters() {
 }
 
 // ─────────────────────────────────────────
+// BOOKS TAB (Catalog + Requested)
+// ─────────────────────────────────────────
+function BooksTab() {
+  const [sub, setSub] = useState('catalog')
+  return (
+    <div>
+      <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-4">
+        <button
+          onClick={() => setSub('catalog')}
+          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${sub === 'catalog' ? 'bg-background shadow-sm' : 'text-muted hover:text-foreground'}`}
+        >
+          Catalog
+        </button>
+        <button
+          onClick={() => setSub('requested')}
+          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${sub === 'requested' ? 'bg-background shadow-sm' : 'text-muted hover:text-foreground'}`}
+        >
+          Requested
+        </button>
+      </div>
+      {sub === 'catalog' && <GenreTags />}
+      {sub === 'requested' && <BookRequests />}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────
 // MAIN ADMIN PANEL
 // ─────────────────────────────────────────
 export function AdminPanel() {
@@ -903,8 +943,7 @@ export function AdminPanel() {
 
       {activeTab === 'users' && <UserAccess />}
       {activeTab === 'sessions' && <GroupSessions />}
-      {activeTab === 'books' && <BookRequests />}
-{activeTab === 'genres' && <GenreTags />}
+      {activeTab === 'books' && <BooksTab />}
       {activeTab === 'chapters' && <Chapters />}
     </div>
   )
