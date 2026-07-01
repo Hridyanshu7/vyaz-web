@@ -49,6 +49,39 @@ function normalizeWords(text) {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
 }
 
+// Does a sentence substantially appear (in order) within the chapter text?
+function sentenceAligns(sentence, chapterWords) {
+  const words = normalizeWords(sentence)
+  if (words.length < 3) return false // too short → treat as a conversational aside
+  let best = 0
+  for (let start = chapterWords.indexOf(words[0]); start !== -1; start = chapterWords.indexOf(words[0], start + 1)) {
+    let matches = 0, p = start
+    for (const w of words) {
+      let found = false
+      for (let k = 0; k < 6 && p + k < chapterWords.length; k++) {
+        if (chapterWords[p + k] === w) { p += k + 1; matches++; found = true; break }
+      }
+      if (!found) p++
+    }
+    best = Math.max(best, matches / words.length)
+    if (best >= 0.7) break
+  }
+  return best >= 0.6
+}
+
+// Split agent transcription into book-narration vs conversational-aside segments.
+function classifyNarration(text, chapterWords) {
+  if (!chapterWords.length) return [{ type: 'aside', text }]
+  const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [text]
+  const segs = []
+  for (const sent of sentences) {
+    const type = sentenceAligns(sent, chapterWords) ? 'narration' : 'aside'
+    if (segs.length && segs[segs.length - 1].type === type) segs[segs.length - 1].text += sent
+    else segs.push({ type, text: sent })
+  }
+  return segs
+}
+
 const WS_URL =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent'
 
@@ -87,6 +120,15 @@ export class GeminiLiveSession {
     this._chapterWords = normalizeWords(chapterText)
     this._wordPtr = 0
     this._lastPct = 0
+    this._lastActive = -1
+    // Cumulative word count at the end of each section → section boundaries
+    this._sectionBounds = []
+    let acc = 0
+    ;(sections || []).forEach((s) => { acc += normalizeWords(s.text).length; this._sectionBounds.push(acc) })
+
+    // Audio level analysers (set up in _startMic)
+    this._micAnalyser = null
+    this._playAnalyser = null
   }
 
   setState(s) {
@@ -181,7 +223,13 @@ export class GeminiLiveSession {
     if (sc.outputTranscription?.text) {
       this._agentBuf += sc.outputTranscription.text
       if (!this._agentMsgId) this._agentMsgId = 'a' + Date.now() + Math.random()
-      this.onTranscript?.({ id: this._agentMsgId, role: 'agent', text: this._agentBuf.trim() })
+      const text = this._agentBuf.trim()
+      this.onTranscript?.({
+        id: this._agentMsgId,
+        role: 'agent',
+        text,
+        segments: classifyNarration(text, this._chapterWords),
+      })
       this._advanceProgress(sc.outputTranscription.text)
     }
 
@@ -215,7 +263,13 @@ export class GeminiLiveSession {
       }
     }
     const pct = Math.min(100, Math.round((this._wordPtr / this._chapterWords.length) * 100))
-    if (pct !== this._lastPct) { this._lastPct = pct; this.onProgress?.(pct) }
+    let activeIndex = this._sectionBounds.findIndex((b) => this._wordPtr < b)
+    if (activeIndex === -1) activeIndex = this._sectionBounds.length - 1
+    if (pct !== this._lastPct || activeIndex !== this._lastActive) {
+      this._lastPct = pct
+      this._lastActive = activeIndex
+      this.onProgress?.({ pct, activeIndex })
+    }
   }
 
   async _startMic() {
@@ -226,6 +280,15 @@ export class GeminiLiveSession {
     this.playCtx = new AudioContext({ sampleRate: 24000 })
 
     const source = this.micCtx.createMediaStreamSource(this.stream)
+    // Analyser for the user's mic level (waveform).
+    this._micAnalyser = this.micCtx.createAnalyser()
+    this._micAnalyser.fftSize = 256
+    source.connect(this._micAnalyser)
+    // Analyser for the agent's playback level (waveform); passes audio through to speakers.
+    this._playAnalyser = this.playCtx.createAnalyser()
+    this._playAnalyser.fftSize = 256
+    this._playAnalyser.connect(this.playCtx.destination)
+
     // ScriptProcessorNode is deprecated but universally supported and simplest for raw PCM.
     this.processor = this.micCtx.createScriptProcessor(4096, 1, 1)
     this.processor.onaudioprocess = (e) => {
@@ -246,7 +309,7 @@ export class GeminiLiveSession {
     buf.copyToChannel(f32, 0)
     const src = ctx.createBufferSource()
     src.buffer = buf
-    src.connect(ctx.destination)
+    src.connect(this._playAnalyser || ctx.destination)
     const startAt = Math.max(ctx.currentTime, this._nextStartTime)
     src.start(startAt)
     this._nextStartTime = startAt + buf.duration
@@ -262,6 +325,20 @@ export class GeminiLiveSession {
 
   _send(obj) {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(obj))
+  }
+
+  // RMS level 0..1 for each stream — polled by the UI for the waveform.
+  getAudioLevels() {
+    return { user: this._readLevel(this._micAnalyser), agent: this._readLevel(this._playAnalyser) }
+  }
+
+  _readLevel(analyser) {
+    if (!analyser) return 0
+    const buf = new Uint8Array(analyser.fftSize)
+    analyser.getByteTimeDomainData(buf)
+    let sum = 0
+    for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v }
+    return Math.min(1, Math.sqrt(sum / buf.length) * 3)
   }
 
   end() {
