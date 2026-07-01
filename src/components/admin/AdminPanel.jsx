@@ -398,6 +398,7 @@ function GenreTags() {
   const [loading, setLoading] = useState(true)
   const [savingAll, setSavingAll] = useState(false)
   const [opStatus, setOpStatus] = useState({})
+  const [opProgress, setOpProgress] = useState({})
   const [newTag, setNewTag] = useState({})
   const [search, setSearch] = useState('')
   const updateBookGenres = useBookStore((s) => s.updateBookGenres)
@@ -448,6 +449,8 @@ function GenreTags() {
 
   // ── Chapter actions ──
   const setOp = (bookId, val) => setOpStatus((s) => ({ ...s, [bookId]: val }))
+  const setProgress = (bookId, value, label) => setOpProgress((s) => ({ ...s, [bookId]: { value, label } }))
+  const clearProgress = (bookId) => setOpProgress((s) => { const n = { ...s }; delete n[bookId]; return n })
 
   const saveChapters = async (bookId, chapters) => {
     await supabase.from('books').update({ chapters }).eq('id', bookId)
@@ -470,6 +473,7 @@ function GenreTags() {
 
   const generate = async (book) => {
     setOp(book.id, 'generating')
+    setProgress(book.id, null, 'Asking Gemini...')
     try {
       const hasContent = book.chapters?.some((ch) => ch.content)
       if (hasContent) {
@@ -480,30 +484,60 @@ function GenreTags() {
         const chapters = await generateChapters(book.title, book.author)
         await saveChapters(book.id, chapters)
       }
+      clearProgress(book.id)
       setOp(book.id, 'done')
-    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+    } catch (err) {
+      clearProgress(book.id)
+      setOp(book.id, `error: ${err.message.slice(0, 50)}`)
+    }
   }
 
   const splitSections = async (book) => {
     if (!book.chapters?.some((ch) => ch.content)) return
     setOp(book.id, 'splitting')
+    const chapters = book.chapters.filter((ch) => ch.content)
     try {
-      const updated = book.chapters.map((ch) => ({ ...ch, sections: ch.content ? splitIntoSections(ch.content) : (ch.sections || []) }))
+      const updated = book.chapters.map((ch, i) => {
+        if (!ch.content) return { ...ch, sections: ch.sections || [] }
+        const sections = splitIntoSections(ch.content)
+        const pct = Math.round(((i + 1) / chapters.length) * 100)
+        setProgress(book.id, pct, `Splitting ch ${i + 1}/${chapters.length}`)
+        return { ...ch, sections }
+      })
       await saveChapters(book.id, updated)
       const total = updated.reduce((a, ch) => a + (ch.sections?.length || 0), 0)
+      clearProgress(book.id)
       setOp(book.id, `split-done:${total}`)
-    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+    } catch (err) {
+      clearProgress(book.id)
+      setOp(book.id, `error: ${err.message.slice(0, 50)}`)
+    }
   }
 
   const syncToKB = async (book) => {
     setOp(book.id, 'syncing')
+    const chapters = book.chapters?.filter((ch) => ch.content || ch.sections?.length) || []
     try {
-      const { data, error } = await supabase.functions.invoke('cartesia-kb-sync', { body: { bookId: book.id } })
-      if (error) throw new Error(error.message)
-      if (data.error) throw new Error(data.error)
-      setOriginal((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: data.folderId } : b))
-      setOp(book.id, `kb-done:${data.synced}`)
-    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+      // Sync chapter by chapter so we can show real progress
+      let folderId = book.cartesia_folder_id
+      let synced = 0
+      for (let i = 0; i < chapters.length; i++) {
+        setProgress(book.id, Math.round(((i) / chapters.length) * 100), `Syncing ch ${i + 1}/${chapters.length}`)
+        const { data, error } = await supabase.functions.invoke('cartesia-kb-sync', {
+          body: { bookId: book.id, chapterNumber: chapters[i].number }
+        })
+        if (error) throw new Error(error.message)
+        if (data?.error) throw new Error(data.error)
+        if (data?.folderId) folderId = data.folderId
+        synced += data?.synced || 0
+      }
+      setOriginal((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: folderId } : b))
+      clearProgress(book.id)
+      setOp(book.id, `kb-done:${synced}`)
+    } catch (err) {
+      clearProgress(book.id)
+      setOp(book.id, `error: ${err.message.slice(0, 50)}`)
+    }
   }
 
   const removeTag = (bookId, tag) => {
@@ -625,19 +659,37 @@ function GenreTags() {
               {/* Chapter actions */}
               {(() => {
                 const op = opStatus[book.id]
+                const prog = opProgress[book.id]
+                const isRunning = op === 'generating' || op === 'parsing' || op === 'splitting' || op === 'syncing'
                 const hasChapters = book.chapters?.length > 0
                 const hasContent = book.chapters?.some((ch) => ch.content)
                 const chCount = book.chapters?.length || 0
                 const secCount = book.chapters?.reduce((a, ch) => a + (ch.sections?.length || 0), 0) || 0
                 return (
                   <div className="border-t border-border pt-2 mt-1">
+                    {/* Progress bar */}
+                    {isRunning && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-muted">{prog?.label || (op === 'generating' ? 'Asking Gemini...' : op === 'parsing' ? 'Parsing EPUB...' : op === 'splitting' ? 'Splitting...' : 'Syncing KB...')}</span>
+                          {prog?.value != null && <span className="text-[10px] text-muted">{prog.value}%</span>}
+                        </div>
+                        <div className="w-full h-1 bg-surface rounded-full overflow-hidden">
+                          {prog?.value != null ? (
+                            <div className="h-full bg-highlight rounded-full transition-all duration-300" style={{ width: `${prog.value}%` }} />
+                          ) : (
+                            <div className="h-full bg-highlight rounded-full animate-pulse" style={{ width: '100%' }} />
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {chCount > 0 && <span className="text-[10px] text-muted">{chCount} ch{secCount > 0 ? ` · ${secCount} sec` : ''}</span>}
                         {book.cartesia_folder_id ? <span className="text-[10px] text-green-600">✓ KB</span> :
                          hasContent ? <span className="text-[10px] text-amber-600">KB not synced</span> : null}
-                        {op && <span className={`text-[10px] ${op === 'done' || op.startsWith('kb-done') || op.startsWith('split-done') ? 'text-green-600' : op.startsWith('error') ? 'text-red-500' : 'text-muted'}`}>
-                          {op === 'done' ? '✓ saved' : op === 'generating' ? 'Generating...' : op === 'parsing' ? 'Parsing...' : op === 'splitting' ? 'Splitting...' : op === 'syncing' ? 'Syncing KB...' : op.startsWith('split-done') ? `✓ ${op.split(':')[1]} sections` : op.startsWith('kb-done') ? `✓ KB ${op.split(':')[1]}` : op}
+                        {op && !isRunning && <span className={`text-[10px] ${op === 'done' || op.startsWith('kb-done') || op.startsWith('split-done') ? 'text-green-600' : op.startsWith('error') ? 'text-red-500' : 'text-muted'}`}>
+                          {op === 'done' ? '✓ saved' : op.startsWith('split-done') ? `✓ ${op.split(':')[1]} sections` : op.startsWith('kb-done') ? `✓ KB synced` : op}
                         </span>}
                       </div>
                       <div className="flex items-center gap-1.5">

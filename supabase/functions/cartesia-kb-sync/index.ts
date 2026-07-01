@@ -27,7 +27,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { bookId } = await req.json();
+    const { bookId, chapterNumber } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -71,8 +71,14 @@ serve(async (req) => {
     const results: { chapter: number; section?: number; success: boolean; error?: string }[] = [];
     const updatedChapters = JSON.parse(JSON.stringify(chapters));
 
-    for (let i = 0; i < chapters.length; i++) {
-      const ch = chapters[i];
+    // If chapterNumber provided, only sync that chapter
+    const chaptersToSync = chapterNumber !== undefined
+      ? chapters.filter((ch: any) => String(ch.number) === String(chapterNumber))
+      : chapters;
+
+    for (let i = 0; i < chaptersToSync.length; i++) {
+      const ch = chaptersToSync[i];
+      const idx = updatedChapters.findIndex((c: any) => c.number === ch.number);
       const sections: any[] = ch.sections || [];
 
       // If chapter has sections, sync each section as a separate document
@@ -97,7 +103,7 @@ serve(async (req) => {
               },
             });
 
-            updatedChapters[i].sections[s] = { ...sec, cartesia_document_id: doc.id };
+            if (idx >= 0) updatedChapters[idx].sections[s] = { ...sec, cartesia_document_id: doc.id };
             results.push({ chapter: ch.number, section: sec.number, success: true });
           } catch (err: any) {
             results.push({ chapter: ch.number, section: sec.number, success: false, error: err.message });
@@ -107,7 +113,7 @@ serve(async (req) => {
         // Also delete old whole-chapter doc if exists (replaced by sections)
         if (ch.cartesia_document_id) {
           try { await cartesia(apiKey, "DELETE", `/agents/documents/${ch.cartesia_document_id}`); } catch { /* ignore */ }
-          updatedChapters[i].cartesia_document_id = null;
+          if (idx >= 0) updatedChapters[idx].cartesia_document_id = null;
         }
 
       } else if (ch.content) {
@@ -126,7 +132,7 @@ serve(async (req) => {
               chapter_title: ch.title,
             },
           });
-          updatedChapters[i] = { ...updatedChapters[i], cartesia_document_id: doc.id };
+          if (idx >= 0) updatedChapters[idx] = { ...updatedChapters[idx], cartesia_document_id: doc.id };
           results.push({ chapter: ch.number, success: true });
         } catch (err: any) {
           results.push({ chapter: ch.number, success: false, error: err.message });
