@@ -907,6 +907,7 @@ function ProviderSwitcher() {
         {[
           { id: 'cartesia', label: 'Cartesia Line', desc: 'Voice agent, benchmark' },
           { id: 'pipeline', label: 'Pipeline', desc: 'STT → LLM → TTS' },
+          { id: 'gemini_live', label: 'Gemini Live', desc: 'Real-time full-duplex' },
         ].map((p) => (
           <button key={p.id} onClick={() => setProvider(p.id)} disabled={saving}
             className={`flex-1 p-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
@@ -1004,14 +1005,84 @@ function PipelineModelsCard() {
   )
 }
 
+const LIVE_MODEL_OPTIONS = [
+  { value: 'gemini-live-2.5-flash-native-audio', label: 'Gemini 2.5 Flash — Native Audio (most natural)' },
+  { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Flash Native Audio (preview)' },
+  { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (newest preview)' },
+  { value: 'gemini-2.0-flash-live-001', label: 'Gemini 2.0 Flash Live (half-cascade, stable)' },
+]
+
+const LIVE_VOICE_OPTIONS = [
+  { value: 'Charon', label: 'Charon — Informational' },
+  { value: 'Kore', label: 'Kore — Firm' },
+  { value: 'Zephyr', label: 'Zephyr — Bright' },
+  { value: 'Puck', label: 'Puck — Upbeat' },
+  { value: 'Fenrir', label: 'Fenrir — Excitable' },
+  { value: 'Aoede', label: 'Aoede — Breezy' },
+]
+
+function GeminiLiveCard() {
+  const { vals, set, save, saving, saved } = useProviderSettings([
+    'live_model', 'live_voice', 'live_system_prompt',
+  ])
+  return (
+    <ProviderCard
+      title="Gemini Live"
+      icon={Bot}
+      secretsContent={
+        <div className="space-y-3">
+          <p className="text-[10px] text-muted">Uses the Gemini API key from the Gemini card above.</p>
+          <div>
+            <label className="text-xs text-muted mb-1 block">Model</label>
+            <select value={vals.live_model || 'gemini-live-2.5-flash-native-audio'}
+              onChange={(e) => set('live_model', e.target.value)}
+              className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer">
+              {LIVE_MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted mb-1 block">Voice</label>
+            <select value={vals.live_voice || 'Charon'}
+              onChange={(e) => set('live_voice', e.target.value)}
+              className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer">
+              {LIVE_VOICE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+            {saved ? '✓ Saved' : 'Save'}
+          </Button>
+        </div>
+      }
+      promptsContent={
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted mb-1 block">
+              Live System Prompt — use {ph(['book_title', 'author', 'chapter_title', 'oneliner', 'content'])}
+            </label>
+            <p className="text-[10px] text-muted mb-1">Leave blank to use the built-in narrator prompt. {'{content}'} is the full chapter.</p>
+            <textarea value={vals.live_system_prompt || ''} onChange={(e) => set('live_system_prompt', e.target.value)}
+              rows={12} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+          </div>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+            {saved ? '✓ Saved' : 'Save'}
+          </Button>
+        </div>
+      }
+    />
+  )
+}
+
 function Agents() {
   const { platformSettings } = useAdminDataStore()
-  const isPipeline = (platformSettings.voice_provider || 'cartesia') === 'pipeline'
+  const provider = platformSettings.voice_provider || 'cartesia'
 
   return (
     <div className="space-y-4">
       <ProviderSwitcher />
-      {isPipeline && <PipelineModelsCard />}
+      {provider === 'pipeline' && <PipelineModelsCard />}
+      {provider === 'gemini_live' && <GeminiLiveCard />}
       <GeminiCard />
       <CartesiaCard />
     </div>

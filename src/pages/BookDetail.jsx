@@ -13,6 +13,7 @@ import { useSignupModal } from '../hooks/useSignupModal'
 import { BookingModal } from '../components/BookingModal'
 import { VoiceAgentModal } from '../components/VoiceAgentModal'
 import { VoicePipelineModal } from '../components/VoicePipelineModal'
+import { GeminiLiveModal } from '../components/GeminiLiveModal'
 import { useAdminDataStore } from '../stores/adminDataStore'
 import { supabase } from '../lib/supabase'
 
@@ -371,7 +372,14 @@ export function BookDetail() {
         preselectedNarrator={preselectedNarrator}
         chapter={bookingChapter}
       />
-      {voiceProvider === 'pipeline' ? (
+      {voiceProvider === 'gemini_live' ? (
+        <GeminiLiveModal
+          open={!!voiceChapter}
+          onClose={() => setVoiceChapter(null)}
+          book={book}
+          chapter={voiceChapter}
+        />
+      ) : voiceProvider === 'pipeline' ? (
         <VoicePipelineModal
           open={!!voiceChapter}
           onClose={() => setVoiceChapter(null)}
