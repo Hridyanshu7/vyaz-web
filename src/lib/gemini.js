@@ -32,11 +32,46 @@ async function callGemini(apiKey, prompt) {
   return JSON.parse(text)
 }
 
+// Sample a chapter to capture its arc without sending full content:
+// first paragraph + first sentence of each section + last paragraph
+function sampleChapter(chapter) {
+  const content = (chapter.content || '').trim()
+  if (!content) return ''
+
+  const paragraphs = content.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 20)
+  if (paragraphs.length === 0) return ''
+
+  const firstPara = paragraphs[0]
+  const lastPara = paragraphs.length > 1 ? paragraphs[paragraphs.length - 1] : ''
+
+  // If sections exist, take the first sentence of each section
+  const sections = chapter.sections || []
+  if (sections.length > 0) {
+    const sectionOpeners = sections.map((s) => {
+      const text = (s.text || '').trim()
+      const match = text.match(/^.+?[.!?](?:\s|$)/)
+      return match ? match[0].trim() : text.slice(0, 120)
+    }).filter(Boolean)
+
+    return [firstPara, `[Arc]: ${sectionOpeners.join(' … ')}`, lastPara]
+      .filter(Boolean).join('\n\n')
+  }
+
+  // No sections — sample paragraphs evenly through the content
+  const step = Math.max(1, Math.floor(paragraphs.length / 5))
+  const middle = paragraphs
+    .filter((_, i) => i > 0 && i < paragraphs.length - 1 && i % step === 0)
+    .slice(0, 4)
+    .map((p) => p.split(/[.!?]\s/)[0] + '.')
+
+  return [firstPara, ...middle, lastPara].filter(Boolean).join('\n\n')
+}
+
 // Generate chapters + oneliners from scratch (no EPUB content)
 export async function generateChapters(title, author) {
   const settings = await getSettings()
   const apiKey = settings.gemini_api_key || import.meta.env.VITE_GEMINI_API_KEY
-  if (!apiKey) throw new Error('Gemini API key not set. Add it in Admin → Chapters → Settings.')
+  if (!apiKey) throw new Error('Gemini API key not set. Add it in Admin → Agents → Gemini → Secrets.')
 
   const promptTemplate = settings.gemini_chapters_prompt || ''
   const prompt = promptTemplate.replace('{title}', title).replace('{author}', author)
@@ -46,25 +81,25 @@ export async function generateChapters(title, author) {
   return chapters
 }
 
-// Generate oneliners grounded in actual chapter content (post-EPUB upload)
+// Generate oneliners using sampled content (first para + section openers + last para)
 export async function generateOneliners(title, author, chapters) {
   const settings = await getSettings()
   const apiKey = settings.gemini_api_key || import.meta.env.VITE_GEMINI_API_KEY
-  if (!apiKey) throw new Error('Gemini API key not set. Add it in Admin → Chapters → Settings.')
+  if (!apiKey) throw new Error('Gemini API key not set. Add it in Admin → Agents → Gemini → Secrets.')
 
   const chapterList = chapters.map((ch) => {
-    const excerpt = (ch.content || '').slice(0, 800).replace(/\n+/g, ' ').trim()
-    return `Chapter ${ch.number}: "${ch.title}"\nExcerpt: ${excerpt}`
-  }).join('\n\n')
+    const sample = sampleChapter(ch)
+    return `Chapter ${ch.number}: "${ch.title}"\n${sample}`
+  }).join('\n\n---\n\n')
 
   const prompt = `You are reading "${title}" by ${author}.
 
-Below are the chapters with excerpts from the actual text. For each chapter, write a one-liner that captures the core idea based on the content provided.
+For each chapter below, write a single sentence that captures its core idea. Base it on the sampled content: the opening paragraph, the arc through section openers, and the closing paragraph.
 
 ${chapterList}
 
 Return ONLY a valid JSON array with no markdown:
-[{"number":1,"oneliner":"One sentence grounded in the actual content."}]`
+[{"number":1,"oneliner":"One sentence capturing the chapter's core idea."}]`
 
   const result = await callGemini(apiKey, prompt)
   if (!Array.isArray(result)) throw new Error('Invalid response format')
