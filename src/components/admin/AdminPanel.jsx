@@ -674,19 +674,15 @@ function GenreTags() {
 }
 
 // ─────────────────────────────────────────
-// 5. CHAPTERS
+// 5. AGENTS
 // ─────────────────────────────────────────
-const SETTINGS_KEYS = ['gemini_api_key', 'gemini_chapters_prompt', 'cartesia_api_key', 'cartesia_agent_id', 'cartesia_voice_id', 'voice_agent_system_prompt']
-
-function GeminiSettings() {
+function useProviderSettings(keys) {
   const [vals, setVals] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    supabase.from('platform_settings')
-      .select('key, value')
-      .in('key', SETTINGS_KEYS)
+    supabase.from('platform_settings').select('key, value').in('key', keys)
       .then(({ data }) => {
         const map = {}
         ;(data || []).forEach((r) => { map[r.key] = r.value })
@@ -698,78 +694,140 @@ function GeminiSettings() {
 
   const save = async () => {
     setSaving(true)
-    await Promise.all(
-      SETTINGS_KEYS.map((key) =>
-        supabase.from('platform_settings').upsert({ key, value: vals[key] || '', updated_at: new Date().toISOString() })
-      )
-    )
+    await Promise.all(keys.map((key) =>
+      supabase.from('platform_settings').upsert({ key, value: vals[key] || '', updated_at: new Date().toISOString() })
+    ))
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const placeholders = (keys) => keys.map((k) => <code key={k} className="bg-background px-1 rounded mx-0.5">{`{${k}}`}</code>)
+  return { vals, set, save, saving, saved }
+}
 
+function ProviderCard({ title, icon: Icon, secretsContent, promptsContent }) {
+  const [view, setView] = useState('secrets')
   return (
-    <div className="p-3 rounded-xl border border-border bg-surface mb-4 space-y-4">
-
-      {/* Gemini */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted">Gemini (Chapter Generation)</p>
-        <div>
-          <label className="text-xs text-muted mb-1 block">API Key</label>
-          <input type="password" value={vals.gemini_api_key || ''} onChange={(e) => set('gemini_api_key', e.target.value)}
-            placeholder="AIza..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-surface border-b border-border">
+        <div className="flex items-center gap-2">
+          <Icon size={14} className="text-muted" />
+          <p className="text-sm font-medium">{title}</p>
         </div>
-        <div>
-          <label className="text-xs text-muted mb-1 block">Chapters Prompt — use {placeholders(['title', 'author'])}</label>
-          <textarea value={vals.gemini_chapters_prompt || ''} onChange={(e) => set('gemini_chapters_prompt', e.target.value)}
-            rows={4} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
-        </div>
-      </div>
-
-      <hr className="border-border" />
-
-      {/* Cartesia */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted">Cartesia (Voice Agent)</p>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted mb-1 block">API Key</label>
-            <input type="password" value={vals.cartesia_api_key || ''} onChange={(e) => set('cartesia_api_key', e.target.value)}
-              placeholder="sk-..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
-          </div>
-          <div>
-            <label className="text-xs text-muted mb-1 block">Agent ID</label>
-            <input type="text" value={vals.cartesia_agent_id || ''} onChange={(e) => set('cartesia_agent_id', e.target.value)}
-              placeholder="agent uuid..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
-          </div>
-          <div>
-            <label className="text-xs text-muted mb-1 block">Voice ID</label>
-            <input type="text" value={vals.cartesia_voice_id || ''} onChange={(e) => set('cartesia_voice_id', e.target.value)}
-              placeholder="voice uuid..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
-          </div>
-        </div>
-        <div>
-          <label className="text-xs text-muted mb-1 block">
-            Voice Agent System Prompt — use {placeholders(['book_title', 'author', 'chapter_title', 'oneliner', 'content'])}
-          </label>
-          <textarea value={vals.voice_agent_system_prompt || ''} onChange={(e) => set('voice_agent_system_prompt', e.target.value)}
-            rows={10} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y"
-            placeholder={`You are a Socratic guide for the chapter "{chapter_title}" from {book_title} by {author}.\n\nChapter summary: {oneliner}\n\nChapter content:\n{content}\n\nHelp the reader explore the ideas...`} />
+        <div className="flex gap-1 bg-background rounded-lg p-0.5 border border-border">
+          {['secrets', 'prompts'].map((v) => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer capitalize
+                ${view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'}`}>
+              {v}
+            </button>
+          ))}
         </div>
       </div>
-
-      <Button size="sm" onClick={save} disabled={saving}>
-        {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
-        {saved ? '✓ Saved' : 'Save Settings'}
-      </Button>
+      <div className="p-4">
+        {view === 'secrets' ? secretsContent : promptsContent}
+      </div>
     </div>
   )
 }
 
+function ph(keys) {
+  return keys.map((k) => <code key={k} className="bg-surface px-1 rounded mx-0.5 text-[10px]">{`{${k}}`}</code>)
+}
+
+function GeminiCard() {
+  const { vals, set, save, saving, saved } = useProviderSettings(['gemini_api_key', 'gemini_chapters_prompt'])
+  return (
+    <ProviderCard
+      title="Gemini"
+      icon={Bot}
+      secretsContent={
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted mb-1 block">API Key</label>
+            <input type="password" value={vals.gemini_api_key || ''} onChange={(e) => set('gemini_api_key', e.target.value)}
+              placeholder="AIza..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+          </div>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+            {saved ? '✓ Saved' : 'Save'}
+          </Button>
+        </div>
+      }
+      promptsContent={
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted mb-1 block">Chapters Prompt — use {ph(['title', 'author'])}</label>
+            <textarea value={vals.gemini_chapters_prompt || ''} onChange={(e) => set('gemini_chapters_prompt', e.target.value)}
+              rows={6} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+          </div>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+            {saved ? '✓ Saved' : 'Save'}
+          </Button>
+        </div>
+      }
+    />
+  )
+}
+
+function CartesiaCard() {
+  const { vals, set, save, saving, saved } = useProviderSettings(['cartesia_api_key', 'cartesia_agent_id', 'cartesia_voice_id', 'voice_agent_system_prompt'])
+  return (
+    <ProviderCard
+      title="Cartesia"
+      icon={Bot}
+      secretsContent={
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted mb-1 block">API Key</label>
+              <input type="password" value={vals.cartesia_api_key || ''} onChange={(e) => set('cartesia_api_key', e.target.value)}
+                placeholder="sk-..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+            </div>
+            <div>
+              <label className="text-xs text-muted mb-1 block">Agent ID</label>
+              <input type="text" value={vals.cartesia_agent_id || ''} onChange={(e) => set('cartesia_agent_id', e.target.value)}
+                placeholder="agent_..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+            </div>
+            <div>
+              <label className="text-xs text-muted mb-1 block">Voice ID</label>
+              <input type="text" value={vals.cartesia_voice_id || ''} onChange={(e) => set('cartesia_voice_id', e.target.value)}
+                placeholder="voice uuid..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+            </div>
+          </div>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+            {saved ? '✓ Saved' : 'Save'}
+          </Button>
+        </div>
+      }
+      promptsContent={
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted mb-1 block">
+              Voice Agent System Prompt — use {ph(['book_title', 'author', 'chapter_title', 'oneliner', 'content'])}
+            </label>
+            <textarea value={vals.voice_agent_system_prompt || ''} onChange={(e) => set('voice_agent_system_prompt', e.target.value)}
+              rows={12} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+          </div>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+            {saved ? '✓ Saved' : 'Save'}
+          </Button>
+        </div>
+      }
+    />
+  )
+}
+
 function Agents() {
-  return <GeminiSettings />
+  return (
+    <div className="space-y-4">
+      <GeminiCard />
+      <CartesiaCard />
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────
