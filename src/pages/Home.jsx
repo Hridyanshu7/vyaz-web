@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, BookOpen, Users, Calendar, Clock, Star, User } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -14,8 +14,11 @@ import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 
 export function Home() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedGenre, setSelectedGenre] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q') || ''
+  const selectedGenre = searchParams.get('genre') || null
+  const setSearch = (val) => setSearchParams((p) => { val ? p.set('q', val) : p.delete('q'); return p }, { replace: true })
+  const setGenre = (val) => setSearchParams((p) => { val ? p.set('genre', val) : p.delete('genre'); return p }, { replace: true })
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const showSignup = useSignupModal((s) => s.show)
@@ -260,9 +263,9 @@ export function Home() {
 
         <BookSearch
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={setSearch}
           selectedGenre={selectedGenre}
-          onGenreChange={setSelectedGenre}
+          onGenreChange={setGenre}
         />
 
         <div className="mt-6">

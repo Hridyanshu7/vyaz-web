@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Mic, MicOff, Loader2, PhoneOff, CheckCircle2, Circle, Volume2 } from 'lucide-react'
 import { getCartesiaSession, VoiceAgentSession } from '../lib/voiceAgent'
 import { supabase } from '../lib/supabase'
+import { useAdminStore } from '../stores/adminStore'
 
 const STATE_LABELS = {
   idle: 'Starting...',
@@ -18,9 +19,11 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
   const [sessionId, setSessionId] = useState(null)
   const [totalSections, setTotalSections] = useState(0)
   const [completedSections, setCompletedSections] = useState([])
-  const [conversation, setConversation] = useState([])
   const sessionRef = useRef(null)
   const bubblesRef = useRef(null)
+
+  const { voiceTranscripts, appendVoiceMessage, clearVoiceTranscript } = useAdminStore()
+  const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
 
   // Connect voice session
   useEffect(() => {
@@ -34,7 +37,6 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
       setSessionId(null)
       setTotalSections(0)
       setCompletedSections([])
-      setConversation([])
 
       try {
         const sessionData = await getCartesiaSession(book, chapter)
@@ -48,8 +50,8 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
           onStateChange: (s) => { if (!cancelled) setAgentState(s) },
           onError: (msg) => { if (!cancelled) setError(msg) },
           onTranscript: ({ role, text }) => {
-            if (!cancelled) {
-              setConversation((prev) => [...prev, { role, text, id: Date.now() + Math.random() }])
+            if (!cancelled && sessionData.sessionId) {
+              appendVoiceMessage(sessionData.sessionId, { role, text, id: Date.now() + Math.random() })
             }
           },
         })
@@ -99,6 +101,7 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
   }, [sessionId])
 
   const handleClose = () => {
+    if (sessionId) clearVoiceTranscript(sessionId)
     sessionRef.current?.end()
     sessionRef.current = null
     setAgentState('idle')

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, ArrowLeft, Clock, FileText, Users, Calendar, MessageSquare, Loader2, ChevronDown, ChevronRight, ExternalLink, Zap, BookMarked, Mic } from 'lucide-react'
 import { format } from 'date-fns'
 import { Badge } from '../components/ui/Badge'
@@ -31,7 +31,9 @@ export function BookDetail() {
 
   const isUuid = UUID_RE.test(id)
   const { sessions: upcomingSessions } = useBookSessions(isUuid ? id : null)
-  const [expandedChapter, setExpandedChapter] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const expandedChapter = searchParams.get('ch') ? parseInt(searchParams.get('ch')) : null
+  const setExpandedChapter = (i) => setSearchParams((p) => { i != null ? p.set('ch', String(i)) : p.delete('ch'); return p }, { replace: true })
   const [descExpanded, setDescExpanded] = useState(false)
   const [expandedCard, setExpandedCard] = useState(null)
   const [requestSent, setRequestSent] = useState(false)

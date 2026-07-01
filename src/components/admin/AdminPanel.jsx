@@ -397,12 +397,13 @@ function GenreTags() {
   const [pills, setPills] = useState([])
   const [loading, setLoading] = useState(true)
   const [savingAll, setSavingAll] = useState(false)
-  const [opStatus, setOpStatus] = useState({})
-  const [opProgress, setOpProgress] = useState({})
-  const [newTag, setNewTag] = useState({})
   const [search, setSearch] = useState('')
   const updateBookGenres = useBookStore((s) => s.updateBookGenres)
-  const { bookChanges, setBookChange, clearBookChanges } = useAdminStore()
+  const {
+    bookChanges, setBookChange, clearBookChanges,
+    opStatus, opProgress, setOpStatus, setOpProgress, clearOpProgress,
+    newTag, setNewTag,
+  } = useAdminStore()
 
   useEffect(() => { fetchBooks(); fetchPills() }, [])
 
@@ -448,9 +449,9 @@ function GenreTags() {
     setBookChange(book.id, { is_published: !book.is_published, genres: book.genres })
 
   // ── Chapter actions ──
-  const setOp = (bookId, val) => setOpStatus((s) => ({ ...s, [bookId]: val }))
-  const setProgress = (bookId, value, label) => setOpProgress((s) => ({ ...s, [bookId]: { value, label } }))
-  const clearProgress = (bookId) => setOpProgress((s) => { const n = { ...s }; delete n[bookId]; return n })
+  const setOp = (bookId, val) => setOpStatus(bookId, val)
+  const setProgress = (bookId, value, label) => setOpProgress(bookId, value, label)
+  const clearProgress = (bookId) => clearOpProgress(bookId)
 
   const saveChapters = async (bookId, chapters) => {
     await supabase.from('books').update({ chapters }).eq('id', bookId)

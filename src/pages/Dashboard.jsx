@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Video, Star, Clock, BookOpen, Calendar, User, Headphones, Mic, Settings, Users, AlertTriangle, X } from 'lucide-react'
 import { format, isPast, isToday, isTomorrow } from 'date-fns'
 import { Button } from '../components/ui/Button'
@@ -154,7 +154,9 @@ export function Dashboard() {
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),
   ]
 
-  const [tab, setTab] = useState('schedule')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || 'schedule'
+  const setTab = (id) => setSearchParams((p) => { p.set('tab', id); return p }, { replace: true })
 
   if (!user) {
     useSignupModal.getState().show({ type: 'signin' })

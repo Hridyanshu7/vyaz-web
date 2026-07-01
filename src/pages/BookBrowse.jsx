@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
 import { useBookStore } from '../stores/bookStore'
 
 export function BookBrowse() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedGenre, setSelectedGenre] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery = searchParams.get('q') || ''
+  const selectedGenre = searchParams.get('genre') || null
   const { loading, getFilteredBooks } = useBookStore()
+
+  const setSearch = (val) => setSearchParams((p) => { val ? p.set('q', val) : p.delete('q'); return p }, { replace: true })
+  const setGenre = (val) => setSearchParams((p) => { val ? p.set('genre', val) : p.delete('genre'); return p }, { replace: true })
 
   const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
 
@@ -17,9 +21,9 @@ export function BookBrowse() {
 
       <BookSearch
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={setSearch}
         selectedGenre={selectedGenre}
-        onGenreChange={setSelectedGenre}
+        onGenreChange={setGenre}
       />
 
       <div className="mt-6">
