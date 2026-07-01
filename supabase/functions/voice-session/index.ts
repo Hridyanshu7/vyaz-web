@@ -6,10 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function generateSessionId(): string {
-  return "pipe_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -24,18 +20,25 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const [{ data: settings }, { data: { user } }] = await Promise.all([
-      supabase.from("platform_settings").select("key, value")
-        .in("key", ["gemini_api_key", "voice_narration_prompt", "voice_answering_prompt"]),
-      supabase.auth.getUser(jwt),
-    ])
+    // Fetch settings
+    const { data: settings } = await supabase
+      .from("platform_settings")
+      .select("key, value")
+      .in("key", ["gemini_api_key", "voice_narration_prompt", "voice_answering_prompt"])
 
     const map: Record<string, string> = {};
     (settings || []).forEach((r: any) => { map[r.key] = r.value; });
 
-    if (!map.gemini_api_key) throw new Error("Gemini API key not configured in Admin → Agents.");
+    if (!map.gemini_api_key) throw new Error("Gemini API key not configured in Admin → Agents → Gemini → Secrets.");
 
-    const sessionId = generateSessionId();
+    // Get user (optional — for progress tracking)
+    let userId: string | null = null;
+    try {
+      const { data: authData } = await supabase.auth.getUser(jwt);
+      userId = authData?.user?.id || null;
+    } catch { /* proceed without user */ }
+
+    const sessionId = "pipe_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 
     // Fill prompt placeholders
     const narrationPrompt = (map.voice_narration_prompt || "")
@@ -50,15 +53,15 @@ serve(async (req) => {
       .replace(/{chapter_title}/g, chapter_title || "");
 
     // Create voice_progress record
-    if (user && sections?.length > 0) {
-      await supabase.from("voice_progress").insert({
+    if (userId && sections?.length > 0) {
+      await supabase.from("voice_progress").upsert({
         session_id: sessionId,
-        user_id: user.id,
+        user_id: userId,
         book_id,
-        chapter_number: parseInt(chapter_number),
+        chapter_number: parseInt(String(chapter_number)),
         total_sections: sections.length,
         completed_sections: [],
-      }).onConflict("session_id").ignore();
+      }, { onConflict: "session_id" });
     }
 
     return new Response(
@@ -73,6 +76,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
+    console.error("[voice-session] Error:", err.message);
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
