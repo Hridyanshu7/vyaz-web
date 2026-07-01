@@ -89,14 +89,25 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
   const [activeIndex, setActiveIndex] = useState(-1)
   const sessionRef = useRef(null)
   const bubblesRef = useRef(null)
+  const stickToBottomRef = useRef(true)
 
   const { voiceTranscripts, upsertVoiceMessage, clearVoiceTranscript } = useAdminStore()
   const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
   const sections = chapter?.sections || []
 
+  // Auto-scroll to the newest text ONLY while the user is already at the bottom.
+  // If they've scrolled up to re-read, leave their position alone.
   useEffect(() => {
-    if (bubblesRef.current) bubblesRef.current.scrollTop = bubblesRef.current.scrollHeight
+    if (stickToBottomRef.current && bubblesRef.current) {
+      bubblesRef.current.scrollTop = bubblesRef.current.scrollHeight
+    }
   }, [conversation])
+
+  const handleTranscriptScroll = () => {
+    const el = bubblesRef.current
+    if (!el) return
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+  }
 
   useEffect(() => {
     if (!open || !book || !chapter) return
@@ -179,7 +190,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
           {/* Left column — transcript (70%) */}
           <div className="flex flex-col min-h-0 flex-1 sm:flex-none sm:w-[70%] sm:border-r border-border">
             {conversation.length > 0 ? (
-              <div ref={bubblesRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+              <div ref={bubblesRef} onScroll={handleTranscriptScroll} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
                 {conversation.map((msg) => (
                   <div key={msg.id} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     <span className="text-[10px] text-muted px-1">{msg.role === 'agent' ? 'Narrator' : 'You'}</span>
