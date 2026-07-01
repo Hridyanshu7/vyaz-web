@@ -130,7 +130,7 @@ function UserAccess() {
 // 2. MANAGE GROUP SESSIONS
 // ─────────────────────────────────────────
 function GroupSessions() {
-  const { groupSessions, loading } = useAdminDataStore()
+  const { groupSessions, loading, updateSession } = useAdminDataStore()
   const [saving, setSaving] = useState({})
 
   // Filter to upcoming group sessions
@@ -143,7 +143,7 @@ function GroupSessions() {
   const updateStatus = async (sessionId, status) => {
     setSaving((s) => ({ ...s, [sessionId]: true }))
     await supabase.from('sessions').update({ status }).eq('id', sessionId)
-    setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, status } : s))
+    updateSession(sessionId, { status })
     setSaving((s) => ({ ...s, [sessionId]: false }))
   }
 

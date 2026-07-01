@@ -53,6 +53,10 @@ export const useAdminDataStore = create((set, get) => ({
   updateUser: (userId, patch) =>
     set((s) => ({ users: s.users.map((u) => u.id === userId ? { ...u, ...patch } : u) })),
 
+  // Sessions
+  updateSession: (sessionId, patch) =>
+    set((s) => ({ groupSessions: s.groupSessions.map((s2) => s2.id === sessionId ? { ...s2, ...patch } : s2) })),
+
   // Books
   updateBook: (bookId, patch) =>
     set((s) => ({ adminBooks: s.adminBooks.map((b) => b.id === bookId ? { ...b, ...patch } : b) })),
