@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff } from 'lucide-react'
+import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff, Bot } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
@@ -15,7 +15,7 @@ const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'sessions', label: 'Group Sessions', icon: Calendar },
   { id: 'books', label: 'Books', icon: BookOpen },
-  { id: 'chapters', label: 'Chapters', icon: BookOpen },
+  { id: 'agents', label: 'Agents', icon: Bot },
 ]
 
 // ─────────────────────────────────────────
@@ -768,7 +768,7 @@ function GeminiSettings() {
   )
 }
 
-function Chapters() {
+function Agents() {
   return <GeminiSettings />
 }
 
@@ -827,7 +827,7 @@ export function AdminPanel() {
         <div style={{ display: activeTab === 'users' ? 'block' : 'none' }}><UserAccess /></div>
         <div style={{ display: activeTab === 'sessions' ? 'block' : 'none' }}><GroupSessions /></div>
         <div style={{ display: activeTab === 'books' ? 'block' : 'none' }}><BooksTab /></div>
-        <div style={{ display: activeTab === 'chapters' ? 'block' : 'none' }}><Chapters /></div>
+        <div style={{ display: activeTab === 'agents' ? 'block' : 'none' }}><Agents /></div>
       </div>
     </div>
   )
