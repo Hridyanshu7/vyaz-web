@@ -12,6 +12,36 @@ const STATE_LABELS = {
   error: 'Error',
 }
 
+// Group a run of narration into readable paragraphs (~2 sentences each).
+function toParagraphs(text) {
+  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) || [text]
+  const paras = []
+  for (let i = 0; i < sentences.length; i += 2) {
+    paras.push(sentences.slice(i, i + 2).join(' ').trim())
+  }
+  return paras.filter(Boolean)
+}
+
+// Render agent transcription as structured blocks: narration paragraphs + distinct asides.
+function AgentContent({ segments, text }) {
+  if (!segments) return <p>{text}</p>
+  return (
+    <div className="space-y-2">
+      {segments.map((seg, i) =>
+        seg.type === 'aside' ? (
+          <p key={i} className="italic text-muted border-l-2 border-muted/30 pl-2">
+            {seg.text.trim()}
+          </p>
+        ) : (
+          <div key={i} className="space-y-1.5">
+            {toParagraphs(seg.text).map((p, j) => <p key={j}>{p}</p>)}
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
 // Animated waveform driven by live audio levels (agent = highlight, user = green).
 function Waveform({ sessionRef, state }) {
   const [level, setLevel] = useState(0)
@@ -189,17 +219,13 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
             {conversation.map((msg) => (
               <div key={msg.id} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <span className="text-[10px] text-muted px-1">{msg.role === 'agent' ? 'Narrator' : 'You'}</span>
-                <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
                   msg.role === 'agent'
                     ? 'bg-surface border border-border rounded-tl-none text-foreground'
                     : 'bg-highlight text-white rounded-tr-none'
                 }`}>
-                  {msg.role === 'agent' && msg.segments
-                    ? msg.segments.map((seg, i) =>
-                        seg.type === 'aside'
-                          ? <span key={i} className="italic text-muted">{seg.text}</span>
-                          : <span key={i}>{seg.text}</span>
-                      )
+                  {msg.role === 'agent'
+                    ? <AgentContent segments={msg.segments} text={msg.text} />
                     : msg.text}
                 </div>
               </div>
