@@ -69,24 +69,39 @@ async function transcribeAudio(apiKey, audioBlob) {
 }
 
 async function textToSpeech(apiKey, text) {
+  // Strip markdown formatting before TTS
+  const cleanText = text.replace(/\*([^*]+)\*/g, '$1').replace(/\*\*/g, '').trim()
+
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text }] }],
+        contents: [{ parts: [{ text: cleanText }] }],
         generationConfig: {
-          response_modalities: ['AUDIO'],
-          speech_config: { voice_config: { prebuilt_voice_config: { voice_name: 'Charon' } } },
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } } },
         },
       }),
     }
   )
   const data = await res.json()
   if (data.error) throw new Error(data.error.message)
-  const audioBase64 = data.candidates[0].content.parts[0].inline_data.data
-  const binary = atob(audioBase64)
+
+  const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inline_data?.data
+  if (!audioData) {
+    // Fallback to browser TTS if Gemini TTS fails
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(cleanText)
+      utterance.onend = resolve
+      utterance.onerror = resolve
+      window.speechSynthesis.speak(utterance)
+      resolve(null) // resolve immediately, browser handles playback
+    })
+  }
+
+  const binary = atob(audioData)
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
   return new Blob([bytes], { type: 'audio/wav' })
@@ -229,15 +244,14 @@ export class VoicePipelineSession {
 
   // ── TTS playback ───────────────────────────────────────────────────────────
   async _playTTS(text) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const blob = await textToSpeech(this.apiKey, text)
-        const url = URL.createObjectURL(blob)
-        this.audioEl = new Audio(url)
-        this.audioEl.onended = () => { URL.revokeObjectURL(url); resolve() }
-        this.audioEl.onerror = reject
-        await this.audioEl.play()
-      } catch (err) { reject(err) }
+    const blob = await textToSpeech(this.apiKey, text)
+    if (!blob) return // browser TTS handled playback directly
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob)
+      this.audioEl = new Audio(url)
+      this.audioEl.onended = () => { URL.revokeObjectURL(url); resolve() }
+      this.audioEl.onerror = reject
+      this.audioEl.play().catch(reject)
     })
   }
 
