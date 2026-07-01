@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
@@ -775,7 +776,11 @@ function Chapters() {
 // BOOKS TAB (Catalog + Requested)
 // ─────────────────────────────────────────
 function BooksTab() {
-  const [sub, setSub] = useState('catalog')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const sub = searchParams.get('sub') || 'catalog'
+
+  const setSub = (s) => setSearchParams((p) => { p.set('sub', s); return p }, { replace: true })
+
   return (
     <div>
       <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-4">
@@ -786,7 +791,6 @@ function BooksTab() {
           </button>
         ))}
       </div>
-      {/* Keep both mounted to avoid re-fetch on sub-tab switch */}
       <div style={{ display: sub === 'catalog' ? 'block' : 'none' }}><GenreTags /></div>
       <div style={{ display: sub === 'requested' ? 'block' : 'none' }}><BookRequests /></div>
     </div>
@@ -797,7 +801,10 @@ function BooksTab() {
 // MAIN ADMIN PANEL
 // ─────────────────────────────────────────
 export function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('users')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'users'
+
+  const setTab = (id) => setSearchParams((p) => { p.set('tab', id); p.delete('sub'); return p }, { replace: true })
 
   return (
     <div className="flex gap-6">
@@ -806,7 +813,7 @@ export function AdminPanel() {
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => setTab(t.id)}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors cursor-pointer text-left
               ${activeTab === t.id ? 'bg-surface font-medium text-foreground' : 'text-muted hover:text-foreground hover:bg-surface/50'}`}
           >
