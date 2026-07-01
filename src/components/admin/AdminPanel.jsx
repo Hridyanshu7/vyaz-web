@@ -855,9 +855,9 @@ function Agents() {
 // ─────────────────────────────────────────
 function BooksTab() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const sub = searchParams.get('sub') || 'catalog'
+  const sub = searchParams.get('asub') || 'catalog'
 
-  const setSub = (s) => setSearchParams((p) => { p.set('sub', s); return p }, { replace: true })
+  const setSub = (s) => setSearchParams((p) => { p.set('asub', s); return p }, { replace: true })
 
   return (
     <div>
@@ -880,9 +880,9 @@ function BooksTab() {
 // ─────────────────────────────────────────
 export function AdminPanel() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = searchParams.get('tab') || 'users'
+  const activeTab = searchParams.get('atab') || 'users'
 
-  const setTab = (id) => setSearchParams((p) => { p.set('tab', id); p.delete('sub'); return p }, { replace: true })
+  const setTab = (id) => setSearchParams((p) => { p.set('atab', id); p.delete('asub'); return p }, { replace: true })
 
   return (
     <div className="flex gap-6">
