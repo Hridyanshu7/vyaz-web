@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'gemini-2.5-flash'
 
 async function getSettings() {
   const { data } = await supabase
