@@ -54,7 +54,7 @@ export class GeminiLiveSession {
     onStateChange, onTranscript, onError }) {
     this.apiKey = geminiApiKey
     this.systemPrompt = liveSystemPrompt || 'You are a warm, engaging audiobook narrator.'
-    this.model = liveModel || 'gemini-2.0-flash-live-001'
+    this.model = liveModel || 'gemini-3.1-flash-live-preview'
     this.voice = liveVoice || 'Charon'
     this.sessionId = sessionId
     this.onStateChange = onStateChange

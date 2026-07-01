@@ -101,7 +101,7 @@ serve(async (req) => {
         ttsModel: map.pipeline_tts_model || "gemini-2.5-flash-preview-tts",
         ttsVoice: map.pipeline_tts_voice || "Charon",
         liveSystemPrompt,
-        liveModel: map.live_model || "gemini-2.0-flash-live-001",
+        liveModel: map.live_model || "gemini-3.1-flash-live-preview",
         liveVoice: map.live_voice || "Charon",
         sections: sections || [],
         sessionId,

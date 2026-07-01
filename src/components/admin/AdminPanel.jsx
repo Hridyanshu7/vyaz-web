@@ -1006,19 +1006,23 @@ function PipelineModelsCard() {
 }
 
 const LIVE_MODEL_OPTIONS = [
-  { value: 'gemini-2.0-flash-live-001', label: 'Gemini 2.0 Flash Live (stable, recommended)' },
+  { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (recommended)' },
   { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Native Audio (most natural, preview)' },
-  { value: 'gemini-2.5-flash-native-audio-latest', label: 'Gemini 2.5 Native Audio (latest)' },
 ]
 
-const LIVE_VOICE_OPTIONS = [
-  { value: 'Charon', label: 'Charon — Informational' },
-  { value: 'Kore', label: 'Kore — Firm' },
-  { value: 'Zephyr', label: 'Zephyr — Bright' },
-  { value: 'Puck', label: 'Puck — Upbeat' },
-  { value: 'Fenrir', label: 'Fenrir — Excitable' },
-  { value: 'Aoede', label: 'Aoede — Breezy' },
+// All 30 Gemini prebuilt voices (shared by Live API + Gemini TTS)
+const GEMINI_VOICES = [
+  ['Charon', 'Informational'], ['Kore', 'Firm'], ['Zephyr', 'Bright'], ['Puck', 'Upbeat'],
+  ['Fenrir', 'Excitable'], ['Aoede', 'Breezy'], ['Leda', 'Youthful'], ['Orus', 'Firm'],
+  ['Callirrhoe', 'Easy-going'], ['Autonoe', 'Bright'], ['Enceladus', 'Breathy'], ['Iapetus', 'Clear'],
+  ['Umbriel', 'Easy-going'], ['Algieba', 'Smooth'], ['Despina', 'Smooth'], ['Erinome', 'Clear'],
+  ['Algenib', 'Gravelly'], ['Rasalgethi', 'Informative'], ['Laomedeia', 'Upbeat'], ['Achernar', 'Soft'],
+  ['Alnilam', 'Firm'], ['Schedar', 'Even'], ['Gacrux', 'Mature'], ['Pulcherrima', 'Forward'],
+  ['Achird', 'Friendly'], ['Zubenelgenubi', 'Casual'], ['Vindemiatrix', 'Gentle'], ['Sadachbia', 'Lively'],
+  ['Sadaltager', 'Knowledgeable'], ['Sulafat', 'Warm'],
 ]
+
+const LIVE_VOICE_OPTIONS = GEMINI_VOICES.map(([value, desc]) => ({ value, label: `${value} — ${desc}` }))
 
 function GeminiLiveCard() {
   const { vals, set, save, saving, saved } = useProviderSettings([
@@ -1033,7 +1037,7 @@ function GeminiLiveCard() {
           <p className="text-[10px] text-muted">Uses the Gemini API key from the Gemini card above.</p>
           <div>
             <label className="text-xs text-muted mb-1 block">Model</label>
-            <select value={vals.live_model || 'gemini-2.0-flash-live-001'}
+            <select value={vals.live_model || 'gemini-3.1-flash-live-preview'}
               onChange={(e) => set('live_model', e.target.value)}
               className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer">
               {LIVE_MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
