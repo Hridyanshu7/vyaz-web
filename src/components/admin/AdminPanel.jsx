@@ -1006,10 +1006,9 @@ function PipelineModelsCard() {
 }
 
 const LIVE_MODEL_OPTIONS = [
-  { value: 'gemini-live-2.5-flash-native-audio', label: 'Gemini 2.5 Flash — Native Audio (most natural)' },
-  { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Flash Native Audio (preview)' },
-  { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (newest preview)' },
-  { value: 'gemini-2.0-flash-live-001', label: 'Gemini 2.0 Flash Live (half-cascade, stable)' },
+  { value: 'gemini-2.0-flash-live-001', label: 'Gemini 2.0 Flash Live (stable, recommended)' },
+  { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Native Audio (most natural, preview)' },
+  { value: 'gemini-2.5-flash-native-audio-latest', label: 'Gemini 2.5 Native Audio (latest)' },
 ]
 
 const LIVE_VOICE_OPTIONS = [
@@ -1034,7 +1033,7 @@ function GeminiLiveCard() {
           <p className="text-[10px] text-muted">Uses the Gemini API key from the Gemini card above.</p>
           <div>
             <label className="text-xs text-muted mb-1 block">Model</label>
-            <select value={vals.live_model || 'gemini-live-2.5-flash-native-audio'}
+            <select value={vals.live_model || 'gemini-2.0-flash-live-001'}
               onChange={(e) => set('live_model', e.target.value)}
               className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer">
               {LIVE_MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
