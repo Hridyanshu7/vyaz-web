@@ -754,49 +754,7 @@ function GeminiSettings() {
 }
 
 function Chapters() {
-  const [stats, setStats] = useState({ total: 0, withChapters: 0, pending: 0 })
-  const [generatingAll, setGeneratingAll] = useState(false)
-
-  useEffect(() => {
-    supabase.from('books').select('id, chapters').then(({ data }) => {
-      const total = data?.length || 0
-      const withChapters = data?.filter((b) => b.chapters?.length > 0).length || 0
-      setStats({ total, withChapters, pending: total - withChapters })
-    })
-  }, [])
-
-  const generateAll = async () => {
-    setGeneratingAll(true)
-    const { data } = await supabase.from('books').select('id, title, author, chapters').order('title')
-    const pending = (data || []).filter((b) => !b.chapters?.length)
-    for (let i = 0; i < pending.length; i++) {
-      const book = pending[i]
-      try {
-        const chapters = await generateChapters(book.title, book.author)
-        await supabase.from('books').update({ chapters }).eq('id', book.id)
-        if (i < pending.length - 1) await new Promise((r) => setTimeout(r, 4500))
-      } catch { /* skip failed */ }
-    }
-    setGeneratingAll(false)
-    setStats((s) => ({ ...s, withChapters: s.total, pending: 0 }))
-  }
-
-  return (
-    <div className="space-y-4">
-      <GeminiSettings />
-      <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface">
-        <div>
-          <p className="text-sm font-medium">{stats.withChapters}/{stats.total} books have chapters</p>
-          {stats.pending > 0 && <p className="text-xs text-muted mt-0.5">{stats.pending} still need chapters — use Generate in Books tab or Generate All below</p>}
-        </div>
-        {stats.pending > 0 && (
-          <Button size="sm" disabled={generatingAll} onClick={generateAll}>
-            {generatingAll ? <><Loader2 size={12} className="animate-spin mr-1" />Generating...</> : `Generate All (${stats.pending})`}
-          </Button>
-        )}
-      </div>
-    </div>
-  )
+  return <GeminiSettings />
 }
 
 // ─────────────────────────────────────────
