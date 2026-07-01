@@ -44,6 +44,16 @@ export const useAdminStore = create(
             [sessionId]: [...(s.voiceTranscripts[sessionId] || []), msg],
           },
         })),
+      // Update message with matching id in place, or append if new (for streaming bubbles)
+      upsertVoiceMessage: (sessionId, msg) =>
+        set((s) => {
+          const existing = s.voiceTranscripts[sessionId] || []
+          const idx = existing.findIndex((m) => m.id === msg.id)
+          const next = idx >= 0
+            ? existing.map((m, i) => (i === idx ? { ...m, ...msg } : m))
+            : [...existing, msg]
+          return { voiceTranscripts: { ...s.voiceTranscripts, [sessionId]: next } }
+        }),
       clearVoiceTranscript: (sessionId) =>
         set((s) => { const n = { ...s.voiceTranscripts }; delete n[sessionId]; return { voiceTranscripts: n } }),
     }),

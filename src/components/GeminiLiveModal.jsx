@@ -16,10 +16,11 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
   const [state, setState] = useState('idle')
   const [error, setError] = useState(null)
   const [sessionId, setSessionId] = useState(null)
+  const [progress, setProgress] = useState(0)
   const sessionRef = useRef(null)
   const bubblesRef = useRef(null)
 
-  const { voiceTranscripts, appendVoiceMessage, clearVoiceTranscript } = useAdminStore()
+  const { voiceTranscripts, upsertVoiceMessage, clearVoiceTranscript } = useAdminStore()
   const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
       setState('connecting')
       setError(null)
       setSessionId(null)
+      setProgress(0)
       try {
         const config = await getGeminiLiveSession(book, chapter)
         if (cancelled) return
@@ -42,11 +44,12 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
         const session = new GeminiLiveSession({
           ...config,
           onStateChange: (s) => { if (!cancelled) setState(s) },
-          onTranscript: ({ role, text }) => {
+          onTranscript: ({ id, role, text }) => {
             if (!cancelled && config.sessionId && text) {
-              appendVoiceMessage(config.sessionId, { role, text, id: Date.now() + Math.random() })
+              upsertVoiceMessage(config.sessionId, { id, role, text })
             }
           },
+          onProgress: (pct) => { if (!cancelled) setProgress(pct) },
           onError: (msg) => { if (!cancelled) setError(msg) },
         })
         sessionRef.current = session
@@ -94,6 +97,17 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
           <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer shrink-0">
             <X size={16} />
           </button>
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-4 pt-3 shrink-0">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs text-muted">Chapter progress</p>
+            <p className="text-xs font-medium">{progress}%</p>
+          </div>
+          <div className="w-full h-1.5 bg-surface rounded-full overflow-hidden">
+            <div className="h-full bg-highlight rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+          </div>
         </div>
 
         {/* State indicator */}

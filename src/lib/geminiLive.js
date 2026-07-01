@@ -45,13 +45,17 @@ function base64ToInt16(b64) {
   return new Int16Array(bytes.buffer)
 }
 
+function normalizeWords(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
+}
+
 const WS_URL =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent'
 
 // ─── Full-duplex Live session ────────────────────────────────────────────────
 export class GeminiLiveSession {
-  constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId,
-    onStateChange, onTranscript, onError }) {
+  constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections,
+    onStateChange, onTranscript, onProgress, onError }) {
     this.apiKey = geminiApiKey
     this.systemPrompt = liveSystemPrompt || 'You are a warm, engaging audiobook narrator.'
     this.model = liveModel || 'gemini-3.1-flash-live-preview'
@@ -59,6 +63,7 @@ export class GeminiLiveSession {
     this.sessionId = sessionId
     this.onStateChange = onStateChange
     this.onTranscript = onTranscript
+    this.onProgress = onProgress
     this.onError = onError
 
     this.state = 'idle'
@@ -71,9 +76,17 @@ export class GeminiLiveSession {
     this._playbackSources = []
     this._nextStartTime = 0
 
+    // Streaming bubble buffers (per turn)
     this._userBuf = ''
     this._agentBuf = ''
-    this._userEmitted = false
+    this._userMsgId = null
+    this._agentMsgId = null
+
+    // Progress: align narrated words against the chapter text
+    const chapterText = (sections || []).map((s) => s.text).join(' ')
+    this._chapterWords = normalizeWords(chapterText)
+    this._wordPtr = 0
+    this._lastPct = 0
   }
 
   setState(s) {
@@ -156,34 +169,53 @@ export class GeminiLiveSession {
       this.setState('listening')
     }
 
+    // Stream the user's question bubble as they speak.
     if (sc.inputTranscription?.text) {
       this._userBuf += sc.inputTranscription.text
+      if (!this._userMsgId) this._userMsgId = 'u' + Date.now() + Math.random()
+      this.onTranscript?.({ id: this._userMsgId, role: 'user', text: this._userBuf.trim() })
     }
+
+    // Stream the agent's bubble AS the transcription arrives (before/with audio),
+    // and advance chapter progress from what's been narrated.
     if (sc.outputTranscription?.text) {
       this._agentBuf += sc.outputTranscription.text
+      if (!this._agentMsgId) this._agentMsgId = 'a' + Date.now() + Math.random()
+      this.onTranscript?.({ id: this._agentMsgId, role: 'agent', text: this._agentBuf.trim() })
+      this._advanceProgress(sc.outputTranscription.text)
     }
 
     const parts = sc.modelTurn?.parts || []
     for (const part of parts) {
       const data = part.inlineData?.data
       if (data) {
-        // Model produced audio → user's turn is over, flush their bubble once.
-        if (this._userBuf && !this._userEmitted) {
-          this.onTranscript?.({ role: 'user', text: this._userBuf.trim() })
-          this._userEmitted = true
-        }
         this.setState('speaking')
         this._enqueueAudio(base64ToInt16(data))
       }
     }
 
     if (sc.turnComplete) {
-      if (this._agentBuf) this.onTranscript?.({ role: 'agent', text: this._agentBuf.trim() })
+      // Finalize turn — next turn starts fresh bubbles.
       this._userBuf = ''
       this._agentBuf = ''
-      this._userEmitted = false
+      this._userMsgId = null
+      this._agentMsgId = null
       this.setState('listening')
     }
+  }
+
+  // Sequence-align narrated words against the chapter; only real narration advances
+  // the bar (Q&A / paraphrase won't match the next expected word, so it holds).
+  _advanceProgress(text) {
+    if (!this._chapterWords.length) return
+    const WINDOW = 8
+    for (const w of normalizeWords(text)) {
+      for (let k = 0; k < WINDOW && this._wordPtr + k < this._chapterWords.length; k++) {
+        if (this._chapterWords[this._wordPtr + k] === w) { this._wordPtr += k + 1; break }
+      }
+    }
+    const pct = Math.min(100, Math.round((this._wordPtr / this._chapterWords.length) * 100))
+    if (pct !== this._lastPct) { this._lastPct = pct; this.onProgress?.(pct) }
   }
 
   async _startMic() {
