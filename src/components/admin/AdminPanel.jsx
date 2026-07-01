@@ -387,8 +387,8 @@ function GenreTags() {
   const [books, setBooks] = useState([])
   const [pills, setPills] = useState([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState({})
   const [savingAll, setSavingAll] = useState(false)
+  const [opStatus, setOpStatus] = useState({}) // chapter operation status per book
   const [newTag, setNewTag] = useState({})
   const [search, setSearch] = useState('')
   const updateBookGenres = useBookStore((s) => s.updateBookGenres)
@@ -404,7 +404,7 @@ function GenreTags() {
     setLoading(true)
     const { data } = await supabase
       .from('books')
-      .select('id, title, author, cover_url, genres, goodreads_data, is_published')
+      .select('id, title, author, cover_url, genres, goodreads_data, is_published, chapters, cartesia_folder_id')
       .order('title')
     setOriginal(data || [])
     setBooks(data || [])
@@ -428,6 +428,67 @@ function GenreTags() {
 
   const togglePublished = (book) =>
     setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, is_published: !b.is_published } : b))
+
+  // ── Chapter actions ──
+  const setOp = (bookId, val) => setOpStatus((s) => ({ ...s, [bookId]: val }))
+
+  const saveChapters = async (bookId, chapters) => {
+    await supabase.from('books').update({ chapters }).eq('id', bookId)
+    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
+    setOriginal((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
+  }
+
+  const uploadEpub = async (book, file) => {
+    setOp(book.id, 'parsing')
+    try {
+      const epubChapters = await parseEpub(file)
+      const existing = book.chapters || []
+      const merged = epubChapters.map((ec, i) => {
+        const match = existing[i] || existing.find((e) => e.title?.toLowerCase().includes(ec.title?.toLowerCase().slice(0, 10)))
+        return { number: ec.number, title: match?.title || ec.title, oneliner: match?.oneliner || '', content: ec.content }
+      })
+      await saveChapters(book.id, merged)
+      setOp(book.id, 'done')
+    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+  }
+
+  const generate = async (book) => {
+    setOp(book.id, 'generating')
+    try {
+      const hasContent = book.chapters?.some((ch) => ch.content)
+      if (hasContent) {
+        const oneliners = await generateOneliners(book.title, book.author, book.chapters)
+        const merged = book.chapters.map((ch) => ({ ...ch, oneliner: oneliners.find((o) => o.number === ch.number)?.oneliner || ch.oneliner || '' }))
+        await saveChapters(book.id, merged)
+      } else {
+        const chapters = await generateChapters(book.title, book.author)
+        await saveChapters(book.id, chapters)
+      }
+      setOp(book.id, 'done')
+    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+  }
+
+  const splitSections = async (book) => {
+    if (!book.chapters?.some((ch) => ch.content)) return
+    setOp(book.id, 'splitting')
+    try {
+      const updated = book.chapters.map((ch) => ({ ...ch, sections: ch.content ? splitIntoSections(ch.content) : (ch.sections || []) }))
+      await saveChapters(book.id, updated)
+      const total = updated.reduce((a, ch) => a + (ch.sections?.length || 0), 0)
+      setOp(book.id, `split-done:${total}`)
+    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+  }
+
+  const syncToKB = async (book) => {
+    setOp(book.id, 'syncing')
+    try {
+      const { data, error } = await supabase.functions.invoke('cartesia-kb-sync', { body: { bookId: book.id } })
+      if (error) throw new Error(error.message)
+      if (data.error) throw new Error(data.error)
+      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: data.folderId } : b))
+      setOp(book.id, `kb-done:${data.synced}`)
+    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+  }
 
   const removeTag = (bookId, tag) => {
     setBooks((prev) => prev.map((b) => b.id === bookId
@@ -545,13 +606,52 @@ function GenreTags() {
                   placeholder="Add genre tag..."
                   className="flex-1 px-2 py-1 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-highlight/20"
                 />
-                <button
-                  onClick={() => addTag(book.id)}
-                  className="px-2 py-1 rounded border border-border bg-surface hover:bg-background text-xs cursor-pointer"
-                >
+                <button onClick={() => addTag(book.id)} className="px-2 py-1 rounded border border-border bg-surface hover:bg-background text-xs cursor-pointer">
                   <Plus size={12} />
                 </button>
               </div>
+
+              {/* Chapter actions */}
+              {(() => {
+                const op = opStatus[book.id]
+                const hasChapters = book.chapters?.length > 0
+                const hasContent = book.chapters?.some((ch) => ch.content)
+                const chCount = book.chapters?.length || 0
+                const secCount = book.chapters?.reduce((a, ch) => a + (ch.sections?.length || 0), 0) || 0
+                return (
+                  <div className="border-t border-border pt-2 mt-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {chCount > 0 && <span className="text-[10px] text-muted">{chCount} ch{secCount > 0 ? ` · ${secCount} sec` : ''}</span>}
+                        {book.cartesia_folder_id ? <span className="text-[10px] text-green-600">✓ KB</span> :
+                         hasContent ? <span className="text-[10px] text-amber-600">KB not synced</span> : null}
+                        {op && <span className={`text-[10px] ${op === 'done' || op.startsWith('kb-done') || op.startsWith('split-done') ? 'text-green-600' : op.startsWith('error') ? 'text-red-500' : 'text-muted'}`}>
+                          {op === 'done' ? '✓ saved' : op === 'generating' ? 'Generating...' : op === 'parsing' ? 'Parsing...' : op === 'splitting' ? 'Splitting...' : op === 'syncing' ? 'Syncing KB...' : op.startsWith('split-done') ? `✓ ${op.split(':')[1]} sections` : op.startsWith('kb-done') ? `✓ KB ${op.split(':')[1]}` : op}
+                        </span>}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <label className={`px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer ${op === 'parsing' ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {op === 'parsing' ? <Loader2 size={10} className="animate-spin" /> : 'EPUB'}
+                          <input type="file" accept=".epub" className="hidden" onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }} />
+                        </label>
+                        {hasContent && (
+                          <button onClick={() => splitSections(book)} disabled={op === 'splitting'} className="px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer disabled:opacity-40">
+                            {op === 'splitting' ? <Loader2 size={10} className="animate-spin" /> : 'Split'}
+                          </button>
+                        )}
+                        {hasContent && (
+                          <button onClick={() => syncToKB(book)} disabled={op === 'syncing'} className="px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer disabled:opacity-40">
+                            {op === 'syncing' ? <Loader2 size={10} className="animate-spin" /> : book.cartesia_folder_id ? 'Re-sync' : 'Sync KB'}
+                          </button>
+                        )}
+                        <button onClick={() => generate(book)} disabled={op === 'generating' || op === 'parsing'} className="px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer disabled:opacity-40">
+                          {op === 'generating' ? <Loader2 size={10} className="animate-spin" /> : hasChapters ? 'Regen' : 'Generate'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )
           })}
@@ -657,242 +757,47 @@ function GeminiSettings() {
 }
 
 function Chapters() {
-  const [books, setBooks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState({})
+  const [stats, setStats] = useState({ total: 0, withChapters: 0, pending: 0 })
   const [generatingAll, setGeneratingAll] = useState(false)
 
-  useEffect(() => { fetchBooks() }, [])
-
-  const fetchBooks = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('books')
-      .select('id, title, author, cover_url, chapters')
-      .order('title')
-    setBooks(data || [])
-    setLoading(false)
-  }
-
-  const saveChapters = async (bookId, chapters) => {
-    await supabase.from('books').update({ chapters }).eq('id', bookId)
-    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
-  }
-
-  const uploadEpub = async (book, file) => {
-    setStatus((s) => ({ ...s, [book.id]: 'parsing' }))
-    try {
-      const epubChapters = await parseEpub(file)
-
-      // Merge: if book already has chapters from Gemini, keep title+oneliner, add content
-      const existing = book.chapters || []
-      const merged = epubChapters.map((ec, i) => {
-        const match = existing[i] || existing.find((e) =>
-          e.title?.toLowerCase().includes(ec.title?.toLowerCase().slice(0, 10))
-        )
-        return {
-          number: ec.number,
-          title: match?.title || ec.title,
-          oneliner: match?.oneliner || '',
-          content: ec.content,
-        }
-      })
-
-      await saveChapters(book.id, merged)
-      setStatus((s) => ({ ...s, [book.id]: 'done' }))
-    } catch (err) {
-      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
-    }
-  }
-
-  const generate = async (book) => {
-    setStatus((s) => ({ ...s, [book.id]: 'generating' }))
-    try {
-      const hasContent = book.chapters?.some((ch) => ch.content)
-
-      if (hasContent) {
-        // EPUB content available — generate oneliners grounded in actual text
-        const oneliners = await generateOneliners(book.title, book.author, book.chapters)
-        const merged = book.chapters.map((ch) => {
-          const match = oneliners.find((o) => o.number === ch.number)
-          return { ...ch, oneliner: match?.oneliner || ch.oneliner || '' }
-        })
-        await saveChapters(book.id, merged)
-      } else {
-        // No EPUB content — generate chapters + oneliners from model memory
-        const chapters = await generateChapters(book.title, book.author)
-        await saveChapters(book.id, chapters)
-      }
-
-      setStatus((s) => ({ ...s, [book.id]: 'done' }))
-    } catch (err) {
-      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
-    }
-  }
-
-  const splitSections = async (book) => {
-    if (!book.chapters?.some((ch) => ch.content)) return
-    setStatus((s) => ({ ...s, [book.id]: 'splitting' }))
-    try {
-      const updated = book.chapters.map((ch) => ({
-        ...ch,
-        sections: ch.content ? splitIntoSections(ch.content) : (ch.sections || []),
-      }))
-      await saveChapters(book.id, updated)
-      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, chapters: updated } : b))
-      const totalSections = updated.reduce((acc, ch) => acc + (ch.sections?.length || 0), 0)
-      setStatus((s) => ({ ...s, [book.id]: `split-done:${totalSections}` }))
-    } catch (err) {
-      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
-    }
-  }
-
-  const syncToKB = async (book) => {
-    setStatus((s) => ({ ...s, [book.id]: 'syncing' }))
-    try {
-      const { data, error } = await supabase.functions.invoke('cartesia-kb-sync', {
-        body: { bookId: book.id },
-      })
-      if (error) throw new Error(error.message)
-      if (data.error) throw new Error(data.error)
-      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: data.folderId } : b))
-      setStatus((s) => ({ ...s, [book.id]: `kb-done:${data.synced}/${data.synced + data.failed}` }))
-      await fetchBooks()
-    } catch (err) {
-      setStatus((s) => ({ ...s, [book.id]: `error: ${err.message.slice(0, 60)}` }))
-    }
-  }
+  useEffect(() => {
+    supabase.from('books').select('id, chapters').then(({ data }) => {
+      const total = data?.length || 0
+      const withChapters = data?.filter((b) => b.chapters?.length > 0).length || 0
+      setStats({ total, withChapters, pending: total - withChapters })
+    })
+  }, [])
 
   const generateAll = async () => {
     setGeneratingAll(true)
-    const pending = books.filter((b) => !b.chapters?.length)
+    const { data } = await supabase.from('books').select('id, title, author, chapters').order('title')
+    const pending = (data || []).filter((b) => !b.chapters?.length)
     for (let i = 0; i < pending.length; i++) {
       const book = pending[i]
-      await generate(book)
-      if (i < pending.length - 1) {
-        // 4.5s between requests to respect 15 req/min free tier
-        await new Promise((r) => setTimeout(r, 4500))
-      }
+      try {
+        const chapters = await generateChapters(book.title, book.author)
+        await supabase.from('books').update({ chapters }).eq('id', book.id)
+        if (i < pending.length - 1) await new Promise((r) => setTimeout(r, 4500))
+      } catch { /* skip failed */ }
     }
     setGeneratingAll(false)
+    setStats((s) => ({ ...s, withChapters: s.total, pending: 0 }))
   }
 
-  const pending = books.filter((b) => !b.chapters?.length)
-  const done = books.filter((b) => b.chapters?.length > 0)
-
   return (
-    <div>
+    <div className="space-y-4">
       <GeminiSettings />
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface">
         <div>
-          <p className="text-xs text-muted">{done.length}/{books.length} books have chapters</p>
-          {pending.length > 0 && (
-            <p className="text-xs text-muted">{pending.length} pending</p>
-          )}
+          <p className="text-sm font-medium">{stats.withChapters}/{stats.total} books have chapters</p>
+          {stats.pending > 0 && <p className="text-xs text-muted mt-0.5">{stats.pending} still need chapters — use Generate in Books tab or Generate All below</p>}
         </div>
-        {pending.length > 0 && (
+        {stats.pending > 0 && (
           <Button size="sm" disabled={generatingAll} onClick={generateAll}>
-            {generatingAll ? <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</> : `Generate All (${pending.length})`}
+            {generatingAll ? <><Loader2 size={12} className="animate-spin mr-1" />Generating...</> : `Generate All (${stats.pending})`}
           </Button>
         )}
       </div>
-
-      {loading ? (
-        <div className="text-center py-8 text-muted text-sm">Loading books...</div>
-      ) : (
-        <div className="space-y-2">
-          {books.map((book) => {
-            const s = status[book.id]
-            const hasChapters = book.chapters?.length > 0
-            return (
-              <div key={book.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">
-                {book.cover_url && (
-                  <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{book.title}</p>
-                  <p className="text-xs text-muted">{book.author}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {hasChapters && (
-                      <span className="text-[10px] text-muted">{book.chapters.length} chapters</span>
-                    )}
-                    {hasChapters && book.chapters.some((ch) => ch.sections?.length > 0) && (
-                      <span className="text-[10px] text-muted">
-                        · {book.chapters.reduce((a, ch) => a + (ch.sections?.length || 0), 0)} sections
-                      </span>
-                    )}
-                    {book.cartesia_folder_id ? (
-                      <span className="text-[10px] text-green-600">✓ KB synced</span>
-                    ) : hasChapters && book.chapters.some((ch) => ch.content) ? (
-                      <span className="text-[10px] text-amber-600">KB not synced</span>
-                    ) : null}
-                  </div>
-                  {s && (
-                    <p className={`text-xs mt-0.5 ${s === 'done' || s.startsWith('kb-done') || s.startsWith('split-done') ? 'text-green-600' : s.startsWith('error') ? 'text-highlight' : 'text-muted'}`}>
-                      {s === 'done' ? `✓ chapters saved` :
-                       s === 'generating' ? 'Generating via Gemini...' :
-                       s === 'parsing' ? 'Parsing EPUB...' :
-                       s === 'splitting' ? 'Splitting into sections...' :
-                       s === 'syncing' ? 'Syncing to Cartesia KB...' :
-                       s.startsWith('split-done') ? `✓ ${s.split(':')[1]} sections created` :
-                       s.startsWith('kb-done') ? `✓ KB synced (${s.split(':')[1]})` : s}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* Upload EPUB */}
-                  <label className={`px-2 py-1 text-xs rounded border border-border bg-surface hover:bg-background cursor-pointer transition-colors ${(s === 'parsing' || generatingAll) ? 'opacity-50 pointer-events-none' : ''}`}>
-                    {s === 'parsing' ? <Loader2 size={12} className="animate-spin" /> : 'EPUB'}
-                    <input
-                      type="file"
-                      accept=".epub"
-                      className="hidden"
-                      onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }}
-                    />
-                  </label>
-                  {/* Split into sections */}
-                  {hasChapters && book.chapters.some((ch) => ch.content) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={s === 'splitting' || generatingAll}
-                      onClick={() => splitSections(book)}
-                    >
-                      {s === 'splitting' ? <Loader2 size={12} className="animate-spin" /> : 'Split'}
-                    </Button>
-                  )}
-
-                  {/* Sync to Cartesia KB */}
-                  {hasChapters && book.chapters.some((ch) => ch.content) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={s === 'syncing' || generatingAll}
-                      onClick={() => syncToKB(book)}
-                    >
-                      {s === 'syncing' ? <Loader2 size={12} className="animate-spin" /> : book.cartesia_folder_id ? 'Re-sync KB' : 'Sync KB'}
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant={hasChapters ? 'outline' : 'primary'}
-                    disabled={s === 'generating' || s === 'parsing' || generatingAll}
-                    onClick={() => generate(book)}
-                  >
-                    {s === 'generating' ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : hasChapters ? (
-                      'Regenerate'
-                    ) : (
-                      'Generate'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }
