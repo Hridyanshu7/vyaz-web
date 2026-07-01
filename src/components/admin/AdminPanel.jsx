@@ -370,17 +370,36 @@ function FilterPillManager() {
 }
 
 function BooksCatalog() {
-  const { adminBooks: original, filterPills: pills, loading, updateBook, addFilterPill, removeFilterPill } = useAdminDataStore()
+  const { adminBooks: original, filterPills: pills, loading: globalLoading, updateBook, addFilterPill, removeFilterPill } = useAdminDataStore()
+  const [fullBooks, setFullBooks] = useState({}) // { [bookId]: { chapters, goodreads_data, cartesia_folder_id } }
+  const [loadingFull, setLoadingFull] = useState(false)
   const [savingAll, setSavingAll] = useState(false)
   const [search, setSearch] = useState('')
+
+  // Lazy-load heavy columns (chapters, goodreads_data) once when Catalog tab is first opened
+  useEffect(() => {
+    if (original.length === 0 || loadingFull || Object.keys(fullBooks).length > 0) return
+    setLoadingFull(true)
+    supabase.from('books')
+      .select('id, chapters, goodreads_data, cartesia_folder_id')
+      .order('title')
+      .then(({ data }) => {
+        const map = {}
+        ;(data || []).forEach((b) => { map[b.id] = b })
+        setFullBooks(map)
+        setLoadingFull(false)
+      })
+  }, [original])
+
+  const loading = globalLoading || (original.length > 0 && Object.keys(fullBooks).length === 0)
   const {
     bookChanges, setBookChange, clearBookChanges,
     opStatus, opProgress, setOpStatus, setOpProgress, clearOpProgress,
     newTag, setNewTag,
   } = useAdminStore()
 
-  // Merge DB data with pending changes
-  const books = original.map((b) => ({ ...b, ...(bookChanges[b.id] || {}) }))
+  // Merge: base + lazy-loaded heavy columns + pending changes
+  const books = original.map((b) => ({ ...b, ...(fullBooks[b.id] || {}), ...(bookChanges[b.id] || {}) }))
   const dirtyBookIds = Object.keys(bookChanges)
 
   const saveAll = async () => {
@@ -416,6 +435,7 @@ function BooksCatalog() {
   const saveChapters = async (bookId, chapters) => {
     await supabase.from('books').update({ chapters }).eq('id', bookId)
     updateBook(bookId, { chapters })
+    setFullBooks((prev) => ({ ...prev, [bookId]: { ...prev[bookId], chapters } }))
   }
 
   const uploadEpub = async (book, file) => {
@@ -500,6 +520,7 @@ function BooksCatalog() {
         synced += data?.synced || 0
       }
       updateBook(book.id, { cartesia_folder_id: folderId })
+      setFullBooks((prev) => ({ ...prev, [book.id]: { ...prev[book.id], cartesia_folder_id: folderId } }))
       clearProgress(book.id)
       setOp(book.id, `kb-done:${synced}`)
     } catch (err) {

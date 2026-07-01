@@ -29,7 +29,7 @@ export const useAdminDataStore = create((set, get) => ({
         .select(`*, book:books(id, title, cover_url), narrator:profiles!sessions_narrator_id_fkey(id, name, avatar_url), attendees:session_attendees(id, reader_id, status)`)
         .order('scheduled_at', { ascending: false }),
       supabase.from('books')
-        .select('id, title, author, cover_url, genres, goodreads_data, is_published, chapters, cartesia_folder_id')
+        .select('id, title, author, cover_url, genres, is_published, cartesia_folder_id, goodreads_rating, goodreads_ratings_count')
         .order('title'),
       supabase.from('platform_settings').select('key, value'),
       supabase.from('genre_filters').select('name').order('sort_order'),
