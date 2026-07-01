@@ -23,7 +23,6 @@ export async function getVoicePipelineSession(book, chapter) {
 
 // ─── Gemini helpers ────────────────────────────────────────────────────────────
 async function callGeminiText(apiKey, prompt, userMessage) {
-  console.log('[Pipeline] LLM call — prompt length:', prompt?.length, '| message length:', userMessage?.length)
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
     {
@@ -37,13 +36,8 @@ async function callGeminiText(apiKey, prompt, userMessage) {
     }
   )
   const data = await res.json()
-  if (data.error) {
-    console.error('[Pipeline] Gemini error:', JSON.stringify(data.error))
-    throw new Error(data.error.message)
-  }
-  let raw = data.candidates[0].content.parts[0].text.trim()
-  raw = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  return JSON.parse(raw)
+  if (data.error) throw new Error(data.error.message)
+  return data.candidates[0].content.parts[0].text.trim()
 }
 
 async function transcribeAudio(apiKey, audioBlob) {
@@ -158,14 +152,13 @@ export class VoicePipelineSession {
     }
 
     try {
-      const result = await callGeminiText(
+      const chunk = await callGeminiText(
         this.apiKey,
         this.narrationPrompt,
         `Narrate the next 2-4 sentences from this text:\n\n${remaining}`
       )
 
-      const chunk = result.text || ''
-      const checkIn = result.check_in || ''
+      if (!chunk) throw new Error('Empty narration response from LLM')
 
       // Count sentences narrated to advance position
       const narrated = chunk.match(/[^.!?]+[.!?]+/g) || []
@@ -173,9 +166,8 @@ export class VoicePipelineSession {
 
       this.onTranscript?.({ role: 'agent', text: chunk })
 
-      // Play chunk + check-in sequentially
-      const fullText = checkIn ? `${chunk} ${checkIn}` : chunk
-      await this._playTTS(fullText)
+      // Play chunk then a check-in pause
+      await this._playTTS(`${chunk} Shall I continue?`)
 
       this.setState('paused')
     } catch (err) {
@@ -217,13 +209,13 @@ export class VoicePipelineSession {
       const fullChapterContent = this.sections.map((s) => s.text).join('\n\n')
       const filledAnsweringPrompt = this.answeringPrompt.replace(/{content}/g, fullChapterContent)
 
-      const result = await callGeminiText(
+      const answer = await callGeminiText(
         this.apiKey,
         filledAnsweringPrompt,
         question
       )
 
-      const answer = result.text || ''
+      if (!answer) throw new Error('Empty answer from LLM')
       this.onTranscript?.({ role: 'agent', text: answer })
       await this._playTTS(answer)
 
