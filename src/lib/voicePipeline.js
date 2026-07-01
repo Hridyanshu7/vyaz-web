@@ -212,11 +212,13 @@ export class VoicePipelineSession {
       const question = await transcribeAudio(this.apiKey, blob)
       this.onTranscript?.({ role: 'user', text: question })
 
-      const sec = this.currentSection()
+      const fullChapterContent = this.sections.map((s) => s.text).join('\n\n')
+      const filledAnsweringPrompt = this.answeringPrompt.replace(/{content}/g, fullChapterContent)
+
       const result = await callGeminiText(
         this.apiKey,
-        this.answeringPrompt,
-        `Chapter section content:\n${sec?.text || ''}\n\nUser question: ${question}`
+        filledAnsweringPrompt,
+        question
       )
 
       const answer = result.text || ''
