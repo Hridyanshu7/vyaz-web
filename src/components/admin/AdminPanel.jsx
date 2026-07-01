@@ -921,10 +921,97 @@ function ProviderSwitcher() {
   )
 }
 
+const STT_OPTIONS = [
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  // Browser WebSpeech requires real-time integration during recording; not supported yet
+]
+
+const LLM_OPTIONS = [
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (recommended)' },
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (faster)' },
+  { value: 'gemini-2.5-flash-lite-preview-06-17', label: 'Gemini 2.5 Flash Lite (cheapest)' },
+]
+
+const TTS_MODEL_OPTIONS = [
+  { value: 'gemini-2.5-flash-preview-tts', label: 'Gemini 2.5 Flash TTS (preview)' },
+  { value: 'browser', label: 'Browser TTS (no key, robotic)' },
+]
+
+const TTS_VOICE_OPTIONS = [
+  { value: 'Charon', label: 'Charon — Informational' },
+  { value: 'Kore', label: 'Kore — Firm' },
+  { value: 'Zephyr', label: 'Zephyr — Bright' },
+  { value: 'Puck', label: 'Puck — Upbeat' },
+  { value: 'Fenrir', label: 'Fenrir — Excitable' },
+  { value: 'Aoede', label: 'Aoede — Breezy' },
+]
+
+function PipelineModelsCard() {
+  const { vals, set, save, saving, saved } = useProviderSettings([
+    'pipeline_stt_model', 'pipeline_llm_model', 'pipeline_tts_model', 'pipeline_tts_voice',
+  ])
+
+  const useGeminiTTS = (vals.pipeline_tts_model || 'gemini-2.5-flash-preview-tts') !== 'browser'
+
+  const rows = [
+    { key: 'pipeline_stt_model', label: 'STT — Speech to Text', options: STT_OPTIONS, def: 'gemini-2.5-flash' },
+    { key: 'pipeline_llm_model', label: 'LLM — Narration & Answers', options: LLM_OPTIONS, def: 'gemini-2.5-flash' },
+    { key: 'pipeline_tts_model', label: 'TTS — Model', options: TTS_MODEL_OPTIONS, def: 'gemini-2.5-flash-preview-tts' },
+  ]
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 bg-surface border-b border-border">
+        <Bot size={14} className="text-muted" />
+        <p className="text-sm font-medium">Pipeline Components</p>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-highlight/10 text-highlight ml-1">Pipeline only</span>
+      </div>
+      <div className="p-4 space-y-3">
+        {rows.map(({ key, label, options, def }) => (
+          <div key={key}>
+            <label className="text-xs text-muted mb-1 block">{label}</label>
+            <select
+              value={vals[key] || def}
+              onChange={(e) => set(key, e.target.value)}
+              className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer"
+            >
+              {options.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+        {useGeminiTTS && (
+          <div>
+            <label className="text-xs text-muted mb-1 block">TTS — Voice</label>
+            <select
+              value={vals.pipeline_tts_voice || 'Charon'}
+              onChange={(e) => set('pipeline_tts_voice', e.target.value)}
+              className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer"
+            >
+              {TTS_VOICE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <Button size="sm" onClick={save} disabled={saving}>
+          {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+          {saved ? '✓ Saved' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function Agents() {
+  const { platformSettings } = useAdminDataStore()
+  const isPipeline = (platformSettings.voice_provider || 'cartesia') === 'pipeline'
+
   return (
     <div className="space-y-4">
       <ProviderSwitcher />
+      {isPipeline && <PipelineModelsCard />}
       <GeminiCard />
       <CartesiaCard />
     </div>

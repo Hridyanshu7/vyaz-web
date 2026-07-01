@@ -24,7 +24,15 @@ serve(async (req) => {
     const { data: settings } = await supabase
       .from("platform_settings")
       .select("key, value")
-      .in("key", ["gemini_api_key", "voice_narration_prompt", "voice_answering_prompt"])
+      .in("key", [
+        "gemini_api_key",
+        "voice_narration_prompt",
+        "voice_answering_prompt",
+        "pipeline_stt_model",
+        "pipeline_llm_model",
+        "pipeline_tts_model",
+        "pipeline_tts_voice",
+      ])
 
     const map: Record<string, string> = {};
     (settings || []).forEach((r: any) => { map[r.key] = r.value; });
@@ -69,6 +77,10 @@ serve(async (req) => {
         geminiApiKey: map.gemini_api_key,
         narrationPrompt,
         answeringPrompt,
+        sttModel: map.pipeline_stt_model || "gemini-2.5-flash",
+        llmModel: map.pipeline_llm_model || "gemini-2.5-flash",
+        ttsModel: map.pipeline_tts_model || "gemini-2.5-flash-preview-tts",
+        ttsVoice: map.pipeline_tts_voice || "Charon",
         sections: sections || [],
         sessionId,
         totalSections: sections?.length || 0,
