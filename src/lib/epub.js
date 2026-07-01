@@ -38,7 +38,20 @@ function htmlToText(html) {
 
 export async function parseEpub(file) {
   const buffer = await file.arrayBuffer()
-  const zip = await JSZip.loadAsync(buffer)
+
+  // Valid ZIP archives (and thus EPUBs) begin with the bytes "PK". If not, the
+  // file is almost certainly DRM-protected (Adobe/ACSM), corrupted, or not an EPUB.
+  const sig = new Uint8Array(buffer.slice(0, 2))
+  if (sig[0] !== 0x50 || sig[1] !== 0x4b) {
+    throw new Error('Not a valid EPUB — the file is not a ZIP archive. It is likely DRM-protected (Adobe/ACSM) or corrupted. Please use a DRM-free EPUB.')
+  }
+
+  let zip
+  try {
+    zip = await JSZip.loadAsync(buffer)
+  } catch {
+    throw new Error('Could not open EPUB — the archive may be corrupted or incompletely downloaded.')
+  }
 
   // 1. Find OPF path from container.xml
   const containerXml = await zip.file('META-INF/container.xml').async('string')
