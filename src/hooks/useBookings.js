@@ -18,7 +18,7 @@ export function useBookings() {
       .from('bookings')
       .select(`
         *,
-        book:books(id, title, author, cover_url, genre),
+        book:books(id, title, author, cover_url),
         reader:profiles!bookings_reader_id_fkey(id, name, avatar_url),
         narrator:profiles!bookings_narrator_id_fkey(id, name, avatar_url),
         review:reviews(id, rating, comment)

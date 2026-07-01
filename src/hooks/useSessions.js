@@ -20,7 +20,7 @@ export function useSessions() {
       .from('sessions')
       .select(`
         *,
-        book:books(id, title, author, cover_url, genre),
+        book:books(id, title, author, cover_url),
         narrator:profiles!sessions_narrator_id_fkey(id, name, avatar_url),
         attendees:session_attendees(id, reader_id, status, reader:profiles!session_attendees_reader_id_fkey(id, name))
       `)
@@ -41,7 +41,7 @@ export function useSessions() {
         .from('sessions')
         .select(`
           *,
-          book:books(id, title, author, cover_url, genre),
+          book:books(id, title, author, cover_url),
           narrator:profiles!sessions_narrator_id_fkey(id, name, avatar_url),
           attendees:session_attendees(id, reader_id, status, reader:profiles!session_attendees_reader_id_fkey(id, name))
         `)
