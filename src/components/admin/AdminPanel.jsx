@@ -49,16 +49,22 @@ function UserAccess() {
 
   const saveAll = async () => {
     setSaving(true)
-    await Promise.all(
-      dirty.map((userId) => {
+    const results = await Promise.all(
+      dirty.map(async (userId) => {
         const u = users.find((x) => x.id === userId)
-        return supabase.from('profiles').update({
+        const { error } = await supabase.from('profiles').update({
           role: u.role, is_admin: u.is_admin, is_active: u.is_active,
         }).eq('id', userId)
+        return { userId, error }
       })
     )
-    clearUserChanges()
-    setOriginal(users)
+    const failed = results.filter((r) => r.error)
+    if (failed.length > 0) {
+      alert(`${failed.length} update(s) failed: ${failed[0].error.message}`)
+    } else {
+      clearUserChanges()
+      setOriginal(users)
+    }
     setSaving(false)
   }
 
@@ -419,14 +425,20 @@ function GenreTags() {
 
   const saveAll = async () => {
     setSavingAll(true)
-    await Promise.all(
-      dirtyBookIds.map((bookId) => {
+    const results = await Promise.all(
+      dirtyBookIds.map(async (bookId) => {
         const b = books.find((x) => x.id === bookId)
-        return supabase.from('books').update({ genres: b.genres, is_published: b.is_published }).eq('id', bookId)
+        const { error } = await supabase.from('books').update({ genres: b.genres, is_published: b.is_published }).eq('id', bookId)
+        return { bookId, error }
       })
     )
-    clearBookChanges()
-    setOriginal(books)
+    const failed = results.filter((r) => r.error)
+    if (failed.length > 0) {
+      alert(`${failed.length} update(s) failed: ${failed[0].error.message}`)
+    } else {
+      clearBookChanges()
+      setOriginal(books)
+    }
     setSavingAll(false)
   }
 
