@@ -20,9 +20,10 @@ const TABS = [
 // 1. USER ACCESS CONTROL
 // ─────────────────────────────────────────
 function UserAccess() {
+  const [original, setOriginal] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState({})
+  const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
 
   useEffect(() => { fetchUsers() }, [])
@@ -33,35 +34,50 @@ function UserAccess() {
       .from('profiles')
       .select('id, name, email, role, is_admin, is_active, created_at, avatar_url')
       .order('created_at', { ascending: false })
+    setOriginal(data || [])
     setUsers(data || [])
     setLoading(false)
   }
 
-  const update = async (userId, patch) => {
-    const key = Object.keys(patch)[0]
-    setSaving((s) => ({ ...s, [`${userId}_${key}`]: true }))
-    await supabase.from('profiles').update(patch).eq('id', userId)
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, ...patch } : u))
-    setSaving((s) => ({ ...s, [`${userId}_${key}`]: false }))
+  const patch = (userId, changes) =>
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, ...changes } : u))
+
+  // Compute which users changed vs original
+  const dirty = users.filter((u) => {
+    const o = original.find((x) => x.id === u.id)
+    return o && (o.role !== u.role || o.is_admin !== u.is_admin || o.is_active !== u.is_active)
+  })
+
+  const saveAll = async () => {
+    setSaving(true)
+    await Promise.all(
+      dirty.map((u) => supabase.from('profiles').update({
+        role: u.role, is_admin: u.is_admin, is_active: u.is_active,
+      }).eq('id', u.id))
+    )
+    setOriginal(users)
+    setSaving(false)
   }
 
   const filtered = users.filter((u) =>
     !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const active = users.filter((u) => u.is_active !== false).length
-
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-muted">{active} active · {users.length} total</p>
-        <input
-          type="text"
-          placeholder="Search name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none w-56"
-        />
+        <p className="text-xs text-muted">{users.filter((u) => u.is_active !== false).length} active · {users.length} total</p>
+        <div className="flex items-center gap-2">
+          {dirty.length > 0 && (
+            <Button size="sm" onClick={saveAll} disabled={saving}>
+              {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+              Save {dirty.length} change{dirty.length > 1 ? 's' : ''}
+            </Button>
+          )}
+          <input type="text" placeholder="Search..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none w-44" />
+        </div>
       </div>
 
       {loading ? (
@@ -70,8 +86,9 @@ function UserAccess() {
         <div className="space-y-2">
           {filtered.map((u) => {
             const isActive = u.is_active !== false
+            const isDirty = dirty.some((d) => d.id === u.id)
             return (
-              <div key={u.id} className={`p-3 rounded-xl border border-border transition-opacity ${!isActive ? 'opacity-50' : ''}`}>
+              <div key={u.id} className={`p-3 rounded-xl border transition-opacity ${!isActive ? 'opacity-50' : ''} ${isDirty ? 'border-highlight/40 bg-highlight/5' : 'border-border'}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
                     {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" /> : <User size={14} className="text-muted" />}
@@ -81,44 +98,25 @@ function UserAccess() {
                       <p className="text-sm font-medium truncate">{u.name || '—'}</p>
                       {u.is_admin && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-highlight/10 text-highlight font-medium">Admin</span>}
                       {!isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted">Suspended</span>}
+                      {isDirty && <span className="text-[10px] text-highlight">● unsaved</span>}
                     </div>
                     <p className="text-xs text-muted truncate">{u.email}</p>
                   </div>
                 </div>
-
-                {/* Controls */}
                 <div className="flex items-center gap-2 mt-2 pl-11">
-                  <select
-                    value={u.role || 'reader'}
-                    onChange={(e) => update(u.id, { role: e.target.value })}
-                    disabled={saving[`${u.id}_role`]}
-                    className="text-xs px-2 py-1 rounded-lg border border-border bg-background cursor-pointer focus:outline-none"
-                  >
+                  <select value={u.role || 'reader'} onChange={(e) => patch(u.id, { role: e.target.value })}
+                    className="text-xs px-2 py-1 rounded-lg border border-border bg-background cursor-pointer focus:outline-none">
                     <option value="reader">Listener</option>
                     <option value="narrator">Narrator</option>
                     <option value="both">Both</option>
                   </select>
-
-                  {/* Admin toggle */}
-                  <button
-                    onClick={() => update(u.id, { is_admin: !u.is_admin })}
-                    disabled={!!saving[`${u.id}_is_admin`]}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
-                      u.is_admin ? 'bg-highlight/10 border-highlight text-highlight' : 'border-border text-muted hover:text-foreground'
-                    }`}
-                  >
-                    {saving[`${u.id}_is_admin`] ? <Loader2 size={10} className="animate-spin" /> : u.is_admin ? 'Revoke Admin' : 'Make Admin'}
+                  <button onClick={() => patch(u.id, { is_admin: !u.is_admin })}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border transition-colors ${u.is_admin ? 'bg-highlight/10 border-highlight text-highlight' : 'border-border text-muted hover:text-foreground'}`}>
+                    {u.is_admin ? 'Revoke Admin' : 'Make Admin'}
                   </button>
-
-                  {/* Suspend / Activate */}
-                  <button
-                    onClick={() => update(u.id, { is_active: !isActive })}
-                    disabled={!!saving[`${u.id}_is_active`]}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
-                      isActive ? 'border-border text-muted hover:border-red-300 hover:text-red-600' : 'border-green-200 bg-green-50 text-green-700'
-                    }`}
-                  >
-                    {saving[`${u.id}_is_active`] ? <Loader2 size={10} className="animate-spin" /> : isActive ? 'Suspend' : 'Activate'}
+                  <button onClick={() => patch(u.id, { is_active: !isActive })}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border transition-colors ${isActive ? 'border-border text-muted hover:border-red-300 hover:text-red-600' : 'border-green-200 bg-green-50 text-green-700'}`}>
+                    {isActive ? 'Suspend' : 'Activate'}
                   </button>
                 </div>
               </div>
@@ -385,10 +383,12 @@ function FilterPillManager({ pills, onRefresh }) {
 }
 
 function GenreTags() {
+  const [original, setOriginal] = useState([])
   const [books, setBooks] = useState([])
   const [pills, setPills] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState({})
+  const [savingAll, setSavingAll] = useState(false)
   const [newTag, setNewTag] = useState({})
   const [search, setSearch] = useState('')
   const updateBookGenres = useBookStore((s) => s.updateBookGenres)
@@ -406,48 +406,44 @@ function GenreTags() {
       .from('books')
       .select('id, title, author, cover_url, genres, goodreads_data, is_published')
       .order('title')
+    setOriginal(data || [])
     setBooks(data || [])
     setLoading(false)
   }
 
-  const togglePublished = async (book) => {
-    setSaving((s) => ({ ...s, [`pub_${book.id}`]: true }))
-    await supabase.from('books').update({ is_published: !book.is_published }).eq('id', book.id)
+  // Books whose genres or is_published changed vs original
+  const dirty = books.filter((b) => {
+    const o = original.find((x) => x.id === b.id)
+    return o && (o.is_published !== b.is_published || JSON.stringify(o.genres) !== JSON.stringify(b.genres))
+  })
+
+  const saveAll = async () => {
+    setSavingAll(true)
+    await Promise.all(
+      dirty.map((b) => supabase.from('books').update({ genres: b.genres, is_published: b.is_published }).eq('id', b.id))
+    )
+    setOriginal(books)
+    setSavingAll(false)
+  }
+
+  const togglePublished = (book) =>
     setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, is_published: !b.is_published } : b))
-    setSaving((s) => ({ ...s, [`pub_${book.id}`]: false }))
+
+  const removeTag = (bookId, tag) => {
+    setBooks((prev) => prev.map((b) => b.id === bookId
+      ? { ...b, genres: (b.genres || []).filter((g) => g !== tag) }
+      : b))
   }
 
-  const removeTag = async (bookId, tag) => {
-    const book = books.find((b) => b.id === bookId)
-    const updated = (book.genres || []).filter((g) => g !== tag)
-    setSaving((s) => ({ ...s, [bookId]: true }))
-    try {
-      await updateBookGenres(bookId, updated)
-      setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
-    } catch (err) {
-      alert(err.message)
-    } finally {
-      setSaving((s) => ({ ...s, [bookId]: false }))
-    }
-  }
-
-  const addTag = async (bookId) => {
+  const addTag = (bookId) => {
     const tag = (newTag[bookId] || '').trim()
     if (!tag) return
-    const book = books.find((b) => b.id === bookId)
-    const existing = book.genres || []
-    if (existing.includes(tag)) { setNewTag((n) => ({ ...n, [bookId]: '' })); return }
-    const updated = [...existing, tag]
-    setSaving((s) => ({ ...s, [bookId]: true }))
-    try {
-      await updateBookGenres(bookId, updated)
-      setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, genres: updated } : b))
-      setNewTag((n) => ({ ...n, [bookId]: '' }))
-    } catch (err) {
-      alert(err.message)
-    } finally {
-      setSaving((s) => ({ ...s, [bookId]: false }))
-    }
+    setBooks((prev) => prev.map((b) => {
+      if (b.id !== bookId) return b
+      if ((b.genres || []).includes(tag)) return b
+      return { ...b, genres: [...(b.genres || []), tag] }
+    }))
+    setNewTag((n) => ({ ...n, [bookId]: '' }))
   }
 
   const getDisplayGenres = (book) => getBookGenres(book)
@@ -461,7 +457,15 @@ function GenreTags() {
       <FilterPillManager pills={pills} onRefresh={() => { fetchPills(); useBookStore.getState().fetchFilterPills() }} />
 
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-muted">{books.length} books</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted">{books.length} books</p>
+          {dirty.length > 0 && (
+            <Button size="sm" onClick={saveAll} disabled={savingAll}>
+              {savingAll ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+              Save {dirty.length} change{dirty.length > 1 ? 's' : ''}
+            </Button>
+          )}
+        </div>
         <input
           type="text"
           placeholder="Search books..."
@@ -901,21 +905,16 @@ function BooksTab() {
   return (
     <div>
       <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-4">
-        <button
-          onClick={() => setSub('catalog')}
-          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${sub === 'catalog' ? 'bg-background shadow-sm' : 'text-muted hover:text-foreground'}`}
-        >
-          Catalog
-        </button>
-        <button
-          onClick={() => setSub('requested')}
-          className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${sub === 'requested' ? 'bg-background shadow-sm' : 'text-muted hover:text-foreground'}`}
-        >
-          Requested
-        </button>
+        {['catalog', 'requested'].map((s) => (
+          <button key={s} onClick={() => setSub(s)}
+            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer capitalize ${sub === s ? 'bg-background shadow-sm' : 'text-muted hover:text-foreground'}`}>
+            {s}
+          </button>
+        ))}
       </div>
-      {sub === 'catalog' && <GenreTags />}
-      {sub === 'requested' && <BookRequests />}
+      {/* Keep both mounted to avoid re-fetch on sub-tab switch */}
+      <div style={{ display: sub === 'catalog' ? 'block' : 'none' }}><GenreTags /></div>
+      <div style={{ display: sub === 'requested' ? 'block' : 'none' }}><BookRequests /></div>
     </div>
   )
 }
@@ -927,24 +926,28 @@ export function AdminPanel() {
   const [activeTab, setActiveTab] = useState('users')
 
   return (
-    <div>
-      <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border mb-4 overflow-x-auto">
+    <div className="flex gap-6">
+      {/* Left sidebar */}
+      <div className="w-36 shrink-0 pt-1">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer whitespace-nowrap
-              ${activeTab === t.id ? 'bg-background shadow-sm' : 'text-muted hover:text-foreground'}`}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors cursor-pointer text-left
+              ${activeTab === t.id ? 'bg-surface font-medium text-foreground' : 'text-muted hover:text-foreground hover:bg-surface/50'}`}
           >
-            <t.icon size={12} /> {t.label}
+            <t.icon size={14} className="shrink-0" /> {t.label}
           </button>
         ))}
       </div>
 
-      {activeTab === 'users' && <UserAccess />}
-      {activeTab === 'sessions' && <GroupSessions />}
-      {activeTab === 'books' && <BooksTab />}
-      {activeTab === 'chapters' && <Chapters />}
+      {/* Content — all tabs kept mounted, no re-fetch on switch */}
+      <div className="flex-1 min-w-0">
+        <div style={{ display: activeTab === 'users' ? 'block' : 'none' }}><UserAccess /></div>
+        <div style={{ display: activeTab === 'sessions' ? 'block' : 'none' }}><GroupSessions /></div>
+        <div style={{ display: activeTab === 'books' ? 'block' : 'none' }}><BooksTab /></div>
+        <div style={{ display: activeTab === 'chapters' ? 'block' : 'none' }}><Chapters /></div>
+      </div>
     </div>
   )
 }
