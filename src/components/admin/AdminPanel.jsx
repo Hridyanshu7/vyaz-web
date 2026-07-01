@@ -556,17 +556,14 @@ function GenreTags() {
                 </div>
                 <button
                   onClick={() => togglePublished(book)}
-                  disabled={saving[`pub_${book.id}`]}
                   className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-medium cursor-pointer shrink-0 transition-colors ${
                     book.is_published
                       ? 'border-border text-muted hover:border-highlight hover:text-highlight'
                       : 'border-green-200 bg-green-50 text-green-700'
                   }`}
                 >
-                  {saving[`pub_${book.id}`] ? <Loader2 size={10} className="animate-spin" /> :
-                   book.is_published ? <><EyeOff size={10} /> De-list</> : <><Eye size={10} /> List</>}
+                  {book.is_published ? <><EyeOff size={10} /> De-list</> : <><Eye size={10} /> List</>}
                 </button>
-                {saving[book.id] && <Loader2 size={12} className="animate-spin text-muted shrink-0" />}
               </div>
               {/* Filter pill indicator */}
               <div className="flex items-center gap-1.5 mb-2">
