@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { importBookFromUrl } from '../../lib/bookImport'
 import { useBookStore, getBookGenres } from '../../stores/bookStore'
 import { useAdminStore } from '../../stores/adminStore'
+import { useAdminDataStore } from '../../stores/adminDataStore'
 import { generateChapters, generateOneliners } from '../../lib/gemini'
 import { parseEpub } from '../../lib/epub'
 import { splitIntoSections } from '../../lib/sections'
@@ -22,23 +23,10 @@ const TABS = [
 // 1. USER ACCESS CONTROL
 // ─────────────────────────────────────────
 function UserAccess() {
-  const [original, setOriginal] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { users: original, updateUser, loading } = useAdminDataStore()
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const { userChanges, setUserChange, clearUserChanges } = useAdminStore()
-
-  useEffect(() => { fetchUsers() }, [])
-
-  const fetchUsers = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, name, email, role, is_admin, is_active, created_at, avatar_url')
-      .order('created_at', { ascending: false })
-    setOriginal(data || [])
-    setLoading(false)
-  }
 
   // Merge original DB data with any pending changes from store
   const users = original.map((u) => ({ ...u, ...(userChanges[u.id] || {}) }))
@@ -56,6 +44,7 @@ function UserAccess() {
         const { error } = await supabase.from('profiles').update({
           role: u.role, is_admin: u.is_admin, is_active: u.is_active,
         }).eq('id', userId)
+        if (!error) updateUser(userId, { role: u.role, is_admin: u.is_admin, is_active: u.is_active })
         return { userId, error }
       })
     )
@@ -64,7 +53,6 @@ function UserAccess() {
       alert(`${failed.length} update(s) failed: ${failed[0].error.message}`)
     } else {
       clearUserChanges()
-      setOriginal(users)
     }
     setSaving(false)
   }
@@ -142,29 +130,15 @@ function UserAccess() {
 // 2. MANAGE GROUP SESSIONS
 // ─────────────────────────────────────────
 function GroupSessions() {
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { groupSessions, loading } = useAdminDataStore()
   const [saving, setSaving] = useState({})
 
-  useEffect(() => { fetchSessions() }, [])
-
-  const fetchSessions = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('sessions')
-      .select(`
-        *,
-        book:books(id, title, cover_url),
-        narrator:profiles!sessions_narrator_id_fkey(id, name),
-        attendees:session_attendees(id)
-      `)
-      .eq('type', 'group')
-      .in('status', ['open', 'scheduled'])
-      .gt('scheduled_at', new Date().toISOString())
-      .order('scheduled_at', { ascending: true })
-    setSessions(data || [])
-    setLoading(false)
-  }
+  // Filter to upcoming group sessions
+  const sessions = groupSessions.filter((s) =>
+    s.type === 'group' &&
+    ['open', 'scheduled'].includes(s.status) &&
+    new Date(s.scheduled_at) > new Date()
+  ).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
 
   const updateStatus = async (sessionId, status) => {
     setSaving((s) => ({ ...s, [sessionId]: true }))
@@ -340,10 +314,11 @@ function BookRequests() {
 
 
 // ─────────────────────────────────────────
-// 5. GENRE TAGS
+// 5. BOOKS CATALOG
 // ─────────────────────────────────────────
 
-function FilterPillManager({ pills, onRefresh }) {
+function FilterPillManager() {
+  const { filterPills: pills, addFilterPill, removeFilterPill } = useAdminDataStore()
   const [newPill, setNewPill] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -352,14 +327,16 @@ function FilterPillManager({ pills, onRefresh }) {
     if (!name || pills.includes(name)) return
     setSaving(true)
     await supabase.from('genre_filters').insert({ name, sort_order: pills.length + 1 })
+    addFilterPill(name)
+    useBookStore.getState().fetchFilterPills()
     setNewPill('')
     setSaving(false)
-    onRefresh()
   }
 
   const removePill = async (name) => {
     await supabase.from('genre_filters').delete().eq('name', name)
-    onRefresh()
+    removeFilterPill(name)
+    useBookStore.getState().fetchFilterPills()
   }
 
   return (
@@ -392,37 +369,17 @@ function FilterPillManager({ pills, onRefresh }) {
   )
 }
 
-function GenreTags() {
-  const [original, setOriginal] = useState([])
-  const [pills, setPills] = useState([])
-  const [loading, setLoading] = useState(true)
+function BooksCatalog() {
+  const { adminBooks: original, filterPills: pills, loading, updateBook, addFilterPill, removeFilterPill } = useAdminDataStore()
   const [savingAll, setSavingAll] = useState(false)
   const [search, setSearch] = useState('')
-  const updateBookGenres = useBookStore((s) => s.updateBookGenres)
   const {
     bookChanges, setBookChange, clearBookChanges,
     opStatus, opProgress, setOpStatus, setOpProgress, clearOpProgress,
     newTag, setNewTag,
   } = useAdminStore()
 
-  useEffect(() => { fetchBooks(); fetchPills() }, [])
-
-  const fetchPills = async () => {
-    const { data } = await supabase.from('genre_filters').select('name').order('sort_order')
-    if (data) setPills(data.map((r) => r.name))
-  }
-
-  const fetchBooks = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('books')
-      .select('id, title, author, cover_url, genres, goodreads_data, is_published, chapters, cartesia_folder_id')
-      .order('title')
-    setOriginal(data || [])
-    setLoading(false)
-  }
-
-  // Merge original with pending changes from store
+  // Merge DB data with pending changes
   const books = original.map((b) => ({ ...b, ...(bookChanges[b.id] || {}) }))
   const dirtyBookIds = Object.keys(bookChanges)
 
@@ -439,8 +396,11 @@ function GenreTags() {
     if (failed.length > 0) {
       alert(`${failed.length} update(s) failed: ${failed[0].error.message}`)
     } else {
+      dirtyBookIds.forEach((bookId) => {
+        const b = books.find((x) => x.id === bookId)
+        updateBook(bookId, { genres: b.genres, is_published: b.is_published })
+      })
       clearBookChanges()
-      setOriginal(books)
     }
     setSavingAll(false)
   }
@@ -455,7 +415,7 @@ function GenreTags() {
 
   const saveChapters = async (bookId, chapters) => {
     await supabase.from('books').update({ chapters }).eq('id', bookId)
-    setOriginal((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
+    updateBook(bookId, { chapters })
   }
 
   const uploadEpub = async (book, file) => {
@@ -539,7 +499,7 @@ function GenreTags() {
         if (data?.folderId) folderId = data.folderId
         synced += data?.synced || 0
       }
-      setOriginal((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: folderId } : b))
+      updateBook(book.id, { cartesia_folder_id: folderId })
       clearProgress(book.id)
       setOp(book.id, `kb-done:${synced}`)
     } catch (err) {
@@ -570,7 +530,7 @@ function GenreTags() {
 
   return (
     <div>
-      <FilterPillManager pills={pills} onRefresh={() => { fetchPills(); useBookStore.getState().fetchFilterPills() }} />
+      <FilterPillManager />
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -736,26 +696,27 @@ function GenreTags() {
 // 5. AGENTS
 // ─────────────────────────────────────────
 function useProviderSettings(keys) {
-  const [vals, setVals] = useState({})
+  const { platformSettings, updateSetting } = useAdminDataStore()
+  const [localVals, setLocalVals] = useState({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // Seed local state from store on first render
   useEffect(() => {
-    supabase.from('platform_settings').select('key, value').in('key', keys)
-      .then(({ data }) => {
-        const map = {}
-        ;(data || []).forEach((r) => { map[r.key] = r.value })
-        setVals(map)
-      })
-  }, [])
+    const map = {}
+    keys.forEach((k) => { map[k] = platformSettings[k] || '' })
+    setLocalVals(map)
+  }, [platformSettings])
 
-  const set = (key, value) => setVals((v) => ({ ...v, [key]: value }))
+  const vals = localVals
+  const set = (key, value) => setLocalVals((v) => ({ ...v, [key]: value }))
 
   const save = async () => {
     setSaving(true)
     await Promise.all(keys.map((key) =>
       supabase.from('platform_settings').upsert({ key, value: vals[key] || '', updated_at: new Date().toISOString() })
     ))
+    keys.forEach((key) => updateSetting(key, vals[key] || ''))
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -908,7 +869,7 @@ function BooksTab() {
           </button>
         ))}
       </div>
-      <div style={{ display: sub === 'catalog' ? 'block' : 'none' }}><GenreTags /></div>
+      <div style={{ display: sub === 'catalog' ? 'block' : 'none' }}><BooksCatalog /></div>
       <div style={{ display: sub === 'requested' ? 'block' : 'none' }}><BookRequests /></div>
     </div>
   )
