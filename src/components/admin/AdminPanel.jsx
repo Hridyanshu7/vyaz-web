@@ -451,7 +451,6 @@ function GenreTags() {
 
   const saveChapters = async (bookId, chapters) => {
     await supabase.from('books').update({ chapters }).eq('id', bookId)
-    setBooks((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
     setOriginal((prev) => prev.map((b) => b.id === bookId ? { ...b, chapters } : b))
   }
 
@@ -502,7 +501,7 @@ function GenreTags() {
       const { data, error } = await supabase.functions.invoke('cartesia-kb-sync', { body: { bookId: book.id } })
       if (error) throw new Error(error.message)
       if (data.error) throw new Error(data.error)
-      setBooks((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: data.folderId } : b))
+      setOriginal((prev) => prev.map((b) => b.id === book.id ? { ...b, cartesia_folder_id: data.folderId } : b))
       setOp(book.id, `kb-done:${data.synced}`)
     } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
   }
