@@ -31,16 +31,14 @@ async function callGeminiText(apiKey, prompt, userMessage) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: prompt }] },
         contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: {
-          temperature: 0.7,
-          response_mime_type: 'application/json',
-        },
+        generationConfig: { temperature: 0.7 },
       }),
     }
   )
   const data = await res.json()
   if (data.error) throw new Error(data.error.message)
-  const raw = data.candidates[0].content.parts[0].text
+  let raw = data.candidates[0].content.parts[0].text.trim()
+  raw = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   return JSON.parse(raw)
 }
 
