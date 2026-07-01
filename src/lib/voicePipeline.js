@@ -92,13 +92,13 @@ async function textToSpeech(apiKey, text) {
   const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inline_data?.data
   if (!audioData) {
     // Fallback to browser TTS if Gemini TTS fails
-    return new Promise((resolve) => {
+    await new Promise((resolve) => {
       const utterance = new SpeechSynthesisUtterance(cleanText)
       utterance.onend = resolve
       utterance.onerror = resolve
       window.speechSynthesis.speak(utterance)
-      resolve(null) // resolve immediately, browser handles playback
     })
+    return null
   }
 
   const binary = atob(audioData)
