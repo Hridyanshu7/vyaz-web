@@ -10,7 +10,7 @@ import { useAdminStore } from '../../stores/adminStore'
 import { useAdminDataStore } from '../../stores/adminDataStore'
 import { generateChapters, generateOneliners } from '../../lib/gemini'
 import { parseEpub } from '../../lib/epub'
-import { splitIntoSections } from '../../lib/sections'
+import { splitIntoSections, sectionCoverage } from '../../lib/sections'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -485,9 +485,12 @@ function BooksCatalog() {
     setOp(book.id, 'splitting')
     const chapters = book.chapters.filter((ch) => ch.content)
     try {
+      let minCoverage = 100
       const updated = book.chapters.map((ch, i) => {
         if (!ch.content) return { ...ch, sections: ch.sections || [] }
         const sections = splitIntoSections(ch.content)
+        const { pct: cov } = sectionCoverage(ch.content, sections)
+        if (cov < minCoverage) minCoverage = cov
         const pct = Math.round(((i + 1) / chapters.length) * 100)
         setProgress(book.id, pct, `Splitting ch ${i + 1}/${chapters.length}`)
         return { ...ch, sections }
@@ -495,7 +498,8 @@ function BooksCatalog() {
       await saveChapters(book.id, updated)
       const total = updated.reduce((a, ch) => a + (ch.sections?.length || 0), 0)
       clearProgress(book.id)
-      setOp(book.id, `split-done:${total}`)
+      // minCoverage should be 100 — flag loudly if any chapter lost text.
+      setOp(book.id, minCoverage < 100 ? `split-done:${total} ⚠️cov ${minCoverage}%` : `split-done:${total}`)
     } catch (err) {
       clearProgress(book.id)
       setOp(book.id, `error: ${err.message.slice(0, 50)}`)

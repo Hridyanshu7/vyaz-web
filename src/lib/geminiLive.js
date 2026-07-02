@@ -45,41 +45,49 @@ function base64ToInt16(b64) {
   return new Int16Array(bytes.buffer)
 }
 
-// Short affirmative reply to a "shall we continue?" check-in.
-function isAffirmative(text) {
-  if (!text) return false
-  const t = text.trim().toLowerCase()
-  if (t.split(/\s+/).length > 6) return false
-  return /\b(yes|yeah|yep|yup|sure|ok|okay|continue|go on|go ahead|next|proceed|carry on|keep going|please do)\b/.test(t)
+function normalizeWords(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
 }
 
-// Split an agent turn into book-discussion vs conversational-reply segments,
-// based on the turn's role (not fragile verbatim text-matching).
-function buildSegments(text, kind) {
-  const t = text.trim()
-  if (!t) return []
-  if (kind === 'reply') return [{ type: 'aside', text: t }]
-  // discussion turn: substance is content; a trailing check-in question is an aside
-  const sentences = t.match(/[^.!?]+[.!?]*/g) || [t]
-  let splitAt = sentences.length
-  while (splitAt > 0 && /\?\s*$/.test(sentences[splitAt - 1].trim())) splitAt--
-  const content = sentences.slice(0, splitAt).join(' ').trim()
-  const aside = sentences.slice(splitAt).join(' ').trim()
+// Split agent text into book-narration (outside (( ))) vs agent-aside (inside (( ))).
+// Parens are stripped from the segment text. Handles an unclosed trailing "((".
+function parseAsides(text) {
   const segs = []
-  if (content) segs.push({ type: 'narration', text: content })
-  if (aside) segs.push({ type: 'aside', text: aside })
-  return segs.length ? segs : [{ type: 'narration', text: t }]
+  const re = /\(\(([\s\S]*?)\)\)/g
+  let last = 0, m
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) segs.push({ type: 'narration', text: text.slice(last, m.index) })
+    segs.push({ type: 'aside', text: m[1] })
+    last = re.lastIndex
+  }
+  const tail = text.slice(last)
+  const openIdx = tail.indexOf('((')
+  if (openIdx >= 0) {
+    if (openIdx > 0) segs.push({ type: 'narration', text: tail.slice(0, openIdx) })
+    const asideTail = tail.slice(openIdx + 2)
+    if (asideTail) segs.push({ type: 'aside', text: asideTail })
+  } else if (tail) {
+    segs.push({ type: 'narration', text: tail })
+  }
+  // merge consecutive same-type, drop empties
+  const merged = []
+  for (const s of segs) {
+    if (!s.text) continue
+    if (merged.length && merged[merged.length - 1].type === s.type) merged[merged.length - 1].text += s.text
+    else merged.push({ ...s })
+  }
+  return merged.length ? merged : [{ type: 'narration', text }]
 }
 
 const WS_URL =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent'
 
-// ─── Full-duplex Live session (per-section discussion orchestration) ──────────
+// ─── Full-duplex verbatim narration session ──────────────────────────────────
 export class GeminiLiveSession {
   constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections,
     onStateChange, onTranscript, onProgress, onError }) {
     this.apiKey = geminiApiKey
-    this.systemPrompt = liveSystemPrompt || 'You are an engaging book-discussion guide.'
+    this.systemPrompt = liveSystemPrompt || 'You are a narrator. Read the chapter verbatim; wrap your own remarks in ((double parentheses)).'
     this.model = liveModel || 'gemini-3.1-flash-live-preview'
     this.voice = liveVoice || 'Charon'
     this.sessionId = sessionId
@@ -93,11 +101,9 @@ export class GeminiLiveSession {
     this.ws = null
     this.stream = null
     this.micCtx = null
-    this.processor = null
     this.playCtx = null
     this._micAnalyser = null
     this._playAnalyser = null
-
     this._playbackSources = []
     this._nextStartTime = 0
 
@@ -106,13 +112,18 @@ export class GeminiLiveSession {
     this._agentBuf = ''
     this._userMsgId = null
     this._agentMsgId = null
-    this._lastUser = ''
 
-    // Orchestration
-    this.currentSectionIdx = 0
-    this._turnKind = 'discussion'   // 'discussion' (we drove it) | 'reply' (user spoke)
-    this._awaitingContinue = false
-    this._advancing = false
+    // Progress: single verbatim word pointer over the chapter (asides/Q&A excluded).
+    const chapterText = this.sections.map((s) => s.text).join(' ')
+    this._chapterWords = normalizeWords(chapterText)
+    this._wordPtr = 0
+    this._turnStartPtr = 0
+    this._lastPct = 0
+    this._lastActive = -1
+    // Cumulative word count at each section end → section boundaries
+    this._sectionBounds = []
+    let acc = 0
+    this.sections.forEach((s) => { acc += normalizeWords(s.text).length; this._sectionBounds.push(acc) })
   }
 
   setState(s) {
@@ -120,12 +131,28 @@ export class GeminiLiveSession {
     this.onStateChange?.(s)
   }
 
+  // Advance a copy of the pointer through verbatim text, matching chapter words.
+  _alignFrom(startPtr, text) {
+    let p = startPtr
+    const WINDOW = 8
+    for (const w of normalizeWords(text)) {
+      for (let k = 0; k < WINDOW && p + k < this._chapterWords.length; k++) {
+        if (this._chapterWords[p + k] === w) { p += k + 1; break }
+      }
+    }
+    return p
+  }
+
   _emitProgress() {
-    const total = this.sections.length || 1
-    const done = this.currentSectionIdx >= this.sections.length
-    const pct = done ? 100 : Math.round((this.currentSectionIdx / total) * 100)
-    const activeIndex = done ? this.sections.length : this.currentSectionIdx
-    this.onProgress?.({ pct, activeIndex })
+    const total = this._chapterWords.length || 1
+    const pct = Math.min(100, Math.round((this._wordPtr / total) * 100))
+    let activeIndex = this._sectionBounds.findIndex((b) => this._wordPtr < b)
+    if (activeIndex === -1) activeIndex = this._sectionBounds.length // all sections covered
+    if (pct !== this._lastPct || activeIndex !== this._lastActive) {
+      this._lastPct = pct
+      this._lastActive = activeIndex
+      this.onProgress?.({ pct, activeIndex })
+    }
   }
 
   async start() {
@@ -133,65 +160,18 @@ export class GeminiLiveSession {
     try {
       await this._openSocket()
       await this._startMic()
-      this.currentSectionIdx = 0
-      this._turnKind = 'discussion'
-      this._awaitingContinue = false
       this._emitProgress()
-      this._sendSectionInstruction(0)
+      this._send({
+        clientContent: {
+          turns: [{ role: 'user', parts: [{ text: 'Please begin reading the chapter aloud from the very beginning.' }] }],
+          turnComplete: true,
+        },
+      })
       this.setState('speaking')
     } catch (err) {
       this.setState('error')
       this.onError?.(err.message)
     }
-  }
-
-  // Instruct the model to discuss exactly one section, in depth, then wait.
-  _sendSectionInstruction(idx) {
-    const s = this.sections[idx]
-    if (!s) return
-    const label = s.title ? `section ${s.number} ("${s.title}")` : `section ${s.number}`
-    this._send({
-      clientContent: {
-        turns: [{
-          role: 'user',
-          parts: [{
-            text:
-              `Now discuss ONLY ${label} of this chapter, in a natural spoken conversation. ` +
-              `Cover ALL of its key ideas, arguments, examples and nuances thoroughly — do not oversimplify, ` +
-              `condense away detail, or skip anything. Do not move on to any later section. When you have ` +
-              `covered this section fully, pause and ask if I'd like to continue, then wait.\n\n` +
-              `SECTION TEXT:\n${s.text}`,
-          }],
-        }],
-        turnComplete: true,
-      },
-    })
-  }
-
-  // Advance to the next section (from Continue button or a spoken "yes").
-  _advanceSection() {
-    if (this._advancing) return
-    this._advancing = true
-    this._stopPlayback()
-    this.currentSectionIdx++
-    this._awaitingContinue = false
-    if (this.currentSectionIdx >= this.sections.length) {
-      this._emitProgress()
-      this.setState('done')
-      this._advancing = false
-      return
-    }
-    this._turnKind = 'discussion'
-    this._emitProgress()
-    this._sendSectionInstruction(this.currentSectionIdx)
-    this.setState('speaking')
-    this._advancing = false
-  }
-
-  // Public: user tapped "Continue" (also works as skip if mid-section).
-  continueSection() {
-    if (this.state === 'done') return
-    this._advanceSection()
   }
 
   _handleServerMessage(msg) {
@@ -203,26 +183,28 @@ export class GeminiLiveSession {
       this.setState('listening')
     }
 
-    // User is speaking → this exchange is a reply turn.
+    // User speaking → stream their bubble (does not affect progress).
     if (sc.inputTranscription?.text) {
       this._userBuf += sc.inputTranscription.text
-      this._lastUser = this._userBuf
-      this._turnKind = 'reply'
       if (!this._userMsgId) this._userMsgId = 'u' + Date.now() + Math.random()
       this.onTranscript?.({ id: this._userMsgId, role: 'user', text: this._userBuf.trim() })
     }
 
-    // Agent transcription streams in → build the bubble by role.
+    // Agent transcription → classify by (( )) and advance progress from verbatim only.
     if (sc.outputTranscription?.text) {
+      if (!this._agentMsgId) { this._agentMsgId = 'a' + Date.now() + Math.random(); this._turnStartPtr = this._wordPtr }
       this._agentBuf += sc.outputTranscription.text
-      if (!this._agentMsgId) this._agentMsgId = 'a' + Date.now() + Math.random()
-      const text = this._agentBuf.trim()
+      const segments = parseAsides(this._agentBuf)
+      // Progress: re-align this turn's verbatim (non-aside) text from the turn start.
+      const narration = segments.filter((s) => s.type === 'narration').map((s) => s.text).join(' ')
+      this._wordPtr = Math.max(this._wordPtr, this._alignFrom(this._turnStartPtr, narration))
       this.onTranscript?.({
         id: this._agentMsgId,
         role: 'agent',
-        text,
-        segments: buildSegments(text, this._turnKind),
+        text: segments.map((s) => s.text).join(''),
+        segments,
       })
+      this._emitProgress()
     }
 
     for (const part of (sc.modelTurn?.parts || [])) {
@@ -231,23 +213,11 @@ export class GeminiLiveSession {
     }
 
     if (sc.turnComplete) {
-      const kind = this._turnKind
-      const lastUser = this._lastUser
       this._userBuf = ''
       this._agentBuf = ''
       this._userMsgId = null
       this._agentMsgId = null
-      this._lastUser = ''
-
-      if (kind === 'discussion') {
-        this._awaitingContinue = true
-        this.setState('listening')
-      } else if (this._awaitingContinue && isAffirmative(lastUser)) {
-        // The user confirmed continuing after a section — advance ourselves.
-        this._advanceSection()
-      } else {
-        this.setState('listening')
-      }
+      this.setState('listening')
     }
   }
 
@@ -264,7 +234,7 @@ export class GeminiLiveSession {
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: this.voice } } },
-              temperature: 0.8,
+              temperature: 0.6,
             },
             systemInstruction: { parts: [{ text: this.systemPrompt }] },
             inputAudioTranscription: {},
@@ -285,7 +255,7 @@ export class GeminiLiveSession {
       ws.onerror = () => { if (!settled) { settled = true; reject(new Error('Live API connection failed')) } }
       ws.onclose = (e) => {
         if (!settled) { settled = true; reject(new Error(`Live API closed: ${e.reason || e.code}`)) }
-        if (this.state !== 'ended' && this.state !== 'error' && this.state !== 'done') this.setState('ended')
+        if (this.state !== 'ended' && this.state !== 'error') this.setState('ended')
       }
     })
   }

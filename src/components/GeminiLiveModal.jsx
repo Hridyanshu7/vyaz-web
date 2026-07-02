@@ -7,8 +7,7 @@ const STATE_LABELS = {
   idle: 'Starting…',
   connecting: 'Connecting…',
   speaking: 'Narrator speaking',
-  listening: 'Listening — speak to ask or say "continue"',
-  done: 'Chapter complete',
+  listening: 'Listening — just speak',
   ended: 'Session ended',
   error: 'Error',
 }

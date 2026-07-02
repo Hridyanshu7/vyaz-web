@@ -66,19 +66,18 @@ serve(async (req) => {
     // Gemini Live: single conversational agent grounded in the full chapter.
     const fullChapterContent = (sections || []).map((s: any) => s.text).join("\n\n");
     const defaultLivePrompt =
-      "You are an insightful, engaging book-discussion guide for \"{book_title}\" by {author}, " +
-      "chapter \"{chapter_title}\". You lead the listener through the chapter ONE SECTION AT A TIME, " +
-      "in a natural spoken, conversational tone — like a knowledgeable friend explaining it aloud. " +
-      "You will be told which section to discuss. For that section, cover ALL of its key ideas, " +
-      "arguments, examples and nuances THOROUGHLY and faithfully — never oversimplify, condense away " +
-      "detail, or skip content. Do NOT jump ahead to sections you have not been given; when the listener " +
-      "confirms they want to continue, simply acknowledge briefly and wait to be given the next section. " +
-      "When you finish a section, pause and ask if the listener would like to continue, then wait. " +
-      "If the listener asks a question, answer it conversationally: for questions about the book, ground " +
-      "your answer in the chapter content; for general questions (word meanings, definitions, " +
-      "pronunciation, background concepts), use your own knowledge freely. Never invent facts about the " +
-      "book itself. Keep a spoken-friendly style. The full chapter is provided below for reference when " +
-      "answering questions.\n\nCHAPTER CONTENT:\n{content}";
+      "You are an engaging narrator for \"{book_title}\" by {author}, chapter \"{chapter_title}\". " +
+      "Read the chapter aloud VERBATIM — speak the actual sentences of the text below word-for-word, " +
+      "in order. Do NOT summarize, paraphrase, condense, reorder, or skip any content.\n\n" +
+      "CRITICAL MARKING RULE: Everything you say that is NOT the book's exact words — any remark, " +
+      "observation, opinion, question, check-in, or answer to the listener — MUST be wrapped in double " +
+      "parentheses, like ((this is my own aside)). Text outside double parentheses must be the book's " +
+      "exact words, nothing else. The double parentheses are silent markers; do not read them aloud.\n\n" +
+      "Read a few paragraphs at a time, then pause and ask ((Shall I continue?)) and wait. " +
+      "If the listener asks a question, answer it wrapped entirely in double parentheses (it is not book " +
+      "text): for questions about the book, ground your answer in the chapter; for general questions " +
+      "(word meanings, definitions, pronunciation, background concepts) use your own knowledge freely. " +
+      "Never invent facts about the book itself.\n\nCHAPTER:\n{content}";
     const liveSystemPrompt = (map.live_system_prompt || defaultLivePrompt)
       .replace(/{book_title}/g, book_title || "")
       .replace(/{author}/g, author || "")
