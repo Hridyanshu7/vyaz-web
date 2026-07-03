@@ -9,3 +9,6 @@ client_secret_*.json
 
 # Supabase local link artifacts
 supabase/.temp/
+
+# Obsidian editor config
+.obsidian/

@@ -38,12 +38,12 @@ _Last updated: 2026-07-02_
 
 ### Sessions per day / month — bounded by concurrency, not cost (on defaults)
 
-| Constraint | Ceiling |
-|---|---|
+| Constraint                                             | Ceiling                                                                                      |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | **Gemini concurrency** (~3 sessions/key, ~35 min each) | ~120 sessions/day _theoretical max_; realistically **~30–40/day** at normal peak utilization |
-| **Cost** (~$0.90/session) | $100/day → ~110 sessions; **~$900–1,000 per ~1,000 sessions/mo** |
-| Supabase Free | 500K edge calls/mo (non-issue) — **but pauses after 7-day inactivity → not production-safe** |
-| Vercel Hobby | 100 GB bandwidth (fine) — **but non-commercial use only** |
+| **Cost** (~$0.90/session)                              | $100/day → ~110 sessions; **~$900–1,000 per ~1,000 sessions/mo**                             |
+| Supabase Free                                          | 500K edge calls/mo (non-issue) — **but pauses after 7-day inactivity → not production-safe** |
+| Vercel Hobby                                           | 100 GB bandwidth (fine) — **but non-commercial use only**                                    |
 
 ### ⚠️ Two hard blockers on the current setup
 
