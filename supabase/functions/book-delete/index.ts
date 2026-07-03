@@ -47,23 +47,32 @@ serve(async (req) => {
     const cartesiaKey = (settings || []).find((s: any) => s.key === "cartesia_api_key")?.value;
 
     // ── De-sync Cartesia (best-effort; never blocks the DB delete) ───────────
-    const cartesiaWarnings: string[] = [];
+    // Books can have hundreds of section documents — delete them in PARALLEL
+    // batches so it finishes in seconds instead of timing out (sequential
+    // deletes of ~345 docs took >60s → browser dropped the request).
+    let cartesiaWarnings = 0;
     if (cartesiaKey) {
+      const docIds: string[] = [];
       for (const ch of (book.chapters || [])) {
         for (const sec of (ch.sections || [])) {
-          if (sec.cartesia_document_id) {
-            try { await cartesia(cartesiaKey, "DELETE", `/agents/documents/${sec.cartesia_document_id}`); }
-            catch (e: any) { cartesiaWarnings.push(e.message); }
-          }
+          if (sec.cartesia_document_id) docIds.push(sec.cartesia_document_id);
         }
-        if (ch.cartesia_document_id) {
-          try { await cartesia(cartesiaKey, "DELETE", `/agents/documents/${ch.cartesia_document_id}`); }
-          catch (e: any) { cartesiaWarnings.push(e.message); }
-        }
+        if (ch.cartesia_document_id) docIds.push(ch.cartesia_document_id);
       }
+
+      const BATCH = 25;
+      for (let i = 0; i < docIds.length; i += BATCH) {
+        const results = await Promise.allSettled(
+          docIds.slice(i, i + BATCH).map((id) =>
+            cartesia(cartesiaKey, "DELETE", `/agents/documents/${id}`)
+          ),
+        );
+        cartesiaWarnings += results.filter((r) => r.status === "rejected").length;
+      }
+
       if (book.cartesia_folder_id) {
         try { await cartesia(cartesiaKey, "DELETE", `/agents/folders/${book.cartesia_folder_id}`); }
-        catch (e: any) { cartesiaWarnings.push(e.message); }
+        catch { cartesiaWarnings++; }
       }
     }
 
