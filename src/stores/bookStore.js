@@ -117,8 +117,6 @@ export const useBookStore = create((set, get) => ({
         page_count: bookData.page_count || bookData.goodreads_data?.pages || null,
         isbn: bookData.isbn || bookData.goodreads_data?.isbn13 || null,
         cover_url: bookData.cover_url,
-        publisher: bookData.publisher || null,
-        pub_date: bookData.pub_date || bookData.goodreads_data?.publishedAt || null,
         language: bookData.language || null,
         goodreads_rating: bookData.goodreads_data?.averageRating || bookData.goodreads?.averageRating || null,
         goodreads_ratings_count: bookData.goodreads_data?.ratingsCount || bookData.goodreads?.ratingsCount || null,

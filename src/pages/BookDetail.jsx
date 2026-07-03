@@ -132,8 +132,6 @@ export function BookDetail() {
           {/* Meta */}
           <div className="mt-3 text-xs text-muted space-y-0.5">
             {book.page_count && <p className="flex items-center gap-1"><FileText size={12} /> {book.page_count} pages · ~{Math.ceil(book.page_count / 40)} hr read</p>}
-            {book.publisher && <p>Publisher: {book.publisher}</p>}
-            {book.pub_date && <p>Published: {book.pub_date}</p>}
             {book.isbn && <p>ISBN: {book.isbn}</p>}
           </div>
 
