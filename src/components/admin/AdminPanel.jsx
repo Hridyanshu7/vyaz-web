@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff, Bot } from 'lucide-react'
+import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff, Bot, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
@@ -370,7 +370,7 @@ function FilterPillManager() {
 }
 
 function BooksCatalog() {
-  const { adminBooks: original, filterPills: pills, loading: globalLoading, updateBook, addFilterPill, removeFilterPill } = useAdminDataStore()
+  const { adminBooks: original, filterPills: pills, loading: globalLoading, updateBook, removeBook, addFilterPill, removeFilterPill } = useAdminDataStore()
   const [fullBooks, setFullBooks] = useState({}) // { [bookId]: { chapters, goodreads_data, cartesia_folder_id } }
   const [loadingFull, setLoadingFull] = useState(false)
   const [savingAll, setSavingAll] = useState(false)
@@ -533,6 +533,22 @@ function BooksCatalog() {
     }
   }
 
+  // Permanently delete a book from the DB + de-sync its Cartesia KB (admin only, irreversible).
+  const deleteBook = async (book) => {
+    if (!window.confirm(`Permanently delete "${book.title}"?\n\nThis removes it from the database and de-syncs its Cartesia knowledge base. This cannot be undone.`)) return
+    setOp(book.id, 'deleting')
+    try {
+      const { data, error } = await supabase.functions.invoke('book-delete', { body: { bookId: book.id } })
+      if (error) throw new Error(error.message)
+      if (data?.error) throw new Error(data.error)
+      removeBook(book.id)
+      useBookStore.getState().removeBook(book.id)
+      setFullBooks((prev) => { const n = { ...prev }; delete n[book.id]; return n })
+    } catch (err) {
+      setOp(book.id, `error: ${err.message.slice(0, 50)}`)
+    }
+  }
+
   const removeTag = (bookId, tag) => {
     const book = books.find((b) => b.id === bookId)
     setBookChange(bookId, { genres: (book.genres || []).filter((g) => g !== tag), is_published: book.is_published })
@@ -653,7 +669,7 @@ function BooksCatalog() {
               {(() => {
                 const op = opStatus[book.id]
                 const prog = opProgress[book.id]
-                const isRunning = op === 'generating' || op === 'parsing' || op === 'splitting' || op === 'syncing'
+                const isRunning = op === 'generating' || op === 'parsing' || op === 'splitting' || op === 'syncing' || op === 'deleting'
                 const hasChapters = book.chapters?.length > 0
                 const hasContent = book.chapters?.some((ch) => ch.content)
                 const chCount = book.chapters?.length || 0
@@ -664,7 +680,7 @@ function BooksCatalog() {
                     {isRunning && (
                       <div className="mb-2">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] text-muted">{prog?.label || (op === 'generating' ? 'Asking Gemini...' : op === 'parsing' ? 'Parsing EPUB...' : op === 'splitting' ? 'Splitting...' : 'Syncing KB...')}</span>
+                          <span className="text-[10px] text-muted">{prog?.label || (op === 'generating' ? 'Asking Gemini...' : op === 'parsing' ? 'Parsing EPUB...' : op === 'splitting' ? 'Splitting...' : op === 'deleting' ? 'Deleting…' : 'Syncing KB...')}</span>
                           {prog?.value != null && <span className="text-[10px] text-muted">{prog.value}%</span>}
                         </div>
                         <div className="w-full h-1 bg-surface rounded-full overflow-hidden">
@@ -702,6 +718,9 @@ function BooksCatalog() {
                         )}
                         <button onClick={() => generate(book)} disabled={op === 'generating' || op === 'parsing'} className="px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer disabled:opacity-40">
                           {op === 'generating' ? <Loader2 size={10} className="animate-spin" /> : hasChapters ? 'Regen' : 'Generate'}
+                        </button>
+                        <button onClick={() => deleteBook(book)} disabled={isRunning} title="Delete book permanently + de-sync KB" className="px-2 py-1 text-[10px] rounded border border-red-200 text-red-600 bg-surface hover:bg-red-50 cursor-pointer disabled:opacity-40">
+                          {op === 'deleting' ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
                         </button>
                       </div>
                     </div>

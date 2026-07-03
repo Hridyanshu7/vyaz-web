@@ -61,6 +61,9 @@ export const useAdminDataStore = create((set, get) => ({
   updateBook: (bookId, patch) =>
     set((s) => ({ adminBooks: s.adminBooks.map((b) => b.id === bookId ? { ...b, ...patch } : b) })),
 
+  removeBook: (bookId) =>
+    set((s) => ({ adminBooks: s.adminBooks.filter((b) => b.id !== bookId) })),
+
   // Platform settings
   updateSetting: (key, value) =>
     set((s) => ({ platformSettings: { ...s.platformSettings, [key]: value } })),

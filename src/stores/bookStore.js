@@ -73,6 +73,9 @@ export const useBookStore = create((set, get) => ({
 
   getBook: (id) => get().books.find((b) => b.id === id),
 
+  removeBook: (bookId) =>
+    set((state) => ({ books: state.books.filter((b) => b.id !== bookId) })),
+
   getNarratorsForBook: (bookId) =>
     get().narrators.filter((n) => n.book_ids.includes(bookId)),
 
