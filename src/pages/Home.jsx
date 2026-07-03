@@ -22,12 +22,11 @@ export function Home() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const showSignup = useSignupModal((s) => s.show)
-  const { books, narrators, loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
+  const { books, loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
   const { sessions: upcomingSessions } = useUpcomingSessions(5)
 
   const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
   const featuredBooks = getFeaturedBooks()
-  const founderNarrator = narrators[0]
 
   return (
     <div>
@@ -201,52 +200,6 @@ export function Home() {
                   </div>
                 )
               })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===== NARRATOR SPOTLIGHT ===== */}
-      {founderNarrator && (
-        <section className="border-b border-border">
-          <div className="max-w-6xl mx-auto px-4 py-16">
-            <h2 className="text-xl font-bold text-center mb-2">Meet a narrator</h2>
-            <p className="text-sm text-muted text-center mb-8">Real people who've read the books and love discussing them</p>
-            <div className="max-w-md mx-auto p-6 rounded-xl border border-border">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center overflow-hidden">
-                  {founderNarrator.avatar_url ? (
-                    <img src={founderNarrator.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <User size={20} className="text-muted" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-semibold">{founderNarrator.name}</h3>
-                  <p className="text-xs text-muted">{founderNarrator.bio}</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted mb-3">Can narrate:</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {founderNarrator.book_ids.map((bookId) => {
-                  const book = books.find((b) => b.id === bookId)
-                  return book ? (
-                    <Link key={bookId} to={`/books/${bookId}`}>
-                      <Badge variant="muted" className="hover:text-highlight cursor-pointer">{book.title.split(':')[0]}</Badge>
-                    </Link>
-                  ) : null
-                })}
-              </div>
-              <Button size="sm" className="w-full" onClick={() => {
-                const firstBook = founderNarrator.book_ids[0]
-                if (!user) {
-                  showSignup({ type: 'gist', bookId: firstBook })
-                } else if (firstBook) {
-                  navigate(`/books/${firstBook}`)
-                }
-              }}>
-                Book a session with {founderNarrator.name.split(' ')[0]} <ArrowRight size={14} className="ml-1" />
-              </Button>
             </div>
           </div>
         </section>
