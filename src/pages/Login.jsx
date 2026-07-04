@@ -19,7 +19,7 @@ export function Login() {
 
   useEffect(() => {
     if (user && profile) {
-      navigate(profile.onboarding_complete ? '/dashboard' : '/onboarding')
+      navigate('/dashboard')
     }
   }, [user, profile])
 
@@ -60,7 +60,7 @@ export function Login() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin + '/onboarding' },
+        options: { emailRedirectTo: window.location.origin + '/dashboard' },
       })
       if (error) throw error
       setMagicLinkSent(true)

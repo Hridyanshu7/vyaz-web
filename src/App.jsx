@@ -11,7 +11,6 @@ import { AddBook } from './pages/AddBook'
 import { Profile } from './pages/Profile'
 import { Availability } from './pages/Availability'
 import { Login } from './pages/Login'
-import { Onboarding } from './pages/Onboarding'
 import { useAuthStore } from './stores/authStore'
 import { useBookStore } from './stores/bookStore'
 
@@ -58,7 +57,6 @@ export default function App() {
             <Route path="/availability" element={<Availability />} />
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
