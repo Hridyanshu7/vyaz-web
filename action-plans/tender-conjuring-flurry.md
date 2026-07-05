@@ -35,3 +35,13 @@
 16. **`SignupModal.jsx`**: add `case 'talk':` to the existing `case 'gist': case 'chapter':` block in the post-signup redirect switch (line ~210) so it lands back on the book page. Leave `'talk'` OUT of `NEEDS_CALENDAR` (line 13) — AI narration needs no calendar onboarding.
 17. **Verify**: signed out → click Talk → signup modal (not narration modal); complete signup → back on book page, no calendar step forced; signed in → Talk opens narration directly.
 
+## WhatsApp OTP login (future integration)
+
+**Context:** WhatsApp/phone OTP login is currently **HIDDEN** in the UI — `SignupModal.jsx` (behind `PHONE_LOGIN_ENABLED = false`) and the `/login` page (Email/Phone toggle + phone form removed). Active methods: **Google, LinkedIn, email magic-link**. It was hidden because no messaging provider is wired *and* the flow was a dead-end (new numbers can't register; the modal called `signInWithOtp({phone})` with no `channel:'whatsapp'` so it'd send SMS, not WhatsApp, and no SMS/WhatsApp provider is configured in Supabase).
+
+18. **Pick a provider.** *AiSensy* (India-native, ~₹0.145/OTP, free tier ~340 OTPs — but NOT a Supabase phone provider → requires a **custom** OTP flow) **or** *Twilio Verify* WhatsApp channel (native Supabase provider, pricier, minimal code).
+19. **WhatsApp Business API onboarding** (required for any provider): verified WABA sender (a number not on the consumer WhatsApp app), Business Manager verification, and an **approved authentication (OTP) template** (Meta approval, takes days).
+20. **Wire it up:** *Twilio* → configure in Supabase → Auth → Phone, and pass `channel: 'whatsapp'` in `signInWithOtp`. *AiSensy* → build a custom edge-function flow (generate + send OTP via AiSensy API, verify server-side, then create the Supabase session).
+21. **Build the phone sign-up form.** New/unregistered numbers currently dead-end — `handleSendOtp` blocks them with "fill details below," but that form doesn't exist. Add name-collection + profile creation.
+22. **Un-hide the UI:** set `PHONE_LOGIN_ENABLED = true` in `SignupModal.jsx` and restore the toggle + phone form in `Login.jsx`.
+

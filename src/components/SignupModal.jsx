@@ -11,6 +11,8 @@ import { AvailabilityPicker } from './AvailabilityPicker'
 import { useAvailability, DEFAULT_AVAILABILITY } from '../hooks/useAvailability'
 
 const NEEDS_CALENDAR = ['gist', 'chapter', 'join']
+// WhatsApp/phone OTP login is hidden — no messaging provider is wired (see action plan).
+const PHONE_LOGIN_ENABLED = false
 
 export function SignupModal({ open, onClose }) {
   const navigate = useNavigate()
@@ -298,12 +300,7 @@ export function SignupModal({ open, onClose }) {
                     </button>
                   </div>
 
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-                    <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted">or via WhatsApp</span></div>
-                  </div>
-
-                  {!otpSent ? (
+                  {PHONE_LOGIN_ENABLED && (!otpSent ? (
                     <div>
                       <div className="flex gap-2">
                         <select
@@ -370,7 +367,7 @@ export function SignupModal({ open, onClose }) {
                         <Button variant="ghost" size="sm" onClick={() => setOtpSent(false)}>Change</Button>
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
             </>
