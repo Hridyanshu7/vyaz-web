@@ -29,6 +29,7 @@ React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase*
 ## Doc map
 - **[docs/DECISIONS.md](docs/DECISIONS.md)** — the ADR decision log (the *why* behind every pivot). **Read this to understand how we got here.**
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — current system: data model, stores, voice path, edge functions, flows.
+- **[docs/sql-queries.md](docs/sql-queries.md)** — SQL runbook: voice-agent observability (`voice_events`), content health, users, sessions, ops. Run in Supabase SQL editor.
 - **[docs/pricing.md](docs/pricing.md)** · **[docs/unit-economics.md](docs/unit-economics.md)** · **[docs/voice-providers-comparison.md](docs/voice-providers-comparison.md)** — strategy & economics.
 - **[action-plans/tender-conjuring-flurry.md](action-plans/tender-conjuring-flurry.md)** — the live voice-agent **action items / open threads** (verify verbatim, lossless re-split, generation params, Talk auth gate, RAG, etc.).
 - `docs/older/` — earlier docs (PROJECT-STATUS, PERSONAS, PITCH-DECK, etc.); may be partly stale.
