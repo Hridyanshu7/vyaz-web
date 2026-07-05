@@ -85,7 +85,7 @@ const WS_URL =
 // ─── Full-duplex verbatim narration session ──────────────────────────────────
 export class GeminiLiveSession {
   constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections,
-    onStateChange, onTranscript, onProgress, onError }) {
+    onStateChange, onTranscript, onProgress, onError, onEvent }) {
     this.apiKey = geminiApiKey
     this.systemPrompt = liveSystemPrompt || 'You are a narrator. Read the chapter verbatim; wrap your own remarks in ((double parentheses)).'
     this.model = liveModel || 'gemini-3.1-flash-live-preview'
@@ -96,6 +96,9 @@ export class GeminiLiveSession {
     this.onTranscript = onTranscript
     this.onProgress = onProgress
     this.onError = onError
+    this.onEvent = onEvent
+    this._startedAt = Date.now()
+    this._ending = false
 
     this.state = 'idle'
     this.ws = null
@@ -127,8 +130,16 @@ export class GeminiLiveSession {
   }
 
   setState(s) {
+    const from = this.state
     this.state = s
+    if (from !== s) this._log('state', { from, to: s })
     this.onStateChange?.(s)
+  }
+
+  // Structured event log → console + onEvent hook (UI surfacing + DB persistence).
+  _log(type, data = {}) {
+    try { console.log(`[GeminiLive] ${type}`, data) } catch { /* noop */ }
+    this.onEvent?.({ t: Date.now(), sessionId: this.sessionId, type, ...data })
   }
 
   // Advance a copy of the pointer through verbatim text, matching chapter words.
@@ -156,6 +167,7 @@ export class GeminiLiveSession {
   }
 
   async start() {
+    this._log('session_start', { model: this.model, voice: this.voice, sections: this.sections.length })
     this.setState('connecting')
     try {
       await this._openSocket()
@@ -175,10 +187,16 @@ export class GeminiLiveSession {
   }
 
   _handleServerMessage(msg) {
+    // goAway: server warns the connection is about to close (e.g. hit the time limit).
+    if (msg.goAway) this._log('go_away', { timeLeft: msg.goAway.timeLeft })
+    if (msg.usageMetadata) this._log('usage', { totalTokens: msg.usageMetadata.totalTokenCount })
+    if (msg.error) this._log('server_error', { error: msg.error })
+
     const sc = msg.serverContent
     if (!sc) return
 
     if (sc.interrupted) {
+      this._log('interrupted')
       this._stopPlayback()
       this.setState('listening')
     }
@@ -213,6 +231,7 @@ export class GeminiLiveSession {
     }
 
     if (sc.turnComplete) {
+      this._log('turn_complete', { wordPtr: this._wordPtr })
       this._userBuf = ''
       this._agentBuf = ''
       this._userMsgId = null
@@ -228,6 +247,7 @@ export class GeminiLiveSession {
       let settled = false
 
       ws.onopen = () => {
+        this._log('ws_open')
         ws.send(JSON.stringify({
           setup: {
             model: `models/${this.model}`,
@@ -248,13 +268,21 @@ export class GeminiLiveSession {
         const text = event.data instanceof Blob ? await event.data.text() : event.data
         let m
         try { m = JSON.parse(text) } catch { return }
-        if (m.setupComplete) { if (!settled) { settled = true; resolve() } return }
+        if (m.setupComplete) { this._log('setup_complete'); if (!settled) { settled = true; resolve() } return }
         this._handleServerMessage(m)
       }
 
-      ws.onerror = () => { if (!settled) { settled = true; reject(new Error('Live API connection failed')) } }
+      ws.onerror = () => {
+        this._log('ws_error')
+        if (!settled) { settled = true; reject(new Error('Live API connection failed')) }
+      }
       ws.onclose = (e) => {
+        this._log('ws_close', { code: e.code, reason: e.reason, wasClean: e.wasClean, intentional: this._ending, durationMs: Date.now() - this._startedAt })
         if (!settled) { settled = true; reject(new Error(`Live API closed: ${e.reason || e.code}`)) }
+        // Unexpected mid-session drop → surface it instead of dying silently.
+        if (!this._ending && this.state !== 'ended' && this.state !== 'error') {
+          this.onError?.(`Session ended (${e.reason || 'code ' + e.code}). It may have hit the ~15-min connection limit — reopen to continue.`)
+        }
         if (this.state !== 'ended' && this.state !== 'error') this.setState('ended')
       }
     })
@@ -328,6 +356,8 @@ export class GeminiLiveSession {
   }
 
   end() {
+    if (!this._ending) this._log('session_end', { durationMs: Date.now() - this._startedAt })
+    this._ending = true
     this._stopPlayback()
     if (this.processor) { this.processor.disconnect(); this.processor.onaudioprocess = null; this.processor = null }
     if (this.stream) { this.stream.getTracks().forEach((t) => t.stop()); this.stream = null }

@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Mic, Loader2, PhoneOff, Volume2, Radio, CheckCircle2, Circle } from 'lucide-react'
 import { getGeminiLiveSession, GeminiLiveSession } from '../lib/geminiLive'
 import { useAdminStore } from '../stores/adminStore'
+import { supabase } from '../lib/supabase'
+
+// Low-frequency events worth persisting to voice_events (skip per-turn/state spam).
+const PERSIST_EVENTS = new Set(['session_start', 'setup_complete', 'go_away', 'ws_close', 'ws_error', 'server_error', 'session_end'])
 
 const STATE_LABELS = {
   idle: 'Starting…',
@@ -136,6 +140,17 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
             if (!cancelled) { setProgress(pct); setActiveIndex(activeIndex) }
           },
           onError: (msg) => { if (!cancelled) setError(msg) },
+          onEvent: (evt) => {
+            // Best-effort persist of key events (no-ops if the table/RLS isn't set up).
+            if (!PERSIST_EVENTS.has(evt.type)) return
+            supabase.from('voice_events').insert({
+              session_id: evt.sessionId,
+              book_id: book?.id,
+              chapter_number: chapter?.number,
+              type: evt.type,
+              detail: evt,
+            }).then(() => {}, () => {})
+          },
         })
         sessionRef.current = session
         await session.start()
