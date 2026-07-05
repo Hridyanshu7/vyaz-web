@@ -11,14 +11,17 @@ React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase*
 ## Repo quirks (important)
 - **Project path:** `hridyanshu7/books-p2p/vyaz/` — nested one level. (A Claude session is anchored to `books-p2p/`; the real project is inside `vyaz/`. Use absolute paths to `.../books-p2p/vyaz/`.)
 - **Git remote:** `Hridyanshu7/vyaz-web.git` (branch `main`).
+- **Prod domain:** `www.vyaz.in` (canonical; apex redirects to www). Most URLs use `window.location.origin`, so only `index.html` `og:url` is hardcoded.
 - **Deploy:** frontend → `vercel --prod --yes` (or push to `main`); edge fn → `npx supabase functions deploy <name>`; DB → Supabase SQL editor / `supabase/migrations/`.
 - Secrets/config live in `platform_settings` (DB), read server-side by edge functions — never expose in client.
+- **Auth:** Google + LinkedIn OAuth + email magic-link only; **no `/onboarding`** step (removed). Phone/WhatsApp OTP is built but **hidden everywhere** (no messaging provider wired) — re-enable is a backlog item in the action plan.
 
 ## Current direction (voice = the core product)
 - **Provider:** **Gemini Live** (`gemini-3.1-flash-live-preview`), full-duplex WebSocket. Switchable via `platform_settings.voice_provider ∈ {gemini_live, pipeline, cartesia}` in Admin → Agents.
 - **Mode:** **verbatim** narration. The agent reads the section text word-for-word; wraps its **own** words (remarks, questions, answers) in `((double parens))` → client shows book text **black**, agent asides **grey**. Progress bar + section states come from **one word-alignment pointer** over the verbatim text (asides/Q&A don't advance it).
 - **Scope:** answers grounded in the **current chapter** only (full-book RAG is parked).
 - Core voice files: `src/lib/geminiLive.js`, `src/components/GeminiLiveModal.jsx`, `supabase/functions/voice-session/` (the system prompt lives here).
+- **Observability:** `geminiLive.js` emits structured events (`session_start`, `ws_open`, `go_away`, `ws_close {code, reason, durationMs, intentional}`, `server_error`, `session_end`…); `GeminiLiveModal` best-effort persists the key ones to the **`voice_events`** table (migration `005`) to debug why sessions drop. Query recipes: [docs/sql-queries.md](docs/sql-queries.md).
 
 ## Key constraints (don't relearn the hard way)
 - Gemini Live: **~3 concurrent sessions/key** on the Developer API → **Vertex AI (1,000/project)** for scale. **~10–15 min per WebSocket** → long chapters need session resumption (not built).
