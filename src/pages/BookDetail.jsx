@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, ArrowLeft, Clock, FileText, Users, Calendar, MessageSquare, Loader2, ChevronDown, ChevronRight, ExternalLink, Zap, BookMarked, Mic } from 'lucide-react'
 import { format } from 'date-fns'
@@ -28,9 +28,18 @@ export function BookDetail() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const showSignup = useSignupModal((s) => s.show)
-  const { getBook, getNarratorsForBook } = useBookStore()
+  const { getBook, getNarratorsForBook, fetchBookChapters } = useBookStore()
   const book = getBook(id)
   const narrators = getNarratorsForBook(id)
+  const [chaptersLoading, setChaptersLoading] = useState(false)
+
+  // Chapters are no longer eager-loaded into bookStore (grid stays light) — pull this
+  // book's chapters when its detail page opens, so the list renders and Talk inherits them.
+  useEffect(() => {
+    if (!book || book.chapters) return
+    setChaptersLoading(true)
+    fetchBookChapters(id).finally(() => setChaptersLoading(false))
+  }, [id, book, fetchBookChapters])
 
   const isUuid = UUID_RE.test(id)
   const { sessions: upcomingSessions } = useBookSessions(isUuid ? id : null)
@@ -255,6 +264,11 @@ export function BookDetail() {
                     </div>
                   )
                 })}
+              </div>
+            ) : chaptersLoading ? (
+              <div className="text-center py-10 border border-dashed border-border rounded-xl">
+                <Loader2 size={24} className="mx-auto text-muted mb-2 animate-spin" />
+                <p className="text-sm text-muted">Loading chapters…</p>
               </div>
             ) : (
               <div className="text-center py-10 border border-dashed border-border rounded-xl">

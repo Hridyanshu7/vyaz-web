@@ -21,10 +21,12 @@ React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase*
 - **Mode:** **verbatim** narration. The agent reads the section text word-for-word; wraps its **own** words (remarks, questions, answers) in `((double parens))` → client shows book text **black**, agent asides **grey**. Progress bar + section states come from **one word-alignment pointer** over the verbatim text (asides/Q&A don't advance it).
 - **Scope:** answers grounded in the **current chapter** only (full-book RAG is parked).
 - Core voice files: `src/lib/geminiLive.js`, `src/components/GeminiLiveModal.jsx`, `supabase/functions/voice-session/` (the system prompt lives here).
-- **Observability:** `geminiLive.js` emits structured events (`session_start`, `ws_open`, `go_away`, `ws_close {code, reason, durationMs, intentional}`, `server_error`, `session_end`…); `GeminiLiveModal` best-effort persists the key ones to the **`voice_events`** table (migration `005`) to debug why sessions drop. Query recipes: [docs/sql-queries.md](docs/sql-queries.md).
+- **Observability:** `geminiLive.js` emits structured events (`session_start`, `ws_open`, `go_away`, `ws_close {code, reason, durationMs, intentional}`, `reconnect_attempt`/`reconnect_success`, `server_error`, `session_end`…); `GeminiLiveModal` best-effort persists the key ones to the **`voice_events`** table (migration `005`) to debug why sessions drop. Query recipes: [docs/sql-queries.md](docs/sql-queries.md).
+- **Reliability (shipped 2026-07-06, see DECISIONS A10/A11, C1):** (1) transcript bubbles no longer drop spoken words — fixed a render-layer tail-drop and cross-turn buffer resets; (2) long chapters survive the ~15-min socket via **session resumption + auto-reconnect** (resume handle + `slidingWindow` context compression; UI shows a friendly "Reconnecting…" countdown); (3) public `bookStore` now **lazy-loads** each book's `chapters` on BookDetail open, so the grid cold-load is light.
+- **Next thread (scoped, not built — A12):** interruption/noise robustness — ambient-noise handling (VAD tuning + optional WASM denoise) first; **target-speaker** rejection (voiceprint enrollment + client-side speaker verification) is the larger, separate build.
 
 ## Key constraints (don't relearn the hard way)
-- Gemini Live: **~3 concurrent sessions/key** on the Developer API → **Vertex AI (1,000/project)** for scale. **~10–15 min per WebSocket** → long chapters need session resumption (not built).
+- Gemini Live: **~3 concurrent sessions/key** on the Developer API → **Vertex AI (1,000/project)** for scale (still the true mass-usage wall; not addressed). **~10–15 min per WebSocket** → long chapters now **auto-resume** via session resumption + reconnect (A11), so this no longer kills a session.
 - Verbatim chapter ≈ **$0.90** (~30 min audio, audio-output dominates). India WTP (~₹99–199 mass / ₹299–499 premium) sits near/below cost → pricing leans on concise-mode + credits.
 - `books.chapters` is a JSONB blob (full text + nested sections); section numbers **restart per chapter** — never look them up by number across chapters.
 - Preview Gemini models change server-side without notice; "worked yesterday, no code change" → check git + reload before theorizing.
@@ -32,6 +34,8 @@ React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase*
 ## Doc map
 - **[docs/DECISIONS.md](docs/DECISIONS.md)** — the ADR decision log (the *why* behind every pivot). **Read this to understand how we got here.**
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — current system: data model, stores, voice path, edge functions, flows.
+- **[docs/design-language.html](docs/design-language.html)** — **brand & design language (v1)**: thesis, voice, and the token/type/component system that **governs every design decision**. Open in a browser (rendered page). Token changes are ADRs in DECISIONS.md.
+- **[docs/system-field-guide.html](docs/system-field-guide.html)** — plain-language explainer of the whole system (browser, Gemini, memory, every parameter, glossary). Open in a browser.
 - **[docs/sql-queries.md](docs/sql-queries.md)** — SQL runbook: voice-agent observability (`voice_events`), content health, users, sessions, ops. Run in Supabase SQL editor.
 - **[docs/pricing.md](docs/pricing.md)** · **[docs/unit-economics.md](docs/unit-economics.md)** · **[docs/voice-providers-comparison.md](docs/voice-providers-comparison.md)** — strategy & economics.
 - **[action-plans/tender-conjuring-flurry.md](action-plans/tender-conjuring-flurry.md)** — the live voice-agent **action items / open threads** (verify verbatim, lossless re-split, generation params, Talk auth gate, RAG, etc.).

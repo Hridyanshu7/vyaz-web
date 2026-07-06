@@ -82,6 +82,11 @@ function parseAsides(text) {
 const WS_URL =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent'
 
+// Long chapters outlive a single WebSocket (~10-15 min limit). On an unexpected
+// drop we transparently re-open and resume via the server's resumption handle.
+const MAX_RECONNECTS = 5
+const RESUME_PROMPT = 'Please continue reading the chapter aloud from exactly where you left off, verbatim.'
+
 // ─── Full-duplex verbatim narration session ──────────────────────────────────
 export class GeminiLiveSession {
   constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections,
@@ -100,6 +105,11 @@ export class GeminiLiveSession {
     this._startedAt = Date.now()
     this._ending = false
 
+    // Reconnection / session resumption (long chapters outlive one socket).
+    this._resumeHandle = null
+    this._reconnecting = false
+    this._reconnectAttempts = 0
+
     this.state = 'idle'
     this.ws = null
     this.stream = null
@@ -110,7 +120,10 @@ export class GeminiLiveSession {
     this._playbackSources = []
     this._nextStartTime = 0
 
-    // Per-turn streaming bubble buffers
+    // Per-turn streaming bubble buffers. A turn's bubble is created by whichever signal
+    // arrives first (audio or transcription) and reset on turnComplete/interrupt, so the
+    // NEXT turn always starts a fresh bubble — never gluing one turn's opening words onto
+    // the previous bubble.
     this._userBuf = ''
     this._agentBuf = ''
     this._userMsgId = null
@@ -192,12 +205,19 @@ export class GeminiLiveSession {
     if (msg.usageMetadata) this._log('usage', { totalTokens: msg.usageMetadata.totalTokenCount })
     if (msg.error) this._log('server_error', { error: msg.error })
 
+    // Session-resumption handle: store the latest so we can resume after a drop.
+    if (msg.sessionResumptionUpdate?.resumable && msg.sessionResumptionUpdate.newHandle) {
+      this._resumeHandle = msg.sessionResumptionUpdate.newHandle
+    }
+
     const sc = msg.serverContent
     if (!sc) return
 
     if (sc.interrupted) {
       this._log('interrupted')
       this._stopPlayback()
+      this._agentMsgId = null // the post-barge-in reply starts a fresh bubble
+      this._agentBuf = ''
       this.setState('listening')
     }
 
@@ -209,8 +229,11 @@ export class GeminiLiveSession {
     }
 
     // Agent transcription → classify by (( )) and advance progress from verbatim only.
+    // Transcription NEVER rotates the bubble — it appends to the current anchor (minted
+    // by audio, or here as a safety if transcription somehow leads audio) so late/trailing
+    // chunks always land in the right bubble.
     if (sc.outputTranscription?.text) {
-      if (!this._agentMsgId) { this._agentMsgId = 'a' + Date.now() + Math.random(); this._turnStartPtr = this._wordPtr }
+      if (!this._agentMsgId) this._startAgentBubble()
       this._agentBuf += sc.outputTranscription.text
       const segments = parseAsides(this._agentBuf)
       // Progress: re-align this turn's verbatim (non-aside) text from the turn start.
@@ -227,27 +250,45 @@ export class GeminiLiveSession {
 
     for (const part of (sc.modelTurn?.parts || [])) {
       const data = part.inlineData?.data
-      if (data) { this.setState('speaking'); this._enqueueAudio(base64ToInt16(data)) }
+      if (data) {
+        // Anchor the bubble if audio leads transcription, so late transcription attaches.
+        if (!this._agentMsgId) this._startAgentBubble()
+        this.setState('speaking')
+        this._enqueueAudio(base64ToInt16(data))
+      }
     }
 
     if (sc.turnComplete) {
       this._log('turn_complete', { wordPtr: this._wordPtr })
-      this._userBuf = ''
+      // Reset the AGENT bubble so the next agent turn starts fresh. The USER bubble is NOT
+      // reset here: turnComplete marks the MODEL's turn end, which can land after the user
+      // has already begun their next utterance — clearing it here ate the opening words.
+      // The user bubble is finalized instead when the model begins replying (_startAgentBubble).
       this._agentBuf = ''
-      this._userMsgId = null
       this._agentMsgId = null
       this.setState('listening')
     }
   }
 
-  _openSocket() {
+  // Start a fresh agent bubble for the current turn. The model beginning its reply means the
+  // user's utterance is complete, so finalize the user bubble here (rather than on turnComplete)
+  // — the next user utterance then starts cleanly, with its opening words intact.
+  _startAgentBubble() {
+    this._agentMsgId = 'a' + Date.now() + Math.random()
+    this._agentBuf = ''
+    this._turnStartPtr = this._wordPtr
+    this._userBuf = ''
+    this._userMsgId = null
+  }
+
+  _openSocket(resumeHandle) {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(`${WS_URL}?key=${this.apiKey}`)
       this.ws = ws
       let settled = false
 
       ws.onopen = () => {
-        this._log('ws_open')
+        this._log('ws_open', { resumed: !!resumeHandle })
         ws.send(JSON.stringify({
           setup: {
             model: `models/${this.model}`,
@@ -260,6 +301,10 @@ export class GeminiLiveSession {
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             realtimeInputConfig: { automaticActivityDetection: {} },
+            // Resume prior context after a drop; slidingWindow compresses old context so
+            // long chapters run past the raw connection/token limit.
+            sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
+            contextWindowCompression: { slidingWindow: {} },
           },
         }))
       }
@@ -277,15 +322,59 @@ export class GeminiLiveSession {
         if (!settled) { settled = true; reject(new Error('Live API connection failed')) }
       }
       ws.onclose = (e) => {
+        if (this.ws !== ws) return // superseded by a reconnect — ignore the stale socket's close
         this._log('ws_close', { code: e.code, reason: e.reason, wasClean: e.wasClean, intentional: this._ending, durationMs: Date.now() - this._startedAt })
-        if (!settled) { settled = true; reject(new Error(`Live API closed: ${e.reason || e.code}`)) }
-        // Unexpected mid-session drop → surface it instead of dying silently.
-        if (!this._ending && this.state !== 'ended' && this.state !== 'error') {
-          this.onError?.(`Session ended (${e.reason || 'code ' + e.code}). It may have hit the ~15-min connection limit — reopen to continue.`)
+        // Pre-setup failure: let the awaiting caller (start/_reconnect) handle the rejection.
+        if (!settled) { settled = true; reject(new Error(`Live API closed: ${e.reason || e.code}`)); return }
+        // Post-setup drop.
+        if (this._ending) {
+          if (this.state !== 'ended' && this.state !== 'error') this.setState('ended')
+          return
         }
-        if (this.state !== 'ended' && this.state !== 'error') this.setState('ended')
+        // Unexpected mid-session drop → transparently resume if we can, else surface it.
+        if (this._resumeHandle && this._reconnectAttempts < MAX_RECONNECTS) {
+          this._reconnect()
+        } else {
+          this.onError?.(`Session ended (${e.reason || 'code ' + e.code}). It may have hit the ~15-min connection limit — reopen to continue.`)
+          if (this.state !== 'ended' && this.state !== 'error') this.setState('ended')
+        }
       }
     })
+  }
+
+  // Re-open the socket and resume the session after an unexpected drop. Reuses the live
+  // mic + AudioContexts (the mic processor already sends to the new `this.ws`) and keeps
+  // the in-memory progress pointer, so narration continues where it left off.
+  async _reconnect() {
+    if (this._ending || this._reconnecting) return
+    this._reconnecting = true
+    this._reconnectAttempts++
+    this.setState('reconnecting')
+    this._log('reconnect_attempt', { attempt: this._reconnectAttempts, hasHandle: !!this._resumeHandle })
+    try {
+      await this._openSocket(this._resumeHandle)
+      this._send({
+        clientContent: {
+          turns: [{ role: 'user', parts: [{ text: RESUME_PROMPT }] }],
+          turnComplete: true,
+        },
+      })
+      this._reconnectAttempts = 0
+      this._reconnecting = false
+      this._agentMsgId = null // resumed audio starts a fresh bubble
+      this._agentBuf = ''
+      this.setState('speaking')
+      this._log('reconnect_success')
+    } catch (err) {
+      this._reconnecting = false
+      this._log('reconnect_failed', { attempt: this._reconnectAttempts, error: err.message })
+      if (!this._ending && this._reconnectAttempts < MAX_RECONNECTS) {
+        setTimeout(() => this._reconnect(), 1500)
+      } else if (!this._ending) {
+        this.onError?.('Lost the connection and could not resume automatically. Please reopen to continue.')
+        this.setState('error')
+      }
+    }
   }
 
   async _startMic() {

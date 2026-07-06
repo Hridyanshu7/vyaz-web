@@ -1,6 +1,6 @@
 # Vyaz — Architecture Snapshot
 
-_Current-system map. Last updated: 2026-07-03. For the **why** behind these choices, see [DECISIONS.md](DECISIONS.md)._
+_Current-system map. Last updated: 2026-07-06. For the **why** behind these choices, see [DECISIONS.md](DECISIONS.md)._
 
 ## Product in one line
 A P2P book-knowledge marketplace where readers **talk to books** — an AI voice agent narrates a chapter verbatim and answers questions — plus human narrator sessions (1:1 and group).
@@ -20,13 +20,13 @@ A P2P book-knowledge marketplace where readers **talk to books** — an AI voice
 - Migrations in `supabase/migrations/` (`001` schema, `002` users, `003` sessions, `004` add `books.language`). Note: `platform_settings` + `voice_progress` were created directly in the dashboard.
 
 ## Zustand stores (`src/stores/`)
-- **`bookStore`** — public books/narrators; `fetchBooks()` currently `select('*')` (eager — see DECISIONS C1); `addBook`, `removeBook`, `getBook`, filtering.
+- **`bookStore`** — public books/narrators; `fetchBooks()` selects **light columns only** (no `chapters`); `fetchBookChapters(id)` lazy-loads a book's `chapters` on BookDetail open (memoized — DECISIONS C1); `addBook`, `removeBook`, `getBook`, filtering.
 - **`adminDataStore`** — admin data (all books incl. unpublished, users, sessions, `platformSettings`); **excludes** heavy `chapters` from startup, lazy-loads them. `updateBook`, `removeBook`, `updateSetting`.
 - **`adminStore`** — persisted UI/op state: `voiceTranscripts` (speech bubbles), `opStatus`/`opProgress` (chapter ops), pending `userChanges`/`bookChanges`.
 
 ## Voice agent (the heart)
 - **Provider switch:** `platform_settings.voice_provider` → `BookDetail.jsx` routes the Talk button to `GeminiLiveModal` | `VoicePipelineModal` | `VoiceAgentModal` (Cartesia).
-- **Gemini Live (primary):** `src/lib/geminiLive.js` — `GeminiLiveSession` opens a WebSocket to `…BidiGenerateContent`, streams mic (16kHz PCM) + plays back (24kHz PCM), parses `((...))` asides, tracks progress by verbatim word-alignment. UI: `src/components/GeminiLiveModal.jsx` (2-column: transcript + waveform/section-progress/controls).
+- **Gemini Live (primary):** `src/lib/geminiLive.js` — `GeminiLiveSession` opens a WebSocket to `…BidiGenerateContent`, streams mic (16kHz PCM) + plays back (24kHz PCM), parses `((...))` asides, tracks progress by verbatim word-alignment. **Session resumption + auto-reconnect** (`sessionResumption` + `slidingWindow` compression; re-opens on unexpected close, reusing mic + progress) keeps long chapters alive past the ~15-min socket limit (DECISIONS A11). Transcript bubbles are reset per-turn to avoid cross-turn word loss (A10). UI: `src/components/GeminiLiveModal.jsx` (2-column: transcript + waveform/section-progress/controls; `reconnecting` state shows a countdown).
 - **Session config:** `supabase/functions/voice-session` returns the Gemini key, the built system prompt (chapter content injected), model, voice, and sections. **The verbatim + `((...))` system prompt lives here** (`live_system_prompt` overridable in Admin).
 - **Custom pipeline (alt):** `src/lib/voicePipeline.js` — discrete STT→LLM→TTS Gemini calls with pre-fetch; `VoicePipelineModal.jsx`.
 
@@ -45,7 +45,9 @@ Per-book buttons: **EPUB** (`parseEpub` → chapter text) → **Generate/Regen**
 - **Deploy:** frontend `vercel --prod` (or git push → Vercel); edge fn `npx supabase functions deploy <name>`; DB changes via Supabase SQL editor / migrations.
 
 ## Known constraints / debt (see DECISIONS + action plan)
-- `bookStore` eager-loads all chapter text (~3 MB) on startup (C1) — lazy-load agreed, not built.
-- Gemini Live: ~3 concurrent sessions/key (→ Vertex for scale); ~10–15 min/WebSocket (long chapters need session resumption — not built).
-- Voice mic capture uses deprecated `ScriptProcessorNode` (main-thread) — perf ceiling (DECISIONS A9).
+- ✅ `bookStore` lazy-loads chapters now (C1, shipped) — grid cold-load is light.
+- ✅ Long chapters auto-resume past the ~10–15 min/WebSocket limit via session resumption + reconnect (A11, shipped).
+- Gemini Live: **~3 concurrent sessions/key** (→ Vertex for scale) — **still the mass-usage wall**, not addressed; the API key is also shipped to the browser (theft/quota risk at scale).
+- Voice mic capture uses deprecated `ScriptProcessorNode` (main-thread) — perf ceiling (DECISIONS A9); likely forced by target-speaker work (A12).
 - Existing books need a lossless re-split for 100% coverage (action item #2).
+- Interruption robustness (ambient noise / second speaker) scoped but not built (A12).

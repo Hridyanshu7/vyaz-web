@@ -1,0 +1,754 @@
+<style>
+  :root {
+    --paper: #F4F4F1;
+    --card: #FBFBF9;
+    --ink: #16181D;
+    --slate: #5C6270;
+    --faint: #8A8F99;
+    --line: #E4E2DC;
+    --line-strong: #D2CFC6;
+    --signal: #0E8C86;
+    --signal-deep: #0A6E69;
+    --signal-wash: #E4F1F0;
+    --amber: #B9772A;
+    --amber-wash: #F6ECDC;
+    --red: #C0453B;
+    --red-wash: #F7E7E4;
+    --green: #3F8A57;
+    --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+    --maxread: 68ch;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  header.masthead {
+    padding: 56px 0 36px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--signal-deep);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .wave {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 16px;
+  }
+  .wave span {
+    width: 3px;
+    background: var(--signal);
+    border-radius: 2px;
+    height: 40%;
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .wave span:nth-child(2){ animation-delay: .15s; }
+  .wave span:nth-child(3){ animation-delay: .3s; }
+  .wave span:nth-child(4){ animation-delay: .45s; }
+  .wave span:nth-child(5){ animation-delay: .6s; }
+  @keyframes pulse { 0%,100%{ height:25%; } 50%{ height:100%; } }
+
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(34px, 6vw, 54px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(18px, 2.4vw, 21px);
+    color: var(--slate);
+    max-width: 60ch;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .meta-row {
+    margin-top: 24px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  .meta-row b { color: var(--slate); font-weight: 600; }
+
+  /* ---------- Layout ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+  nav.toc {
+    position: sticky;
+    top: 24px;
+    font-size: 14px;
+  }
+  nav.toc .toc-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 14px;
+  }
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: toc;
+    border-left: 1px solid var(--line);
+  }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: flex;
+    gap: 10px;
+    padding: 6px 0 6px 16px;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    color: var(--slate);
+    text-decoration: none;
+    line-height: 1.35;
+  }
+  nav.toc a::before {
+    counter-increment: toc;
+    content: counter(toc, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    padding-top: 2px;
+  }
+  nav.toc a:hover { color: var(--ink); border-left-color: var(--line-strong); }
+  nav.toc a:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  main { min-width: 0; }
+
+  /* ---------- Sections ---------- */
+  section { scroll-margin-top: 24px; padding-top: 8px; margin-bottom: 64px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+  }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--signal-deep);
+    font-weight: 600;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(24px, 3.4vw, 31px);
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.005em;
+    margin: 32px 0 6px;
+  }
+  p, li { max-width: var(--maxread); }
+  p { margin: 14px 0; }
+  main a { color: var(--signal-deep); text-decoration: underline; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  em { font-style: italic; color: var(--ink); }
+
+  .lede { font-size: 18.5px; color: var(--ink); }
+
+  ul, ol.body { padding-left: 22px; }
+  ul li, ol.body li { margin: 7px 0; }
+  ul li::marker { color: var(--signal); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: #EDECE6;
+    padding: 1.5px 5px;
+    border-radius: 4px;
+    color: #33372E;
+    word-break: break-word;
+  }
+
+  /* ---------- Analogy / plain-english callout ---------- */
+  .plain {
+    background: var(--signal-wash);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 18px 0;
+    font-size: 16px;
+  }
+  .plain .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--signal-deep);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .plain p { margin: 0; max-width: none; }
+
+  /* ---------- Callouts ---------- */
+  .note, .warn, .limit {
+    border-radius: 10px;
+    padding: 14px 16px 14px 18px;
+    margin: 20px 0;
+    font-size: 15.5px;
+    border-left: 4px solid;
+  }
+  .note  { background: var(--card);      border-color: var(--slate); }
+  .warn  { background: var(--red-wash);  border-color: var(--red); }
+  .limit { background: var(--amber-wash); border-color: var(--amber); }
+  .note p, .warn p, .limit p { margin: 6px 0; max-width: none; }
+  .callout-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .warn .callout-tag { color: var(--red); }
+  .limit .callout-tag { color: var(--amber); }
+  .note .callout-tag { color: var(--slate); }
+
+  /* ---------- Cards grid ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 22px 0; }
+  .cast-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .cast-card h4 {
+    margin: 0 0 2px;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cast-card .role {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: block;
+    margin-bottom: 10px;
+  }
+  .cast-card p { margin: 0; font-size: 15px; color: var(--slate); max-width: none; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+  /* ---------- Diagram ---------- */
+  .diagram-scroll { overflow-x: auto; margin: 24px 0; padding: 4px; }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 520px;
+  }
+  .flow-step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  .flow-rail { display: flex; flex-direction: column; align-items: center; }
+  .flow-num {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .flow-line { width: 2px; flex: 1; background: var(--line-strong); min-height: 14px; }
+  .flow-body {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 13px 16px;
+    margin-bottom: 12px;
+  }
+  .flow-body h4 { margin: 0 0 3px; font-size: 15.5px; font-weight: 700; }
+  .flow-body p { margin: 0; font-size: 14.5px; color: var(--slate); max-width: none; }
+  .flow-where {
+    font-family: var(--mono); font-size: 11.5px; color: var(--signal-deep);
+    margin-top: 6px; display: block;
+  }
+
+  /* ---------- Param table ---------- */
+  .table-scroll { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+  thead th {
+    background: #ECEBE4;
+    text-align: left;
+    padding: 11px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--slate);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--slate); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { color: var(--ink); font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+  tbody td b { color: var(--ink); }
+  .val { font-family: var(--mono); font-size: 12.5px; color: var(--signal-deep); }
+
+  /* ---------- Glossary ---------- */
+  .glossary { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 28px; margin-top: 20px; }
+  .gterm { padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .gterm dt { font-weight: 700; font-size: 15px; }
+  .gterm dt .full { font-family: var(--mono); font-size: 12px; color: var(--signal-deep); font-weight: 500; display: block; margin-top: 1px; }
+  .gterm dd { margin: 5px 0 0; font-size: 14.5px; color: var(--slate); }
+
+  /* ---------- Quick-ref map ---------- */
+  .qref { display: grid; gap: 10px; margin: 20px 0; }
+  .qref-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 13px 16px;
+  }
+  .qref-row .want { font-weight: 600; font-size: 15px; }
+  .qref-row .where { font-family: var(--mono); font-size: 13px; color: var(--signal-deep); }
+
+  hr.soft { border: none; border-top: 1px solid var(--line); margin: 40px 0; }
+
+  footer.foot { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 14px; color: var(--faint); }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; gap: 8px; }
+    nav.toc { position: static; margin-bottom: 32px; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: var(--card); }
+    nav.toc ol { border-left: none; }
+    .qref-row { grid-template-columns: 1fr; gap: 4px; }
+    body { font-size: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wave span { animation: none; height: 60%; }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14161A;
+      --card: #1C1F25;
+      --ink: #ECEBE6;
+      --slate: #A6ABB5;
+      --faint: #737884;
+      --line: #2A2E36;
+      --line-strong: #3A3F49;
+      --signal: #38B9B1;
+      --signal-deep: #5FCFC7;
+      --signal-wash: #14312F;
+      --amber: #D79A55;
+      --amber-wash: #33280F;
+      --red: #E0796E;
+      --red-wash: #351E1B;
+    }
+    code { background: #262A31; color: #C9CFC4; }
+    thead th { background: #22262D; }
+    .flow-num { background: var(--signal); color: #0B1210; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span class="wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
+      Vyaz · System Field Guide
+    </div>
+    <h1 class="title">How the whole thing actually works</h1>
+    <p class="standfirst">A plain-language tour of every system that comes together when a reader taps <em>Talk</em> — the browser, the voice AI, the memory, the knobs, and the parts around them. Written so you can make decisions without guessing.</p>
+    <div class="meta-row">
+      <span><b>Audience:</b> you, deciding — not engineers</span>
+      <span><b>Updated:</b> 2026-07-06</span>
+      <span><b>Companion docs:</b> CLAUDE.md · DECISIONS.md · ARCHITECTURE.md</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-label">Contents</div>
+      <ol>
+        <li><a href="#bigpicture">The one-breath picture</a></li>
+        <li><a href="#cast">The cast of systems</a></li>
+        <li><a href="#session">One Talk session, start to finish</a></li>
+        <li><a href="#voice-vs-text">Why voice is different from a chatbot</a></li>
+        <li><a href="#memory">Memory &amp; the two hard limits</a></li>
+        <li><a href="#knobs">The knobs (every parameter)</a></li>
+        <li><a href="#prompt">The system prompt (the agent's brief)</a></li>
+        <li><a href="#content">Where books come from</a></li>
+        <li><a href="#data">Data model &amp; the three stores</a></li>
+        <li><a href="#providers">The other two voice providers</a></li>
+        <li><a href="#deploy">Secrets, cost &amp; shipping</a></li>
+        <li><a href="#decide">Quick-reference: "I want to change X"</a></li>
+        <li><a href="#glossary">Glossary of every abbreviation</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- 1 -->
+      <section id="bigpicture">
+        <div class="sec-head"><span class="sec-num">01</span><h2>The one-breath picture</h2></div>
+        <p class="lede">Vyaz lets a reader <strong>“talk to a book.”</strong> An AI voice narrates a chapter <em>word-for-word</em> and answers questions out loud, in a live back-and-forth — like an audiobook you can interrupt and quiz.</p>
+        <p>Under the hood there are only a handful of players, and most of the magic is <strong>one live phone-call-style connection</strong> between the reader's browser and Google's voice AI. Everything else exists to set up that call, feed it the right chapter, keep it alive, and draw what's happening on screen.</p>
+        <div class="plain">
+          <span class="tag">Plain version</span>
+          <p>Think of it as a phone call. The <strong>browser</strong> is the reader's handset (mic + speaker + screen). <strong>Gemini</strong> is the narrator on the other end. A small <strong>server</strong> (an “edge function”) is the switchboard operator who dials the call and hands over the script — but never lets the reader see the phone number (the secret key). The <strong>database</strong> is the library where the books and settings are kept.</p>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section id="cast">
+        <div class="sec-head"><span class="sec-num">02</span><h2>The cast of systems</h2></div>
+        <p>Five things do all the work. Here's each one in a sentence, then we'll watch them cooperate.</p>
+        <div class="cards">
+          <div class="cast-card">
+            <h4><span class="dot" style="background:var(--signal)"></span> The browser</h4>
+            <span class="role">React app on the reader's device</span>
+            <p>Captures the microphone, plays the narrator's audio, and paints the transcript, waveform and progress bar. Built with <strong>React</strong> + <strong>Vite</strong>, hosted on <strong>Vercel</strong>. This is where <em>all</em> the live audio plumbing lives.</p>
+          </div>
+          <div class="cast-card">
+            <h4><span class="dot" style="background:var(--amber)"></span> Gemini (Google)</h4>
+            <span class="role">The voice AI brain</span>
+            <p>Google's <strong>Gemini Live</strong> model. One connection to it does listening (speech→text), thinking, and speaking (text→voice) all at once. It's the narrator.</p>
+          </div>
+          <div class="cast-card">
+            <h4><span class="dot" style="background:var(--signal-deep)"></span> Edge functions</h4>
+            <span class="role">Small trusted servers (Supabase)</span>
+            <p>Tiny programs that run on the server, not the browser. They hold the <strong>secret keys</strong> and assemble the narrator's instructions. The browser asks them for a “session,” they hand back what's needed.</p>
+          </div>
+          <div class="cast-card">
+            <h4><span class="dot" style="background:var(--slate)"></span> The database</h4>
+            <span class="role">Supabase / Postgres</span>
+            <p>Stores books (and their full text), users, sessions, and all the <strong>settings</strong> (which voice, which model, the prompt). Also handles login and permissions.</p>
+          </div>
+          <div class="cast-card">
+            <h4><span class="dot" style="background:var(--green)"></span> Cartesia</h4>
+            <span class="role">Alternate voice provider</span>
+            <p>A different voice-AI company, wired in as a <em>switchable</em> backup. Not used day-to-day (Gemini is primary), but the plumbing exists. More in §10.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section id="session">
+        <div class="sec-head"><span class="sec-num">03</span><h2>One Talk session, start to finish</h2></div>
+        <p>This is the heart of it. Follow a single reader tapping <em>Talk</em> on a chapter. Each step names the system doing the work.</p>
+        <div class="diagram-scroll">
+          <div class="flow">
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">1</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Reader taps “Talk” — browser asks for a session</h4><p>The browser calls the <code>voice-session</code> edge function, sending the book title, chapter, and the chapter's pre-split sections (the text).</p><span class="flow-where">browser → edge function</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">2</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Edge function builds the brief &amp; hands back the keys</h4><p>It reads settings from the database, stitches the <strong>system prompt</strong> together (rules + the whole chapter text glued in), and returns the API key, model name, voice name, and prompt to the browser.</p><span class="flow-where">edge function ↔ database</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">3</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Browser opens the live connection to Gemini</h4><p>It opens a <strong>WebSocket</strong> (a permanent two-way line) straight to Google and sends a “setup” message: the model, voice, the prompt, and all the audio settings (the knobs in §6).</p><span class="flow-where">browser → Gemini (WebSocket)</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">4</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Microphone starts streaming</h4><p>The browser grabs the mic, chops the audio into tiny chunks (<strong>PCM</strong> at 16&nbsp;kHz), and streams them up the line continuously.</p><span class="flow-where">browser mic → Gemini</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">5</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Gemini narrates — audio + a transcript come back</h4><p>Google sends back two separate streams: the <strong>voice audio</strong> (played through the speaker) and a <strong>text transcript</strong> of what it's saying. They arrive on slightly different timelines.</p><span class="flow-where">Gemini → browser</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">6</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Browser paints the screen</h4><p>Audio is queued and played. The transcript is split into <strong>book words (black)</strong> vs <strong>the agent's own remarks (grey)</strong> using the <code>((double-parens))</code> markers, and a progress bar advances by matching the spoken words against the chapter.</p><span class="flow-where">browser (GeminiLiveModal)</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">7</div><div class="flow-line"></div></div>
+              <div class="flow-body"><h4>Reader speaks — the narrator pauses and answers</h4><p>Google's <strong>voice-activity detection</strong> notices the reader talking, interrupts the narration, transcribes the question, answers it, then can resume reading.</p><span class="flow-where">full-duplex, both directions at once</span></div></div>
+
+            <div class="flow-step"><div class="flow-rail"><div class="flow-num">8</div></div>
+              <div class="flow-body"><h4>The line ages out — and silently reconnects</h4><p>Google caps each connection at ~10–15 minutes. Just before it drops, we grab a <strong>resume handle</strong>, reopen the line, and continue where we left off — the reader sees a brief “Reconnecting…” countdown, not a dead session.</p><span class="flow-where">browser (session resumption)</span></div></div>
+          </div>
+        </div>
+        <div class="plain">
+          <span class="tag">The one thing to remember</span>
+          <p>The audio and its transcript are <strong>two separate deliveries</strong> from Google, not one. Most of our past bugs (missing words, mismatched bubbles) came from treating them as if they arrived together. They don't.</p>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section id="voice-vs-text">
+        <div class="sec-head"><span class="sec-num">04</span><h2>Why voice is different from a chatbot</h2></div>
+        <p>A text chatbot is like <strong>sending letters</strong>: you write, send, wait, get a reply, repeat. Each message is a fresh, complete request.</p>
+        <p>Voice here is like an <strong>open phone line</strong> (“full-duplex” — both people can talk at once). That difference explains almost every quirk:</p>
+        <ul>
+          <li><strong>It streams.</strong> Words arrive a piece at a time, so the screen updates mid-sentence — and half-finished sentences need careful handling.</li>
+          <li><strong>It can be interrupted.</strong> The reader can cut in any moment; the system has to detect that and stop talking. That's what <em>voice-activity detection</em> is for.</li>
+          <li><strong>It has no memory of its own once the line drops.</strong> If the connection dies, the “conversation so far” is gone unless we deliberately resume it (§5).</li>
+          <li><strong>Timing races are everywhere.</strong> Audio vs transcript, interrupt vs turn-end — things arrive slightly out of order, which is why the code is fussy about <em>when</em> it resets things.</li>
+        </ul>
+        <div class="note">
+          <span class="callout-tag">Rule of thumb</span>
+          <p>If a problem is about <em>what the model says or how it behaves</em> (paraphrasing, tone, forgetting to mark its asides) — that's the <strong>prompt's</strong> job (§7). If it's about <em>words getting lost, cut, or mis-drawn</em> — that's the <strong>browser code's</strong> job. Different fixes, different files.</p>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section id="memory">
+        <div class="sec-head"><span class="sec-num">05</span><h2>Memory &amp; the two hard limits</h2></div>
+        <p>“Memory” for a voice AI means: <strong>how much can it hold in mind at once, and what happens when the line breaks.</strong></p>
+        <h3>What the narrator “knows”</h3>
+        <p>Right now we paste the <strong>entire current chapter</strong> into the system prompt at the start. So the narrator can read and answer about <em>that chapter</em> — but nothing from other chapters (that would need <strong>RAG</strong>, currently parked; see glossary). This is called “stuffing the context.”</p>
+        <h3>The context window</h3>
+        <p>The model can only hold so much text at once (its “context window”). A long chapter plus a long back-and-forth can crowd it. We turned on <strong>sliding-window compression</strong>, which quietly summarizes older turns so the session can run longer without overflowing.</p>
+        <h3>Resumption (surviving a dropped line)</h3>
+        <p>Google periodically hands us a <strong>resume handle</strong> — like a coat-check ticket for the conversation. If the line drops, we reopen and present the ticket, and Google restores the context. That's how a 30-minute chapter survives 15-minute connections.</p>
+        <div class="limit">
+          <span class="callout-tag">Hard limit 1 — connection length</span>
+          <p>Each WebSocket lasts <strong>~10–15 minutes</strong>. Handled now via auto-resumption, so it no longer kills a session — but it's why reconnection logic exists at all.</p>
+        </div>
+        <div class="limit">
+          <span class="callout-tag">Hard limit 2 — how many people at once</span>
+          <p>On Google's simple “Developer API,” only <strong>~3 live sessions can run per key at the same time</strong>. That's the real wall for mass usage — the <em>4th</em> simultaneous listener gets rejected. The fix is moving to <strong>Vertex AI</strong> (1,000 at once), which is a bigger infrastructure change and <em>not done yet</em>. Note: this limit is about <em>simultaneous listeners</em>, not how many books you upload.</p>
+        </div>
+      </section>
+
+      <!-- 6 -->
+      <section id="knobs">
+        <div class="sec-head"><span class="sec-num">06</span><h2>The knobs — every parameter, in plain terms</h2></div>
+        <p>These are the settings sent to Gemini when the line opens. This is the table to read before any voice-tuning decision: what each does, where it's set today, and the <strong>trade-off</strong> if you move it.</p>
+
+        <h3>Core session settings</h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Parameter</th><th>Plain meaning</th><th>Now</th><th>Trade-off if you change it</th></tr></thead>
+          <tbody>
+            <tr><td>model</td><td>Which Gemini brain answers.</td><td class="val">gemini-3.1-flash-live-preview</td><td>“Preview” models can change silently server-side. Native-audio ones sound nicer but drop mid-turn.</td></tr>
+            <tr><td>voice</td><td>The narrator's voice/timbre.</td><td class="val">Charon</td><td>Cosmetic; pick per brand/language.</td></tr>
+            <tr><td>responseModalities</td><td>What the model sends back.</td><td class="val">AUDIO</td><td>Audio-only. Text comes <em>only</em> via the transcript stream, not as a second output.</td></tr>
+            <tr><td>temperature</td><td>How “creative” vs literal it is.</td><td class="val">0.6</td><td><b>Lower = more faithful to the exact words.</b> Verbatim reading wants ~0.2; higher lets it drift/paraphrase.</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>Hearing the reader (transcription + microphone)</h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Parameter</th><th>Plain meaning</th><th>Now</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr><td>inputAudioTranscription</td><td>Show text of what the <em>reader</em> said.</td><td class="val">on</td><td>Small extra cost; we keep it for the “You” speech bubbles.</td></tr>
+            <tr><td>outputAudioTranscription</td><td>Show text of what the <em>narrator</em> said.</td><td class="val">on</td><td>This is the <em>only</em> source of the narrator's on-screen words.</td></tr>
+            <tr><td>echoCancellation / noiseSuppression / autoGainControl</td><td>Browser mic clean-up.</td><td class="val">all on</td><td><b>autoGainControl can hurt in noisy rooms</b> — it boosts background hiss between words (see noise plan).</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>Voice-activity detection (when it thinks you're speaking)</h3>
+        <p>Nested under <code>realtimeInputConfig.automaticActivityDetection</code>. This is the group behind “it interrupts on café noise” and “it eats my first word.”</p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Parameter</th><th>Plain meaning</th><th>Now</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr><td>startOfSpeechSensitivity</td><td>How eagerly it decides you've started talking.</td><td class="val">default</td><td><b>HIGH</b> catches a faint voice but also noise; <b>LOW</b> ignores noise but drops soft/quick speech. We leave it at default on purpose.</td></tr>
+            <tr><td>prefixPaddingMs</td><td>How much audio <em>before</em> the detected start to keep.</td><td class="val">unset (0)</td><td><b>The first-word fix.</b> 0 clips your opening syllable; ~200–300&nbsp;ms captures it without touching sensitivity.</td></tr>
+            <tr><td>endOfSpeechSensitivity</td><td>How readily it decides you've stopped.</td><td class="val">default</td><td>Aggressive = cuts you off at a pause.</td></tr>
+            <tr><td>silenceDurationMs</td><td>Silence needed before your turn ends.</td><td class="val">default</td><td>Short = snappy but interrupts your thinking pauses; long = laggy turn-taking.</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>Keeping the session alive</h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Parameter</th><th>Plain meaning</th><th>Now</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>sessionResumption</td><td>Get a “ticket” to resume after a drop.</td><td class="val">on</td><td>Enables the silent reconnect (§5).</td></tr>
+            <tr><td>contextWindowCompression</td><td>Summarize old turns to fit more.</td><td class="val">slidingWindow</td><td>Lets long chapters run past the raw memory limit.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <!-- 7 -->
+      <section id="prompt">
+        <div class="sec-head"><span class="sec-num">07</span><h2>The system prompt — the agent's standing brief</h2></div>
+        <p>The <strong>system prompt</strong> is a paragraph of instructions handed to Gemini at the start of every session. It's the single biggest lever over <em>behaviour</em>, and it lives server-side in the <code>voice-session</code> function (editable in Admin → Agents).</p>
+        <p>Today it tells the narrator to:</p>
+        <ul>
+          <li>Read the chapter <strong>verbatim</strong> — the exact words, no summarizing.</li>
+          <li>Wrap <strong>anything that isn't the book's words</strong> — its own remarks, questions, answers — in <code>((double parentheses))</code>. The browser uses those markers to colour book text black and the agent's asides grey.</li>
+          <li>Pause every few paragraphs and check in; answer reader questions grounded in the chapter.</li>
+          <li>Never say the parentheses out loud.</li>
+        </ul>
+        <div class="plain">
+          <span class="tag">Why this matters for your decisions</span>
+          <p>A huge range of behaviour is <strong>promptable</strong> — pronunciation, how chatty it is, when it pauses, whether it obeys the <code>((...))</code> rule, its tone. The test is <em>“could a well-written instruction make it do this?”</em> If yes, it belongs in the prompt (your lever to tune), <strong>not</strong> in code. Code is only for words getting lost in the pipes or before the mic ever hears them.</p>
+        </div>
+      </section>
+
+      <!-- 8 -->
+      <section id="content">
+        <div class="sec-head"><span class="sec-num">08</span><h2>Where books come from</h2></div>
+        <p>Before a book can be “talked to,” it goes through a four-step pipeline in the Admin panel:</p>
+        <ol class="body">
+          <li><strong>EPUB</strong> — upload the ebook file; the app extracts the clean reading text of each chapter (drops images, page numbers, etc.).</li>
+          <li><strong>Generate</strong> — Gemini writes the chapter list, one-liners, and section titles.</li>
+          <li><strong>Split</strong> — each chapter's text is chopped into <strong>~350-word sections</strong>. A check (“coverage”) makes sure <em>100% of the words survive</em> — an older splitter used to silently drop short paragraphs.</li>
+          <li><strong>Sync KB</strong> — (Cartesia only) pushes sections to Cartesia's knowledge base. Gemini Live doesn't need this step.</li>
+        </ol>
+        <p>All of this ends up inside one big <code>chapters</code> field on the book (a <strong>JSONB</strong> blob holding the full text + nested sections). Section numbers <strong>restart in every chapter</strong>, so a section number means nothing without its chapter.</p>
+      </section>
+
+      <!-- 9 -->
+      <section id="data">
+        <div class="sec-head"><span class="sec-num">09</span><h2>Data model &amp; the three stores</h2></div>
+        <h3>The main database tables</h3>
+        <ul>
+          <li><code>books</code> — title, author, cover, ratings… and the heavy <code>chapters</code> text blob.</li>
+          <li><code>profiles</code> — users (who's an admin, etc.).</li>
+          <li><code>sessions</code> / <code>session_attendees</code> / <code>session_requests</code> — the <em>human</em> narrator bookings (a separate feature from the AI voice).</li>
+          <li><code>platform_settings</code> — every knob: API keys, chosen provider, model, voice, the prompt. <strong>Secrets live here, read only by the server.</strong></li>
+          <li><code>voice_progress</code> — how far a listener got. <code>voice_events</code> — a debug log of session drops/reconnects.</li>
+        </ul>
+        <h3>The three “stores” (the browser's short-term memory)</h3>
+        <p>A <strong>store</strong> (Zustand) is just the app's in-memory scratchpad while you use it. There are three:</p>
+        <div class="cards">
+          <div class="cast-card"><h4>bookStore</h4><span class="role">public browsing</span><p>The catalogue. Now loads only <em>light</em> book info up front; a book's heavy chapter text loads <strong>only when you open that book</strong> (so the grid stays fast).</p></div>
+          <div class="cast-card"><h4>adminDataStore</h4><span class="role">admin panel</span><p>All books (incl. unpublished), users, settings. Deliberately skips the heavy chapter text until needed.</p></div>
+          <div class="cast-card"><h4>adminStore</h4><span class="role">live UI state</span><p>The speech-bubble transcripts, operation progress, pending edits — the things the screen needs moment-to-moment.</p></div>
+        </div>
+      </section>
+
+      <!-- 10 -->
+      <section id="providers">
+        <div class="sec-head"><span class="sec-num">10</span><h2>The other two voice providers</h2></div>
+        <p>There's a single global switch (<code>voice_provider</code> in Admin → Agents) that picks which voice engine the <em>Talk</em> button uses. Three exist for historical reasons — the product moved and the old ones were never retired:</p>
+        <div class="cards">
+          <div class="cast-card"><h4><span class="dot" style="background:var(--signal)"></span> gemini_live</h4><span class="role">primary — use this</span><p>One live connection does everything. Cheapest, lowest latency, multilingual. The whole guide is about this path.</p></div>
+          <div class="cast-card"><h4><span class="dot" style="background:var(--slate)"></span> pipeline</h4><span class="role">fallback</span><p>Old approach: three <em>separate</em> steps (hear → think → speak) chained. Higher latency; kept as a backup.</p></div>
+          <div class="cast-card"><h4><span class="dot" style="background:var(--green)"></span> cartesia</h4><span class="role">alternate vendor</span><p>Different company's agent. Ran out of credits; its modal is the one with the “Mute” button. Slated to be standardized/retired.</p></div>
+        </div>
+        <div class="warn">
+          <span class="callout-tag">Gotcha you already hit</span>
+          <p>If the switch isn't on <strong>Gemini Live</strong>, tapping Talk opens a <em>different</em> modal entirely (different layout, a Mute button) and none of the Gemini work applies. Check Admin → Agents first.</p>
+        </div>
+      </section>
+
+      <!-- 11 -->
+      <section id="deploy">
+        <div class="sec-head"><span class="sec-num">11</span><h2>Secrets, cost &amp; shipping</h2></div>
+        <h3>Where secrets live</h3>
+        <p>API keys sit in <code>platform_settings</code> and are meant to be read <strong>only by edge functions</strong> on the server.</p>
+        <div class="warn">
+          <span class="callout-tag">Known risk (tracked, not fixed)</span>
+          <p>Today the Gemini key is handed to the <em>browser</em> and put in the connection URL — so a tech-savvy visitor could copy it from their browser tools and run up <strong>your</strong> Google bill. It only bites at scale, and the fix (proxying the connection through the server) pairs naturally with the Vertex/concurrency work. Flagged, deprioritized.</p>
+        </div>
+        <h3>Roughly what it costs</h3>
+        <p>A full verbatim chapter (~30 min of audio) costs about <strong>$0.90</strong> — the spoken audio dominates. India's willingness-to-pay sits near or below that, which is why pricing leans on a cheaper “concise” mode plus per-chapter credits.</p>
+        <h3>How changes go live</h3>
+        <ul>
+          <li><strong>Frontend</strong> (the browser app): push to <code>main</code> or run <code>vercel --prod</code>.</li>
+          <li><strong>Edge function</strong>: <code>npx supabase functions deploy &lt;name&gt;</code>.</li>
+          <li><strong>Database / settings</strong>: Supabase SQL editor or the Admin panel.</li>
+        </ul>
+      </section>
+
+      <!-- 12 -->
+      <section id="decide">
+        <div class="sec-head"><span class="sec-num">12</span><h2>Quick-reference: “I want to change X”</h2></div>
+        <p>Where each kind of change actually lives — so you know what you're really asking for.</p>
+        <div class="qref">
+          <div class="qref-row"><div class="want">How the narrator behaves (tone, pausing, obeying the ((…)) rule, verbatim-ness)</div><div class="where">System prompt — Admin → Agents</div></div>
+          <div class="qref-row"><div class="want">Which voice / model / provider</div><div class="where">platform_settings — Admin → Agents</div></div>
+          <div class="qref-row"><div class="want">Faithfulness vs creativity of reading</div><div class="where">temperature (→ ~0.2)</div></div>
+          <div class="qref-row"><div class="want">Café noise / first-word clipping / interruptions</div><div class="where">realtimeInputConfig VAD knobs + mic settings (browser code)</div></div>
+          <div class="qref-row"><div class="want">Missing / mis-drawn words in bubbles</div><div class="where">Browser render + buffer code (geminiLive.js / modal)</div></div>
+          <div class="qref-row"><div class="want">Serving more than ~3 listeners at once</div><div class="where">Move to Vertex AI (infra project — not built)</div></div>
+          <div class="qref-row"><div class="want">Answering across the whole book</div><div class="where">RAG / retrieval (parked)</div></div>
+          <div class="qref-row"><div class="want">Ignoring a second person's voice</div><div class="where">Voiceprint / speaker verification (separate build)</div></div>
+        </div>
+      </section>
+
+      <!-- 13 -->
+      <section id="glossary">
+        <div class="sec-head"><span class="sec-num">13</span><h2>Glossary of every abbreviation</h2></div>
+        <p>Every shorthand used in this guide and in the codebase, in one place.</p>
+        <dl class="glossary">
+          <div class="gterm"><dt>P2P <span class="full">Peer-to-Peer</span></dt><dd>People sharing directly with people — here, readers and human narrators, plus the AI.</dd></div>
+          <div class="gterm"><dt>AI <span class="full">Artificial Intelligence</span></dt><dd>Software that mimics human tasks — here, understanding and speaking.</dd></div>
+          <div class="gterm"><dt>LLM <span class="full">Large Language Model</span></dt><dd>The kind of AI that reads and writes language (Gemini is one).</dd></div>
+          <div class="gterm"><dt>STT <span class="full">Speech-to-Text</span></dt><dd>Turning spoken audio into written words (“hearing”).</dd></div>
+          <div class="gterm"><dt>TTS <span class="full">Text-to-Speech</span></dt><dd>Turning written words into spoken audio (“speaking”).</dd></div>
+          <div class="gterm"><dt>Full-duplex</dt><dd>Both sides can talk at the same time — like a phone, unlike a walkie-talkie.</dd></div>
+          <div class="gterm"><dt>VAD <span class="full">Voice-Activity Detection</span></dt><dd>Deciding when someone is actually speaking (vs silence/noise).</dd></div>
+          <div class="gterm"><dt>PCM <span class="full">Pulse-Code Modulation</span></dt><dd>Raw, uncompressed audio — the format the mic/speaker stream uses.</dd></div>
+          <div class="gterm"><dt>kHz <span class="full">kilohertz</span></dt><dd>Audio sampling rate. 16&nbsp;kHz = 16,000 samples/sec (mic); 24&nbsp;kHz (playback).</dd></div>
+          <div class="gterm"><dt>Hz / F0 <span class="full">Hertz / fundamental frequency</span></dt><dd>Pitch. A weak identity clue on its own — <em>not</em> a fingerprint.</dd></div>
+          <div class="gterm"><dt>Voiceprint / embedding</dt><dd>A rich numeric “fingerprint” of a voice's timbre — what actually identifies a speaker.</dd></div>
+          <div class="gterm"><dt>WebSocket (WS)</dt><dd>A connection that stays open both ways — the live “phone line” to Gemini.</dd></div>
+          <div class="gterm"><dt>API <span class="full">Application Programming Interface</span></dt><dd>The agreed way one program asks another for something.</dd></div>
+          <div class="gterm"><dt>SDK <span class="full">Software Development Kit</span></dt><dd>A ready-made toolkit for using a service in code.</dd></div>
+          <div class="gterm"><dt>RAG <span class="full">Retrieval-Augmented Generation</span></dt><dd>Letting the AI fetch relevant text on demand (e.g. other chapters) instead of pre-loading it. Parked.</dd></div>
+          <div class="gterm"><dt>Context window</dt><dd>How much text the model can hold in mind at once.</dd></div>
+          <div class="gterm"><dt>Verbatim</dt><dd>Word-for-word, exactly as written — the reading mode we chose.</dd></div>
+          <div class="gterm"><dt>Developer API vs Vertex AI</dt><dd>Google's simple key-based access (~3 at once) vs its enterprise platform (~1,000 at once).</dd></div>
+          <div class="gterm"><dt>Concurrency</dt><dd>How many live sessions run <em>at the same time</em>.</dd></div>
+          <div class="gterm"><dt>JSONB <span class="full">binary JSON</span></dt><dd>A database column that stores structured data — how <code>chapters</code> is kept.</dd></div>
+          <div class="gterm"><dt>RLS <span class="full">Row-Level Security</span></dt><dd>Database rules for who can see which rows.</dd></div>
+          <div class="gterm"><dt>OAuth <span class="full">Open Authorization</span></dt><dd>“Log in with Google/LinkedIn” without sharing a password.</dd></div>
+          <div class="gterm"><dt>OTP <span class="full">One-Time Password</span></dt><dd>A short code sent to verify you (phone/WhatsApp login — currently hidden).</dd></div>
+          <div class="gterm"><dt>JWT <span class="full">JSON Web Token</span></dt><dd>A signed token that proves who a logged-in user is.</dd></div>
+          <div class="gterm"><dt>FK <span class="full">Foreign Key</span></dt><dd>A link from one table to another (e.g. a session → its book).</dd></div>
+          <div class="gterm"><dt>EPUB <span class="full">Electronic Publication</span></dt><dd>The standard ebook file format we import from.</dd></div>
+          <div class="gterm"><dt>KB</dt><dd><b>Knowledge Base</b> (Cartesia's searchable store) — or <b>kilobyte</b> (data size). Context tells which.</dd></div>
+          <div class="gterm"><dt>MB / KB (size)</dt><dd>Megabyte / kilobyte — a MB is ~1,000&nbsp;KB. The old catalogue load was multi-MB.</dd></div>
+          <div class="gterm"><dt>ms <span class="full">milliseconds</span></dt><dd>Thousandths of a second — the unit for latency and audio padding.</dd></div>
+          <div class="gterm"><dt>SNR <span class="full">Signal-to-Noise Ratio</span></dt><dd>How loud the wanted voice is vs background noise. Higher = clearer.</dd></div>
+          <div class="gterm"><dt>AGC <span class="full">Auto Gain Control</span></dt><dd>Auto volume levelling — can wrongly amplify background noise in quiet gaps.</dd></div>
+          <div class="gterm"><dt>WASM <span class="full">WebAssembly</span></dt><dd>A way to run fast, near-native code in the browser (e.g. a noise remover).</dd></div>
+          <div class="gterm"><dt>AudioWorklet</dt><dd>A modern, off-main-thread way to process audio in the browser (a planned upgrade).</dd></div>
+          <div class="gterm"><dt>DOM <span class="full">Document Object Model</span></dt><dd>The live structure of the page the browser draws.</dd></div>
+          <div class="gterm"><dt>HMR <span class="full">Hot Module Replacement</span></dt><dd>Dev feature that live-updates code without a full reload.</dd></div>
+          <div class="gterm"><dt>UI / UX <span class="full">User Interface / Experience</span></dt><dd>What the user sees / how it feels to use.</dd></div>
+          <div class="gterm"><dt>ADR <span class="full">Architecture Decision Record</span></dt><dd>A logged “why we chose this” entry (see DECISIONS.md).</dd></div>
+          <div class="gterm"><dt>WTP <span class="full">Willingness To Pay</span></dt><dd>What a customer will actually pay — central to the pricing story.</dd></div>
+          <div class="gterm"><dt>Zustand / store</dt><dd>The small library holding the app's in-memory state while you use it.</dd></div>
+          <div class="gterm"><dt>Edge function</dt><dd>A small program that runs on the server (not the browser) — holds secrets, builds the prompt.</dd></div>
+          <div class="gterm"><dt>Session resumption / handle</dt><dd>A ticket from Google to reopen and continue a dropped conversation.</dd></div>
+          <div class="gterm"><dt>Asides · ((double parens))</dt><dd>The markers the narrator wraps its own words in, so the screen can grey them out.</dd></div>
+        </dl>
+      </section>
+
+      <footer class="foot">
+        Vyaz System Field Guide · plain-language companion to CLAUDE.md, DECISIONS.md and ARCHITECTURE.md · things marked “not built / parked / risk” are deliberate, tracked choices, not oversights.
+      </footer>
+
+    </main>
+  </div>
+</div>

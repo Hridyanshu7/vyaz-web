@@ -1,0 +1,446 @@
+<style>
+  :root {
+    /* ---- Warm manuscript + vermilion seal (light) ---- */
+    --paper: #F3EFE7;        /* background — warm washi */
+    --surface: #FAF7F1;      /* raised paper (cards) */
+    --sunk: #EAE4D8;         /* recessed fill */
+    --ink: #24211C;          /* foreground — warm sumi */
+    --ink-soft: #4A443B;     /* secondary body text */
+    --stone: #776D5E;        /* muted / captions */
+    --line: #E3DCCE;         /* hairline */
+    --line-strong: #D3CABA;
+    --seal: #C4553D;         /* the mark — cinnabar vermilion */
+    --seal-deep: #A5402D;    /* seal-as-text / links (AA) */
+    --seal-wash: #F1E1DB;    /* faint seal tint */
+    --sage: #4E7B52;         /* success */
+    --ochre: #A9772B;        /* warning */
+    --oxblood: #93342A;      /* error (distinct from the brand seal) */
+
+    --serif: 'IBM Plex Serif', Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    --mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+    --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-pill: 999px;
+    --shadow: 0 1px 2px rgba(36,33,28,.05), 0 6px 20px -12px rgba(36,33,28,.18);
+    --read: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1A1714; --surface: #221E19; --sunk: #14110E;
+      --ink: #EDE7DA; --ink-soft: #C3BBAB; --stone: #9C9280;
+      --line: #322C24; --line-strong: #423A30;
+      --seal: #E06A50; --seal-deep: #EE9078; --seal-wash: #2E211C;
+      --sage: #6FA073; --ochre: #CFA25A; --oxblood: #D46456;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.6);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 17px; line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* seal motif */
+  .seal-mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; background: var(--seal); color: var(--paper);
+    border-radius: 9px; font-family: var(--serif); font-weight: 600;
+    font-size: 19px; line-height: 1; flex: none;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  }
+
+  /* ---- masthead ---- */
+  header.mast { padding: 56px 0 34px; border-bottom: 1px solid var(--line); margin-bottom: 40px; }
+  .brandline { display: flex; align-items: center; gap: 13px; margin-bottom: 22px; }
+  .brandline .name { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--seal-deep); }
+  h1.title { font-family: var(--serif); font-weight: 600; font-size: clamp(34px,6vw,56px); line-height: 1.03; letter-spacing: -.02em; margin: 0 0 16px; text-wrap: balance; }
+  .standfirst { font-size: clamp(18px,2.4vw,21px); color: var(--ink-soft); max-width: 58ch; margin: 0; line-height: 1.5; }
+  .mast-meta { margin-top: 24px; font-family: var(--mono); font-size: 12.5px; color: var(--stone); display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  .mast-meta b { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---- layout ---- */
+  .grid { display: grid; grid-template-columns: 232px minmax(0,1fr); gap: 56px; align-items: start; }
+  nav.toc { position: sticky; top: 24px; font-size: 14px; }
+  nav.toc .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--stone); margin-bottom: 12px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: t; border-left: 1px solid var(--line); }
+  nav.toc a { display: flex; gap: 10px; padding: 6px 0 6px 15px; margin-left: -1px; border-left: 2px solid transparent; color: var(--ink-soft); text-decoration: none; line-height: 1.32; }
+  nav.toc a::before { counter-increment: t; content: counter(t,decimal-leading-zero); font-family: var(--mono); font-size: 11px; color: var(--stone); padding-top: 2px; }
+  nav.toc a:hover { color: var(--ink); border-left-color: var(--seal); }
+  nav.toc a:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+  main { min-width: 0; }
+
+  section { scroll-margin-top: 24px; margin-bottom: 60px; }
+  .sec-head { display: flex; align-items: baseline; gap: 13px; border-bottom: 2px solid var(--ink); padding-bottom: 9px; margin-bottom: 6px; }
+  .sec-num { font-family: var(--mono); font-size: 13px; color: var(--seal-deep); font-weight: 600; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(24px,3.4vw,32px); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+  h3 { font-weight: 700; font-size: 18px; margin: 30px 0 4px; }
+  .kicker { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--seal-deep); font-weight: 600; margin: 26px 0 2px; }
+  p, li { max-width: var(--read); }
+  p { margin: 13px 0; color: var(--ink); }
+  .lede { font-size: 18.5px; }
+  main a { color: var(--seal-deep); text-underline-offset: 2px; }
+  ul, ol.b { padding-left: 22px; } ul li, ol.b li { margin: 6px 0; } ul li::marker { color: var(--seal); }
+  code { font-family: var(--mono); font-size: .84em; background: var(--sunk); padding: 1.5px 5px; border-radius: 4px; color: var(--ink); word-break: break-word; }
+  strong { font-weight: 700; } em { font-style: italic; }
+  hr.s { border: none; border-top: 1px solid var(--line); margin: 34px 0; }
+
+  .principle { background: var(--seal-wash); border-radius: var(--r-md); padding: 15px 18px; margin: 16px 0; }
+  .principle .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--seal-deep); font-weight: 700; display: block; margin-bottom: 3px; }
+  .principle p { margin: 0; max-width: none; }
+
+  .note { background: var(--surface); border-left: 4px solid var(--stone); border-radius: var(--r-md); padding: 13px 16px; margin: 18px 0; font-size: 15.5px; }
+  .note p { margin: 5px 0; max-width: none; }
+
+  /* pillars */
+  .pillars { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 15px; margin: 22px 0; }
+  .pillar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; }
+  .pillar .n { font-family: var(--mono); font-size: 12px; color: var(--seal-deep); }
+  .pillar h4 { font-family: var(--serif); font-size: 18px; font-weight: 600; margin: 4px 0 6px; }
+  .pillar p { margin: 0; font-size: 14.5px; color: var(--ink-soft); max-width: none; }
+
+  /* swatches */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: 12px; margin: 20px 0; }
+  .sw { border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+  .sw .chip { height: 62px; display: flex; align-items: flex-end; padding: 7px 9px; }
+  .sw .body { padding: 9px 11px 11px; }
+  .sw .nm { font-weight: 700; font-size: 14px; }
+  .sw .hex { font-family: var(--mono); font-size: 12px; color: var(--stone); }
+  .sw .use { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; display: block; }
+  .sw .tok { font-family: var(--mono); font-size: 11px; color: var(--seal-deep); margin-top: 4px; display: block; }
+
+  /* type specimen */
+  .spec { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; margin: 18px 0; }
+  .spec-row { display: grid; grid-template-columns: 130px 1fr; gap: 16px; padding: 15px 18px; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-row .role { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--stone); }
+  .spec-row .role b { color: var(--ink-soft); display: block; font-size: 12.5px; letter-spacing: 0; text-transform: none; margin-top: 3px; }
+
+  /* scale bars */
+  .scale { display: grid; gap: 7px; margin: 18px 0; }
+  .scale-row { display: grid; grid-template-columns: 66px 1fr; gap: 14px; align-items: center; font-family: var(--mono); font-size: 12.5px; color: var(--stone); }
+  .scale-bar { height: 14px; background: var(--seal); border-radius: 3px; opacity: .85; }
+
+  /* components demo */
+  .demo { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 22px; margin: 18px 0; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .btn { font: 600 15px/1 var(--sans); padding: 11px 18px; border-radius: var(--r-md); cursor: pointer; border: 1px solid transparent; }
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-seal { background: var(--seal); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+  .tag-seal { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--seal-deep); background: var(--seal-wash); padding: 6px 10px; border-radius: var(--r-pill); }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--seal); }
+
+  /* do / dont */
+  .dd { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  .dd .col { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; background: var(--surface); }
+  .dd .hd { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
+  .dd .do .hd { color: var(--sage); } .dd .dont .hd { color: var(--oxblood); }
+  .dd p { margin: 7px 0; font-size: 14.5px; max-width: none; color: var(--ink-soft); }
+  .dd .ex { color: var(--ink); font-style: italic; }
+
+  /* mini transcript demo */
+  .chat { display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+  .bub { max-width: 82%; padding: 10px 13px; border-radius: 14px; font-size: 14.5px; line-height: 1.5; }
+  .bub .who { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--stone); display: block; margin-bottom: 3px; }
+  .bub.agent { align-self: flex-start; background: var(--paper); border: 1px solid var(--line); border-top-left-radius: 4px; }
+  .bub.user { align-self: flex-end; background: var(--sunk); border-top-right-radius: 4px; }
+  .bub .grey { color: var(--stone); font-style: italic; }
+  .bub .seal-txt { color: var(--seal-deep); font-weight: 600; }
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-lg); margin: 18px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 520px; }
+  th { background: var(--sunk); text-align: left; padding: 10px 14px; font: 600 11px/1.3 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--stone); border-bottom: 1px solid var(--line-strong); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); color: var(--ink-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: var(--mono); font-size: 13px; color: var(--ink); white-space: nowrap; }
+
+  footer.foot { margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 14px; color: var(--stone); }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; gap: 8px; }
+    nav.toc { position: static; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; background: var(--surface); margin-bottom: 30px; }
+    nav.toc ol { border-left: none; }
+    .dd { grid-template-columns: 1fr; }
+    body { font-size: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="brandline">
+      <span class="seal-mark" aria-hidden="true">व</span>
+      <span class="name">Vyaz · Brand &amp; Design Language</span>
+    </div>
+    <h1 class="title">The words are the author's. We only carry them.</h1>
+    <p class="standfirst">The single source of truth for how Vyaz looks, sounds, and feels. Brand foundation first — because every color, letterform, and shape here is an argument for one idea: <em>preserve the original, deliver it human.</em></p>
+    <div class="mast-meta">
+      <span><b>Status:</b> v1 — governs all design decisions</span>
+      <span><b>Updated:</b> 2026-07-06</span>
+      <span><b>Direction:</b> warm manuscript + vermilion seal</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <nav class="toc" aria-label="Contents">
+      <div class="lbl">Contents</div>
+      <ol>
+        <li><a href="#thesis">The thesis</a></li>
+        <li><a href="#personality">Personality &amp; voice</a></li>
+        <li><a href="#name">The name &amp; the seal</a></li>
+        <li><a href="#position">Positioning &amp; who we're not</a></li>
+        <li><a href="#color">Color system</a></li>
+        <li><a href="#type">Typography</a></li>
+        <li><a href="#space">Space, grid &amp; density</a></li>
+        <li><a href="#shape">Shape, line &amp; elevation</a></li>
+        <li><a href="#icon">Icon, imagery &amp; the mark</a></li>
+        <li><a href="#motion">Motion</a></li>
+        <li><a href="#components">Components in the language</a></li>
+        <li><a href="#access">Accessibility baseline</a></li>
+        <li><a href="#govern">How this document governs</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section id="thesis">
+        <div class="sec-head"><span class="sec-num">01</span><h2>The thesis</h2></div>
+        <p class="lede">Vyaz exists to carry an author's <em>original</em> thinking to a reader — faithfully, and in the way humans have always passed knowledge on: <strong>in conversation</strong>. Everything in this document defends that idea.</p>
+        <p>Named for <strong>Vyasa</strong> — the sage who spoke the Mahabharata and the Puranas into being — Vyaz treats the person who put pen to paper as the source of truth, and the voice as a faithful medium, never a substitute. In an era of AI slop that averages everything into sludge, Vyaz is a stand for the opposite: the genuine, the sourced, the whole.</p>
+        <div class="pillars">
+          <div class="pillar"><span class="n">01</span><h4>Fidelity over slop</h4><p>We deliver the author's actual words — verbatim. The AI narrates; it never paraphrases, summarizes, or invents. Faithfulness is the product, not a setting.</p></div>
+          <div class="pillar"><span class="n">02</span><h4>Conversation is oldest</h4><p>Knowledge moves the way we evolved to move it — spoken, in dialogue you can interrupt and question. The epics were spoken before they were written.</p></div>
+          <div class="pillar"><span class="n">03</span><h4>Honor the author</h4><p>The human who created the idea is named, credited, and rewarded. Vyaz elevates originators, it doesn't launder them into anonymity.</p></div>
+          <div class="pillar"><span class="n">04</span><h4>Rooted, then modern</h4><p>Grounded in Indian intellectual heritage, delivered warm and contemporary — never academic, never cold, never gimmicky.</p></div>
+        </div>
+        <div class="principle"><span class="tag">The one line</span><p>If a design choice makes Vyaz feel like <em>generated content</em> rather than <em>a real person's genuine work, faithfully carried</em> — it's wrong, however pretty.</p></div>
+      </section>
+
+      <section id="personality">
+        <div class="sec-head"><span class="sec-num">02</span><h2>Personality &amp; voice</h2></div>
+        <p>Vyaz is a <strong>warm, encouraging tutor with real substance</strong> — a patient mentor who happens to be deeply well-read. Warm, never saccharine. Confident, never arrogant. Plain-spoken, never dumbed-down.</p>
+        <div class="kicker">We are</div>
+        <p>Warm · patient · precise · respectful of both the author and the learner · quietly confident · unhurried.</p>
+        <div class="kicker">We are not</div>
+        <p>Hype-y · salesy · jargon-heavy · gamified · ironic · anything that smells of the AI slop we exist to oppose.</p>
+
+        <h3>Voice &amp; tone in practice</h3>
+        <div class="dd">
+          <div class="col do"><div class="hd">Write like this</div>
+            <p class="ex">"Let's pick up where we left off."</p>
+            <p class="ex">"Narrated from Ben Horowitz's own words."</p>
+            <p class="ex">"That chapter didn't load. Tap to try again."</p>
+            <p>Plain, human, specific. Credit the author by name. Errors say what happened and the way out.</p>
+          </div>
+          <div class="col dont"><div class="hd">Not like this</div>
+            <p class="ex">"🚀 Supercharge your learning journey!"</p>
+            <p class="ex">"Our AI summarized this book for you."</p>
+            <p class="ex">"Oops! Something went wrong 😬"</p>
+            <p>Hype, emoji confetti, and — worst of all — implying we <em>summarized</em> or replaced the author.</p>
+          </div>
+        </div>
+        <div class="note"><p><strong>The tell:</strong> our language always keeps the author present. We never say Vyaz "knows" or "wrote" — Vyaz <em>carries</em>, <em>narrates</em>, <em>reads</em>. The credit points outward, to the human.</p></div>
+      </section>
+
+      <section id="name">
+        <div class="sec-head"><span class="sec-num">03</span><h2>The name &amp; the seal</h2></div>
+        <p><strong>Vyaz</strong> → <strong>Vyasa</strong>: the archetypal narrator-compiler of Indian knowledge. The name carries the whole thesis in four letters — the trusted voice that faithfully delivers the great works.</p>
+        <h3>The mark: a seal, not a logo-swoosh</h3>
+        <p>Our symbol is a <strong>seal</strong> — the <em>hanko/chhāp</em>, the stamp of authenticity that both East-Asian and Indian manuscript traditions press onto genuine work. In Vyaz the seal means one thing: <em>this is the real, sourced original.</em></p>
+        <div class="demo">
+          <span class="seal-mark" style="width:54px;height:54px;font-size:30px;border-radius:13px;">व</span>
+          <div style="max-width:44ch;"><p style="margin:0;font-size:15px;color:var(--ink-soft)">A vermilion seal bearing the Devanagari <em>va</em> (व). It is the only place the brand shouts — small, deliberate, earned. Everything else is quiet ink on paper.</p></div>
+        </div>
+        <p>This is why <strong>red survives</strong> from the original palette — but reclassified. It is no longer a "highlight color"; it is the seal of the authentic, and it is spent sparingly (see §5).</p>
+      </section>
+
+      <section id="position">
+        <div class="sec-head"><span class="sec-num">04</span><h2>Positioning &amp; who we're not</h2></div>
+        <p><strong>Vyaz is a premium AI study companion for serious learners in India</strong> — students, aspirants, and professionals who want depth, not shortcuts. Priced to feel premium yet stay reachable.</p>
+        <div class="dd">
+          <div class="col do"><div class="hd">We are</div>
+            <p>A faithful narrator of real books, in conversation.</p>
+            <p>A place that credits and rewards authors.</p>
+            <p>A calm, premium study companion.</p>
+          </div>
+          <div class="col dont"><div class="hd">We are not</div>
+            <p>A summary/"book-in-15-min" app.</p>
+            <p>A generic AI chatbot that answers <em>about</em> books from its own training.</p>
+            <p>A gamified, streak-pushing consumer app.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="color">
+        <div class="sec-head"><span class="sec-num">05</span><h2>Color system</h2></div>
+        <p>Three ideas: <strong>warm paper</strong> (the page), <strong>warm sumi ink</strong> (the author's words), <strong>the vermilion seal</strong> (the mark of the authentic). Neutrals do 95% of the work; the seal is a spice, never a sauce.</p>
+
+        <div class="kicker">Core tokens (light)</div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F3EFE7"></div><div class="body"><span class="nm">Paper</span> <span class="hex">#F3EFE7</span><span class="use">App background</span><span class="tok">--color-background</span></div></div>
+          <div class="sw"><div class="chip" style="background:#FAF7F1"></div><div class="body"><span class="nm">Surface</span> <span class="hex">#FAF7F1</span><span class="use">Cards, raised areas</span><span class="tok">--color-surface</span></div></div>
+          <div class="sw"><div class="chip" style="background:#24211C"></div><div class="body"><span class="nm">Ink</span> <span class="hex">#24211C</span><span class="use">Primary text</span><span class="tok">--color-foreground</span></div></div>
+          <div class="sw"><div class="chip" style="background:#776D5E"></div><div class="body"><span class="nm">Stone</span> <span class="hex">#776D5E</span><span class="use">Muted / captions</span><span class="tok">--color-muted</span></div></div>
+          <div class="sw"><div class="chip" style="background:#C4553D"></div><div class="body"><span class="nm">Seal</span> <span class="hex">#C4553D</span><span class="use">The mark / accent</span><span class="tok">--color-highlight</span></div></div>
+          <div class="sw"><div class="chip" style="background:#E3DCCE"></div><div class="body"><span class="nm">Line</span> <span class="hex">#E3DCCE</span><span class="use">Hairline borders</span><span class="tok">--color-border</span></div></div>
+        </div>
+
+        <div class="kicker">Supporting &amp; semantic</div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#A5402D"></div><div class="body"><span class="nm">Seal-deep</span> <span class="hex">#A5402D</span><span class="use">Seal as text/links (AA)</span></div></div>
+          <div class="sw"><div class="chip" style="background:#4E7B52"></div><div class="body"><span class="nm">Sage</span> <span class="hex">#4E7B52</span><span class="use">Success</span></div></div>
+          <div class="sw"><div class="chip" style="background:#A9772B"></div><div class="body"><span class="nm">Ochre</span> <span class="hex">#A9772B</span><span class="use">Warning</span></div></div>
+          <div class="sw"><div class="chip" style="background:#93342A"></div><div class="body"><span class="nm">Oxblood</span> <span class="hex">#93342A</span><span class="use">Error (≠ brand seal)</span></div></div>
+        </div>
+
+        <div class="principle"><span class="tag">The seal rule</span><p>The seal marks the <strong>authentic</strong> and the <strong>active</strong>: the brand mark, the live/recording indicator, the selected item, inline "book verbatim" highlights, and at most <em>one</em> primary action per view. <strong>Never</strong> a large background fill, never two competing reds on one screen, never body text. When in doubt, the workhorse is ink — spend the seal like it costs money.</p></div>
+
+        <h3>Light &amp; dark</h3>
+        <p>Dark mode is <em>warm lacquer</em>, not black: background <code>#1A1714</code>, text <code>#EDE7DA</code>, and the seal brightens to <code>#E06A50</code> so the mark still reads. Same meaning, inverted ground. This page is showing you your current scheme.</p>
+        <h3>Semantic states vs. the seal</h3>
+        <p>Error red (<code>oxblood</code>) is deliberately deeper and browner than the brand seal, so "something's wrong" never gets confused with "this is authentic." Success/warning lean on sage/ochre — warm, muted, never neon.</p>
+      </section>
+
+      <section id="type">
+        <div class="sec-head"><span class="sec-num">06</span><h2>Typography</h2></div>
+        <p>Type carries the personality. Three roles, each with a job rooted in the thesis.</p>
+        <div class="spec">
+          <div class="spec-row"><span class="role">Display / serif<b>The author's voice</b></span><div><div style="font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.1;letter-spacing:-.01em;">Talk to the book, not about it</div></div></div>
+          <div class="spec-row"><span class="role">Body / sans<b>The tutor's clarity</b></span><div><div style="font-size:16px;">Clean, humane, effortless to read for long stretches — the calm voice guiding the learner through the page.</div></div></div>
+          <div class="spec-row"><span class="role">Mono<b>System &amp; data</b></span><div><div style="font-family:var(--mono);font-size:14px;">chapter 03 · 12:41 · verbatim</div></div></div>
+        </div>
+        <div class="principle"><span class="tag">Brand typeface</span><p>Adopt the <strong>IBM Plex</strong> family — <em>Plex Serif</em> (headings), <em>Plex Sans</em> (body), <em>Plex Mono</em> (data). It's open-source, warm-modern, and crucially ships <strong>Devanagari</strong> — so Latin and Indic set in harmony, honoring the roots without a second font. (Fallbacks: Georgia / system-sans / system-mono. This page previews with fallbacks; the app should self-host Plex.)</p></div>
+
+        <h3>Type scale &amp; rules</h3>
+        <ul>
+          <li><strong>Scale (1.25):</strong> 12 · 13 · 14 · 16 (body) · 20 · 25 · 31 · 39 · 49. Stay on it.</li>
+          <li><strong>Headings:</strong> serif, weight 600, tight leading (~1.1), <code>text-wrap: balance</code>.</li>
+          <li><strong>Body:</strong> sans, weight 400, leading ~1.6, line length <strong>≤ 68 characters</strong>.</li>
+          <li><strong>Labels/eyebrows:</strong> mono, uppercase, letter-spacing ~0.1em, in stone or seal-deep.</li>
+          <li>Numerals in tables/timers use <code>tabular-nums</code>.</li>
+        </ul>
+      </section>
+
+      <section id="space">
+        <div class="sec-head"><span class="sec-num">07</span><h2>Space, grid &amp; density</h2></div>
+        <p>Whitespace is a feature, not a gap — it's how "calm" and "premium" are felt. A <strong>4px base scale</strong> governs all spacing; let layout (flex/grid + <code>gap</code>) create rhythm, never ad-hoc margins.</p>
+        <div class="scale">
+          <div class="scale-row"><span>4px</span><div class="scale-bar" style="width:4px"></div></div>
+          <div class="scale-row"><span>8px</span><div class="scale-bar" style="width:8px"></div></div>
+          <div class="scale-row"><span>12px</span><div class="scale-bar" style="width:12px"></div></div>
+          <div class="scale-row"><span>16px</span><div class="scale-bar" style="width:16px"></div></div>
+          <div class="scale-row"><span>24px</span><div class="scale-bar" style="width:24px"></div></div>
+          <div class="scale-row"><span>32px</span><div class="scale-bar" style="width:32px"></div></div>
+          <div class="scale-row"><span>48px</span><div class="scale-bar" style="width:48px"></div></div>
+          <div class="scale-row"><span>64px</span><div class="scale-bar" style="width:64px"></div></div>
+        </div>
+        <ul>
+          <li><strong>Reading content</strong> caps at ~68ch; the app centers on a comfortable measure, never full-bleed text.</li>
+          <li><strong>Generous breathing room</strong> around primary actions and around the transcript — the page should never feel crowded.</li>
+          <li><strong>Density</strong> is calm by default; admin/data views may tighten one step, but keep the scale.</li>
+        </ul>
+      </section>
+
+      <section id="shape">
+        <div class="sec-head"><span class="sec-num">08</span><h2>Shape, line &amp; elevation</h2></div>
+        <p>Zen restraint: we separate things with <strong>hairlines and space</strong> before we reach for shadows. Surfaces are paper, not floating glass.</p>
+        <ul>
+          <li><strong>Radius:</strong> <code>sm 6px</code> (inputs/chips) · <code>md 10px</code> (buttons/cards) · <code>lg 14px</code> (panels) · <code>pill</code> (tags). Modest — no pill-everything, no sharp-brutalist either.</li>
+          <li><strong>Borders:</strong> 1px <code>line</code> hairlines are the default separator.</li>
+          <li><strong>Elevation:</strong> one soft, warm shadow token for genuinely floating things (modals, menus). Cards prefer a border over a shadow.</li>
+          <li><strong>Seal never outlines everything</strong> — no red rails on cards (that's the cliché we avoid); the seal appears as a mark <em>within</em>, not a frame <em>around</em>.</li>
+        </ul>
+        <div class="demo" style="gap:22px;">
+          <div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;box-shadow:none;font-size:14px;color:var(--ink-soft);max-width:200px;">Card — hairline, no shadow</div>
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--shadow);font-size:14px;color:var(--ink-soft);max-width:200px;">Floating — soft warm shadow</div>
+        </div>
+      </section>
+
+      <section id="icon">
+        <div class="sec-head"><span class="sec-num">09</span><h2>Icon, imagery &amp; the mark</h2></div>
+        <ul>
+          <li><strong>Icons:</strong> line icons, ~1.5px stroke, drawn in ink (Lucide is already in use — keep it). Icons are quiet; they don't get the seal color unless they express an active/authentic state.</li>
+          <li><strong>Imagery:</strong> favor <em>ink-and-paper</em> textures, manuscript/brushwork, real book covers. Avoid stocky 3D gradients and generic "AI" glow — they contradict the anti-slop thesis.</li>
+          <li><strong>The seal motif</strong> can appear as a subtle watermark or a section mark, always small and vermilion. It is the brand's signature gesture.</li>
+          <li><strong>Author presence:</strong> wherever a book appears, the author's name is visible and dignified — never buried.</li>
+        </ul>
+      </section>
+
+      <section id="motion">
+        <div class="sec-head"><span class="sec-num">10</span><h2>Motion</h2></div>
+        <p>Motion is <strong>calm and purposeful</strong> — it explains state, it doesn't perform. If an animation is decorative, cut it (decoration reads as slop).</p>
+        <ul>
+          <li><strong>Durations:</strong> 150–250ms for UI transitions; ease-out for entrances.</li>
+          <li><strong>Earn every motion:</strong> the live waveform (voice is happening), the reconnect countdown (we're recovering), a gentle fade as transcript streams in. That's about the whole budget.</li>
+          <li><strong>Always honor</strong> <code>prefers-reduced-motion</code> — this document does.</li>
+        </ul>
+      </section>
+
+      <section id="components">
+        <div class="sec-head"><span class="sec-num">11</span><h2>Components in the language</h2></div>
+
+        <h3>Buttons</h3>
+        <p>The workhorse primary is <strong>ink</strong>. The <strong>seal button</strong> is reserved for the single most brand-defining action on a view (e.g. <em>Talk</em>) — one per screen, at most.</p>
+        <div class="demo">
+          <button class="btn btn-primary">Continue reading</button>
+          <button class="btn btn-seal">Talk to this book</button>
+          <button class="btn btn-ghost">Cancel</button>
+          <span class="tag-seal"><span class="live-dot"></span> Live</span>
+        </div>
+
+        <h3>Applying it: the Talk transcript (a correction)</h3>
+        <p>Today the "You" bubble is a solid red slab — that breaks the seal rule (big red fill). Re-rooted: the user bubble is a quiet <code>sunk</code> fill; the narrator's <strong>book-verbatim</strong> words are ink, its own asides are grey, and the <strong>seal</strong> appears only as a small mark on genuine highlights.</p>
+        <div class="demo" style="justify-content:center;">
+          <div class="chat">
+            <div class="bub agent"><span class="who">Narrator</span>The best way to predict the future is to invent it. <span class="grey">(Shall I keep going?)</span></div>
+            <div class="bub user"><span class="who">You</span>What does he mean by <span class="seal-txt">zero to one</span>?</div>
+            <div class="bub agent"><span class="who">Narrator</span><span class="grey">(Going from nothing to something new — creating, not copying.)</span></div>
+          </div>
+        </div>
+
+        <h3>Tags, states &amp; inputs</h3>
+        <ul>
+          <li><strong>Active/selected</strong> = seal (text or a 2px seal underline), everything else ink/stone.</li>
+          <li><strong>Inputs</strong>: paper fill, hairline border, seal focus ring (2px, offset).</li>
+          <li><strong>Status</strong>: sage/ochre/oxblood dots or pills — never neon, always paired with a word.</li>
+        </ul>
+      </section>
+
+      <section id="access">
+        <div class="sec-head"><span class="sec-num">12</span><h2>Accessibility baseline</h2></div>
+        <ul>
+          <li><strong>Contrast:</strong> body text meets WCAG AA (4.5:1). Ink-on-paper clears it easily; the seal is <em>not</em> used for small text — use <code>seal-deep</code> when the mark must be text/links.</li>
+          <li><strong>Focus:</strong> every interactive element has a visible seal focus ring; never remove outlines without a replacement.</li>
+          <li><strong>Motion:</strong> respect <code>prefers-reduced-motion</code>; nothing critical is conveyed by motion or color alone.</li>
+          <li><strong>Targets:</strong> touch targets ≥ 44×44px. Voice controls especially — thumbs, on phones, mid-listen.</li>
+          <li><strong>Language:</strong> Devanagari and Latin must render with equal care (a reason for Plex).</li>
+        </ul>
+      </section>
+
+      <section id="govern">
+        <div class="sec-head"><span class="sec-num">13</span><h2>How this document governs</h2></div>
+        <p>This is the <strong>baseline</strong>. New screens, features, and marketing derive from it — they don't reinvent it.</p>
+        <div class="kicker">Precedence when choices conflict</div>
+        <ol class="b">
+          <li><strong>The thesis</strong> (§1) — does it honor the author and the anti-slop stand?</li>
+          <li><strong>These tokens</strong> (§5–§8) — color, type, space, shape.</li>
+          <li><strong>Component convention</strong> — reuse existing patterns before inventing.</li>
+        </ol>
+        <div class="kicker">Source of truth &amp; changes</div>
+        <ul>
+          <li>Tokens live in the app's Tailwind theme (v4 <code>@theme</code>); the names in §5 are the contract. Design and code share <em>one</em> set of variables.</li>
+          <li>A change to a token or a brand rule is a <strong>decision</strong> — log it in <code>docs/DECISIONS.md</code> (as an ADR) so the "why" survives, exactly like engineering choices.</li>
+          <li>When a real need contradicts this doc, that's a signal to <em>update the doc</em>, not to quietly diverge.</li>
+        </ul>
+        <div class="principle"><span class="tag">Remember</span><p>Every pixel is arguing for the same thing the product is: the genuine article, faithfully carried, delivered warm. Ink on paper. The seal, earned.</p></div>
+      </section>
+
+      <footer class="foot">
+        Vyaz Brand &amp; Design Language · v1 · companion to CLAUDE.md, DECISIONS.md, ARCHITECTURE.md and the System Field Guide · warm manuscript + vermilion seal.
+      </footer>
+    </main>
+  </div>
+</div>
