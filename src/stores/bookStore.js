@@ -11,13 +11,27 @@ export const useBookStore = create((set, get) => ({
   narrators: [],
   genres: [],
   filterPills: [],
+  voiceProvider: null,     // public read of platform_settings.voice_provider (see fetchVoiceProvider)
   loading: true,
   initialized: false,
 
   initialize: async () => {
     if (get().initialized) return
-    await Promise.all([get().fetchBooks(), get().fetchNarrators(), get().fetchFilterPills()])
+    await Promise.all([get().fetchBooks(), get().fetchNarrators(), get().fetchFilterPills(), get().fetchVoiceProvider()])
     set({ initialized: true })
+  },
+
+  // Public read of the active voice provider. `platform_settings` is otherwise admin-only
+  // (it holds secrets), so this depends on a scoped RLS policy that exposes ONLY the
+  // `voice_provider` key. If that policy isn't present the read returns null and callers
+  // fall back to the default — safe either way, never exposes secrets.
+  fetchVoiceProvider: async () => {
+    const { data } = await supabase
+      .from('platform_settings')
+      .select('value')
+      .eq('key', 'voice_provider')
+      .maybeSingle()
+    if (data?.value) set({ voiceProvider: data.value })
   },
 
   fetchFilterPills: async () => {
