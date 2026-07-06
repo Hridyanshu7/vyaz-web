@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Mail, Phone, BookOpen, Calendar, Check, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, User, Phone, Check, Loader2, Save } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { Badge } from '../components/ui/Badge'
 import { useAuthStore } from '../stores/authStore'
-import { getGoogleAuthUrl, isGCalCallback, getGCalAuthCode, exchangeGCalToken } from '../lib/calendar'
 import { useBookStore } from '../stores/bookStore'
 import { useSignupModal } from '../hooks/useSignupModal'
 
@@ -37,34 +35,20 @@ export function Profile() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState('')
   const [genres, setGenres] = useState([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (loading) return
-    if (!user && !isGCalCallback()) { useSignupModal.getState().show({ type: 'signin' }); return }
+    if (!user) { useSignupModal.getState().show({ type: 'signin' }); return }
     if (profile) {
       setName(profile.name || '')
       setEmail(profile.email || '')
       setPhone(profile.phone || user?.phone || '')
-      setRole(profile.role || '')
       setGenres(profile.genres || [])
     }
   }, [user, profile, loading])
-
-  useEffect(() => {
-    if (isGCalCallback() && user) {
-      const code = getGCalAuthCode()
-      if (code) {
-        exchangeGCalToken(code)
-          .then(() => updateProfile({ gcal_connected: true }))
-          .catch(() => updateProfile({ gcal_connected: true }))
-          .finally(() => window.history.replaceState({}, '', '/profile'))
-      }
-    }
-  }, [user])
 
   const handleSave = async () => {
     setSaving(true)
@@ -74,7 +58,6 @@ export function Profile() {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || null,
-        role,
         genres,
       })
       setSaved(true)
@@ -88,8 +71,8 @@ export function Profile() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
-      <button onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-6 cursor-pointer">
-        <ArrowLeft size={16} /> Dashboard
+      <button onClick={() => navigate('/')} className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-6 cursor-pointer">
+        <ArrowLeft size={16} /> Back
       </button>
 
       {/* Avatar + name header */}
@@ -131,23 +114,6 @@ export function Profile() {
           </div>
         </section>
 
-        {/* Role */}
-        <section>
-          <label className="block text-sm font-medium mb-2">Role</label>
-          <div className="flex gap-2">
-            {[{ v: 'reader', l: 'Listener' }, { v: 'narrator', l: 'Narrator' }, { v: 'both', l: 'Both' }].map((opt) => (
-              <button
-                key={opt.v}
-                onClick={() => setRole(opt.v)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer
-                  ${role === opt.v ? 'bg-foreground text-white' : 'bg-surface border border-border text-muted hover:text-foreground'}`}
-              >
-                {opt.l}
-              </button>
-            ))}
-          </div>
-        </section>
-
         {/* Genres */}
         <section>
           <label className="block text-sm font-medium mb-2">Interests</label>
@@ -158,31 +124,6 @@ export function Profile() {
               prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]
             )}
           />
-        </section>
-
-        {/* Calendar */}
-        <section className="space-y-3">
-          <label className="block text-sm font-medium">Integrations</label>
-
-          <div className="p-3 rounded-xl border border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar size={16} className="text-muted" />
-              <div>
-                <p className="text-sm font-medium">Google Calendar</p>
-                <p className="text-xs text-muted">
-                  {profile?.gcal_connected ? 'Connected' : 'Not connected'}
-                </p>
-              </div>
-            </div>
-            {profile?.gcal_connected ? (
-              <Badge variant="success"><Check size={12} /> Connected</Badge>
-            ) : (
-              <Button size="sm" variant="outline" onClick={() => { window.location.href = getGoogleAuthUrl() }}>
-                Connect
-              </Button>
-            )}
-          </div>
-
         </section>
 
         {/* Save */}

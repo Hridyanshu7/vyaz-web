@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
-import { BookOpen, Users } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { BookOpen } from 'lucide-react'
 
-export function BookCard({ book, narratorCount = 0, onlineCount = 0 }) {
+export function BookCard({ book }) {
   return (
     <Link
       to={`/books/${book.id}`}
@@ -19,18 +18,6 @@ export function BookCard({ book, narratorCount = 0, onlineCount = 0 }) {
         {book.title}
       </h3>
       <p className="text-xs text-muted mt-1 truncate">{book.author}</p>
-      <div className="flex items-center gap-2 mt-2.5">
-        <Badge variant="muted">
-          <Users size={12} />
-          {narratorCount} narrator{narratorCount !== 1 ? 's' : ''}
-        </Badge>
-        {onlineCount > 0 && (
-          <Badge variant="success">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            {onlineCount} online
-          </Badge>
-        )}
-      </div>
     </Link>
   )
 }

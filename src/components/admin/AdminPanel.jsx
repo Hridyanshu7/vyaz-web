@@ -14,7 +14,6 @@ import { splitIntoSections, sectionCoverage } from '../../lib/sections'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
-  { id: 'sessions', label: 'Group Sessions', icon: Calendar },
   { id: 'books', label: 'Books', icon: BookOpen },
   { id: 'agents', label: 'Agents', icon: Bot },
 ]
@@ -1168,7 +1167,6 @@ export function AdminPanel() {
       {/* Content — all tabs kept mounted, no re-fetch on switch */}
       <div className="flex-1 min-w-0">
         <div style={{ display: activeTab === 'users' ? 'block' : 'none' }}><UserAccess /></div>
-        <div style={{ display: activeTab === 'sessions' ? 'block' : 'none' }}><GroupSessions /></div>
         <div style={{ display: activeTab === 'books' ? 'block' : 'none' }}><BooksTab /></div>
         <div style={{ display: activeTab === 'agents' ? 'block' : 'none' }}><Agents /></div>
       </div>
