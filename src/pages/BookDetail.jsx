@@ -55,7 +55,10 @@ export function BookDetail() {
   const [preselectedNarrator, setPreselectedNarrator] = useState(null)
   const [bookingChapter, setBookingChapter] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
-  const voiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider) || 'cartesia'
+  // voice_provider lives in admin-only platformSettings (loaded only for admins), so for
+  // public/non-admin users it's undefined here — default to gemini_live (the committed
+  // primary; Cartesia is parked). Proper fix: expose voice_provider via a public read.
+  const voiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider) || 'gemini_live'
 
   if (!book) {
     return (
