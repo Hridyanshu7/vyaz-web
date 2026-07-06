@@ -30,9 +30,11 @@ export const useBookStore = create((set, get) => ({
 
   fetchBooks: async () => {
     set({ loading: true })
+    // Light columns only — the heavy `chapters` JSONB (full book text, ~MBs across the
+    // catalog) is lazy-loaded per book via fetchBookChapters when a BookDetail opens.
     const { data, error } = await supabase
       .from('books')
-      .select('*')
+      .select('id, title, author, cover_url, description, genres, language, page_count, isbn, goodreads_data, amazon_data, goodreads_rating, goodreads_ratings_count, amazon_rating, amazon_reviews_count, cartesia_folder_id, is_published')
       .eq('is_published', true)
       .order('title')
 
@@ -72,6 +74,26 @@ export const useBookStore = create((set, get) => ({
   },
 
   getBook: (id) => get().books.find((b) => b.id === id),
+
+  // Lazy-load a single book's heavy `chapters` blob (fetched only when its BookDetail
+  // opens). Memoized — returns the cached chapters if already loaded. The Talk session
+  // reads chapter.sections straight from here, so it inherits them once loaded.
+  fetchBookChapters: async (bookId) => {
+    const existing = get().books.find((b) => b.id === bookId)
+    if (existing?.chapters) return existing.chapters
+    const { data, error } = await supabase
+      .from('books')
+      .select('chapters')
+      .eq('id', bookId)
+      .single()
+    if (!error && data) {
+      set((state) => ({
+        books: state.books.map((b) => (b.id === bookId ? { ...b, chapters: data.chapters } : b)),
+      }))
+      return data.chapters
+    }
+    return null
+  },
 
   removeBook: (bookId) =>
     set((state) => ({ books: state.books.filter((b) => b.id !== bookId) })),

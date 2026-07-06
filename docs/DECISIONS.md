@@ -1,6 +1,6 @@
 # Vyaz — Decision Log (ADRs)
 
-_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-03._
+_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-06._
 
 > **How to use this:** this is the "don't lose the why" record. When a decision changes, add a new entry that supersedes the old one (don't silently edit history). Companion docs: [`ARCHITECTURE.md`](ARCHITECTURE.md) (current system), [`pricing.md`](pricing.md), [`unit-economics.md`](unit-economics.md), [`voice-providers-comparison.md`](voice-providers-comparison.md).
 
@@ -50,6 +50,24 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 - **Status:** Diagnosed; fix **parked** (reload workaround for now).
 - **Why it matters:** Symptoms (choppy audio + laggy text after a few turns) first looked like acoustic echo / upstream VAD change. **Git proved no voice code changed that day**, and a **hard-reload fixed it** → root cause is **main-thread congestion**: mic capture uses a deprecated `ScriptProcessorNode` (main thread) competing with the 60fps waveform + React re-renders. **Fix ladder (parked):** lighten main-thread load (throttle waveform, optimize per-chunk transcript work) first; migrate mic capture to an **AudioWorklet** only if needed. Lesson: "it worked yesterday, no code change" → suspect environment/upstream/perf, and verify with git + a reload test before theorizing.
 
+### A10. Transcript bubble fidelity: render tail-drop + cross-turn buffer resets
+- **Status:** Fixed (2026-07-06).
+- **Symptom:** words the agent *spoke in audio* were missing from the on-screen bubble — mid/end of a segment and, in a later regression, the *beginning* of a turn; user bubbles clipped too.
+- **Causes & fixes:** (1) **Render tail-drop** — `toParagraphs` (`GeminiLiveModal.jsx`) split narration on `.!?` and **discarded any not-yet-terminated trailing text**, so the tail of every streaming/segment-ending run was thrown away. Fixed to preserve the remainder after the last matched sentence. (2) **Cross-turn buffer lifecycle** (`geminiLive.js`) — the agent bubble now resets on `turnComplete`/`interrupted`, and the **user** bubble resets when the *model begins replying* (`_startAgentBubble`), **not** on the model's `turnComplete` (which can land *after* the user already started their next utterance, wiping its opening words). A bubble is created by whichever signal (audio or transcription) arrives first.
+- **Rejected:** a "lazy reset / audio-anchored rotation" attempt — it glued the next turn's opening words onto the previous bubble (beginning-eating). Reverted to eager reset.
+- **Principle reaffirmed:** downstream *render/buffer* loss (text the model DID produce) is a code fix — distinct from prompt-governed behaviour (paraphrasing, missed `((...))` → `live_system_prompt`) and from pre-model capture/VAD loss.
+
+### A11. Long-chapter session resumption + auto-reconnect
+- **Status:** Shipped (2026-07-06) — **supersedes** the "session resumption not built" note in A9 / D3.
+- **Decision:** setup enables `sessionResumption` + `contextWindowCompression: { slidingWindow }`; the client stores the server's `sessionResumptionUpdate` handle and, on an unexpected `ws.onclose` (not an intentional `end()`), transparently re-opens with the handle (up to 5 attempts, backoff), **reusing the live mic/AudioContexts + in-memory progress pointer**, then nudges the model to continue verbatim. A `this.ws !== ws` guard ignores a stale socket's close. UI adds a `reconnecting` state with a friendly countdown ("Hope you're having a lot of fun! Let's continue in {n}…") that dismisses the instant playback resumes.
+- **Why:** replaces the old dead-end ("reopen to continue") so a ~30-min chapter survives the ~10-15 min socket limit.
+- **Caveat:** preview-API field names (`sessionResumption`, `contextWindowCompression.slidingWindow`, `sessionResumptionUpdate`) confirmed working against `gemini-3.1-flash-live-preview`; may drift server-side (A3/A9).
+
+### A12. Interruption robustness: ambient noise vs. second speaker (next)
+- **Status:** Scoped, **not built**.
+- **Two distinct problems:** (a) **ambient noise** (cafe) — *cheap*: mic already requests `echoCancellation`/`noiseSuppression`/`autoGainControl`; add VAD sensitivity/prefix-padding tuning + optional WASM denoise (RNNoise). (b) **second human speaker** (call-centre) — *hard*: needs **voiceprint enrollment + client-side speaker verification** (ONNX/WASM speaker embedding) gating audio *before* Gemini, since Gemini Live has **no server-side target-speaker hook**; likely forces the AudioWorklet migration (A9).
+- **Key fact:** pitch alone is **not** a reliable identifier — a speaker *embedding* (timbre/formants, many dims) is. Do (a) first; (b) is a separate larger project.
+
 ---
 
 ## B. Content pipeline
@@ -78,8 +96,9 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 ## C. Data / infra
 
 ### C1. `bookStore` eager-loads all content (3 MB) — lazy-load agreed
-- **Status:** Decided (lazy-load); **not yet implemented**.
-- **Why:** Public `bookStore.fetchBooks()` does `select('*')` → downloads **every book's full chapter text (~2.77 MB of 3 MB)** on startup just to show the grid; grows linearly with the catalog → slow. Plan: grid uses light columns (~8 KB); **load a book's `chapters` when its BookDetail opens** (so Talk inherits it instantly). Full-text-only-at-Talk deferred (single-JSONB storage makes the split need server work).
+- **Status:** **Shipped (2026-07-06).**
+- **Why:** Public `bookStore.fetchBooks()` did `select('*')` → downloaded **every book's full chapter text (~2.77 MB of 3 MB)** on startup just to show the grid; grew linearly with the catalog → slow.
+- **Implementation:** `fetchBooks()` now selects **light columns only** (no `chapters`); new `fetchBookChapters(bookId)` (memoized) lazy-loads a book's `chapters` when its `BookDetail` opens (spinner while loading), so Talk inherits them. `adminDataStore` was already light. Full-text-only-at-Talk still deferred (single-JSONB storage would need server work); the current per-book load on BookDetail-open is the accepted cost.
 
 ### C2. `language` column added; `publisher`/`pub_date` dropped
 - **Status:** Shipped. `addBook` was inserting 3 non-existent columns → PostgREST error. Added `language` (migration 004, useful for multilingual roadmap); removed `publisher`/`pub_date` from insert + their dead display lines.

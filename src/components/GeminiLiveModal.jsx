@@ -12,16 +12,24 @@ const STATE_LABELS = {
   connecting: 'Connecting…',
   speaking: 'Narrator speaking',
   listening: 'Listening — just speak',
+  reconnecting: 'Reconnecting…',
   ended: 'Session ended',
   error: 'Error',
 }
 
 // Group a run of narration into readable paragraphs (~2 sentences each).
+// IMPORTANT: the sentence regex only matches text ending in . ! ? — so any trailing,
+// not-yet-terminated portion (constant while streaming, and permanent when a segment
+// ends mid-sentence, e.g. right before an aside) must be preserved explicitly, or those
+// spoken words never render even though they're in the buffer + audio.
 function toParagraphs(text) {
-  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) || [text]
+  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g) || []
+  const tail = text.slice(sentences.join('').length)
+  const units = tail.trim() ? [...sentences, tail] : sentences
+  if (units.length === 0) return [text.trim()].filter(Boolean)
   const paras = []
-  for (let i = 0; i < sentences.length; i += 2) {
-    paras.push(sentences.slice(i, i + 2).join(' ').trim())
+  for (let i = 0; i < units.length; i += 2) {
+    paras.push(units.slice(i, i + 2).join(' ').trim())
   }
   return paras.filter(Boolean)
 }
@@ -91,6 +99,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
   const [sessionId, setSessionId] = useState(null)
   const [progress, setProgress] = useState(0)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [reconnectCountdown, setReconnectCountdown] = useState(0)
   const sessionRef = useRef(null)
   const bubblesRef = useRef(null)
   const stickToBottomRef = useRef(true)
@@ -106,6 +115,15 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
       bubblesRef.current.scrollTop = bubblesRef.current.scrollHeight
     }
   }, [conversation])
+
+  // Friendly countdown shown during a reconnect gap. It's an estimate — the overlay is
+  // dismissed the instant the session actually resumes (state → speaking/listening).
+  useEffect(() => {
+    if (state !== 'reconnecting') return
+    setReconnectCountdown(5)
+    const iv = setInterval(() => setReconnectCountdown((c) => (c > 0 ? c - 1 : 0)), 1000)
+    return () => clearInterval(iv)
+  }, [state])
 
   const handleTranscriptScroll = () => {
     const el = bubblesRef.current
@@ -203,7 +221,17 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
         <div className="flex flex-col sm:flex-row flex-1 min-h-0">
 
           {/* Left column — transcript (70%) */}
-          <div className="flex flex-col min-h-0 flex-1 sm:flex-none sm:w-[70%] sm:border-r border-border">
+          <div className="relative flex flex-col min-h-0 flex-1 sm:flex-none sm:w-[70%] sm:border-r border-border">
+            {/* Reconnect overlay — the socket hit its time limit; we resume where we left off. */}
+            {state === 'reconnecting' && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/92 backdrop-blur-sm px-6 text-center">
+                <Loader2 size={22} className="animate-spin text-highlight" />
+                <p className="text-sm font-medium">Hope you're having a lot of fun!</p>
+                <p className="text-xs text-muted">
+                  Let's continue in {reconnectCountdown > 0 ? `${reconnectCountdown}s` : 'a moment'}…
+                </p>
+              </div>
+            )}
             {conversation.length > 0 ? (
               <div ref={bubblesRef} onScroll={handleTranscriptScroll} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
                 {conversation.map((msg) => (
@@ -245,7 +273,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
               <div className="flex items-center justify-center gap-2 mt-1">
                 {state === 'speaking' && <Volume2 size={12} className="text-highlight animate-pulse" />}
                 {state === 'listening' && <Mic size={12} className="text-green-500 animate-pulse" />}
-                {(state === 'connecting' || state === 'idle') && <Loader2 size={12} className="animate-spin text-muted" />}
+                {(state === 'connecting' || state === 'idle' || state === 'reconnecting') && <Loader2 size={12} className="animate-spin text-muted" />}
                 <p className="text-xs text-muted">{STATE_LABELS[state] || state}</p>
               </div>
             </div>

@@ -45,3 +45,9 @@
 21. **Build the phone sign-up form.** New/unregistered numbers currently dead-end — `handleSendOtp` blocks them with "fill details below," but that form doesn't exist. Add name-collection + profile creation.
 22. **Un-hide the UI:** set `PHONE_LOGIN_ENABLED = true` in `SignupModal.jsx` and restore the toggle + phone form in `Login.jsx`.
 
+## Voice modal UI standardization
+
+**Context:** Three provider modals (`GeminiLiveModal`, `VoicePipelineModal`, `VoiceAgentModal`) grew separate UIs across the provider pivots (Cartesia → pipeline → Gemini Live) and have drifted — different layouts, and only the Cartesia `VoiceAgentModal` has a Mute button. Gemini Live is the committed provider, so its modal is the one to standardize on (and likely retire/consolidate the other two).
+
+23. **Standardize UI of the Voice Agent Session modal** — unify on one consistent layout for the Talk session; this should have the **Mute button** carried over from the Cartesia modal (`VoiceAgentModal`), which `GeminiLiveModal` currently lacks.
+
