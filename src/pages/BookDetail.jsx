@@ -1,23 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { BookOpen, ArrowLeft, Clock, FileText, Users, Calendar, MessageSquare, Loader2, ChevronDown, ChevronRight, ExternalLink, Zap, BookMarked, Mic } from 'lucide-react'
-import { format } from 'date-fns'
+import { useParams, Link } from 'react-router-dom'
+import { BookOpen, ArrowLeft, FileText, ExternalLink, Zap, BookMarked, Mic, Loader2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
-import { NarratorCard } from '../components/narrators/NarratorCard'
 import { useBookStore } from '../stores/bookStore'
-import { useBookSessions } from '../hooks/useSessions'
-import { useAuthStore } from '../stores/authStore'
-import { useSignupModal } from '../hooks/useSignupModal'
-import { BookingModal } from '../components/BookingModal'
 import { VoiceAgentModal } from '../components/VoiceAgentModal'
 import { VoicePipelineModal } from '../components/VoicePipelineModal'
 import { GeminiLiveModal } from '../components/GeminiLiveModal'
 import { useAdminDataStore } from '../stores/adminDataStore'
-import { supabase } from '../lib/supabase'
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 function getTopGenres(book) {
   if (book.genres?.length > 0) return book.genres
   return book.goodreads_data?.genres || []
@@ -25,39 +17,23 @@ function getTopGenres(book) {
 
 export function BookDetail() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const { user } = useAuthStore()
-  const showSignup = useSignupModal((s) => s.show)
-  const { getBook, getNarratorsForBook, fetchBookChapters } = useBookStore()
+  const { getBook, fetchBookChapters } = useBookStore()
   const book = getBook(id)
-  const narrators = getNarratorsForBook(id)
   const [chaptersLoading, setChaptersLoading] = useState(false)
 
-  // Chapters are no longer eager-loaded into bookStore (grid stays light) — pull this
-  // book's chapters when its detail page opens, so the list renders and Talk inherits them.
+  // Chapters are lazy-loaded (grid stays light) — pull this book's chapters on open.
   useEffect(() => {
     if (!book || book.chapters) return
     setChaptersLoading(true)
     fetchBookChapters(id).finally(() => setChaptersLoading(false))
   }, [id, book, fetchBookChapters])
 
-  const isUuid = UUID_RE.test(id)
-  const { sessions: upcomingSessions } = useBookSessions(isUuid ? id : null)
-  const [searchParams, setSearchParams] = useSearchParams()
-  const expandedChapter = searchParams.get('ch') ? parseInt(searchParams.get('ch')) : null
-  const setExpandedChapter = (i) => setSearchParams((p) => { i != null ? p.set('ch', String(i)) : p.delete('ch'); return p }, { replace: true })
   const [descExpanded, setDescExpanded] = useState(false)
   const [expandedCard, setExpandedCard] = useState(null)
-  const [requestSent, setRequestSent] = useState(false)
-  const [requesting, setRequesting] = useState(false)
-  const [bookingOpen, setBookingOpen] = useState(false)
-  const [bookingType, setBookingType] = useState('one_on_one')
-  const [preselectedNarrator, setPreselectedNarrator] = useState(null)
-  const [bookingChapter, setBookingChapter] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
-  // Provider precedence: admin's fully-loaded settings → public scoped read (bookStore) →
-  // gemini_live default. This way an admin's choice reaches every user via the public read,
-  // without exposing the rest of platform_settings (secrets stay admin-only via RLS).
+  const [gistSoon, setGistSoon] = useState(false)
+
+  // Provider precedence: admin settings → public scoped read → gemini_live default.
   const adminVoiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider)
   const publicVoiceProvider = useBookStore((s) => s.voiceProvider)
   const voiceProvider = adminVoiceProvider || publicVoiceProvider || 'gemini_live'
@@ -76,22 +52,6 @@ export function BookDetail() {
   const topGenres = getTopGenres(book)
   const description = book.description || gr?.description || az?.description || ''
   const chapters = book.chapters || []
-  const hasNarrators = narrators.length > 0
-  const firstNarrator = narrators[0]
-
-  const handleBookGist = () => {
-    if (!user) { showSignup({ type: 'gist', bookId: id }); return }
-    setBookingType('one_on_one')
-    setBookingOpen(true)
-  }
-
-  const handleBookChapter = (e, chapter) => {
-    e.stopPropagation()
-    if (!user) { showSignup({ type: 'chapter', bookId: id }); return }
-    setBookingChapter(chapter)
-    setBookingType('one_on_one')
-    setBookingOpen(true)
-  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -163,11 +123,13 @@ export function BookDetail() {
             )}
           </div>
 
-          {/* Gist Session CTA */}
-          <Button className="w-full mt-4" onClick={handleBookGist}>
-            <Zap size={14} className="mr-1" /> Gist Session — 30 min
+          {/* Whole-book Gist (AI) — coming soon */}
+          <Button className="w-full mt-4" onClick={() => setGistSoon(true)}>
+            <Zap size={14} className="mr-1" /> Book Gist (AI)
           </Button>
-          <p className="text-[10px] text-muted text-center mt-1">Whole book summary + your Q&A</p>
+          <p className="text-[10px] text-muted text-center mt-1">
+            {gistSoon ? 'Whole-book AI summary — coming soon.' : 'A whole-book summary you can talk to'}
+          </p>
 
           {/* Summary */}
           <div className="mt-4">
@@ -209,7 +171,6 @@ export function BookDetail() {
 
         {/* ===== RIGHT COLUMN ===== */}
         <div>
-
           {/* CHAPTERS */}
           <div className="mb-6">
             <p className="text-xs font-medium uppercase tracking-wider text-muted mb-3">Chapters</p>
@@ -248,7 +209,7 @@ export function BookDetail() {
                           ))}
                         </div>
                       )}
-                      {/* CTAs */}
+                      {/* Talk CTA */}
                       <div className="flex items-center gap-2 mt-2.5 pl-8">
                         <Button
                           size="sm"
@@ -257,13 +218,6 @@ export function BookDetail() {
                           className="flex items-center gap-1"
                         >
                           <Mic size={11} /> Talk
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => handleBookChapter(e, ch)}
-                        >
-                          Book a Narrator
                         </Button>
                       </div>
                     </div>
@@ -279,116 +233,12 @@ export function BookDetail() {
               <div className="text-center py-10 border border-dashed border-border rounded-xl">
                 <BookMarked size={24} className="mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted">Chapter details coming soon.</p>
-                <p className="text-xs text-muted mt-1">Book a Gist Session for the whole book.</p>
               </div>
             )}
           </div>
-
-          {/* NARRATORS */}
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted mb-3">
-              Narrators ({narrators.length})
-            </p>
-
-            {/* Group sessions */}
-            {upcomingSessions.length > 0 && (
-              <div className="mb-3 space-y-2">
-                {upcomingSessions.map((session) => {
-                  const attendeeCount = session.attendees?.length || 0
-                  const alreadyJoined = session.attendees?.some((a) => a.reader_id === user?.id)
-                  return (
-                    <div key={session.id} className="p-3 rounded-lg border border-highlight/20 bg-highlight/5 flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-medium">{session.narrator?.name}</span>
-                          <Badge variant="highlight"><Users size={10} /> {attendeeCount}/{session.max_attendees}</Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted">
-                          <span className="flex items-center gap-1"><Calendar size={10} /> {format(new Date(session.scheduled_at), 'EEE, MMM d · h:mm a')}</span>
-                          <span className="flex items-center gap-1"><Clock size={10} /> {session.duration_minutes} min</span>
-                        </div>
-                      </div>
-                      {alreadyJoined ? (
-                        <Badge variant="success">Joined</Badge>
-                      ) : (
-                        <Button size="sm" onClick={async () => {
-                          if (!user) { showSignup({ type: 'join', sessionId: session.id, bookId: id }); return }
-                          if (attendeeCount >= session.max_attendees) { alert('This session is full'); return }
-                          await supabase.from('session_attendees').insert({ session_id: session.id, reader_id: user.id })
-                          window.location.reload()
-                        }} disabled={attendeeCount >= session.max_attendees}>
-                        {attendeeCount >= session.max_attendees ? 'Full' : 'Join'}
-                      </Button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Narrator cards */}
-            {narrators.length > 0 ? (
-              <div className="space-y-2">
-                {narrators.map((narrator, i) => (
-                  <NarratorCard
-                    key={narrator.id}
-                    narrator={narrator}
-                    bookId={id}
-                    isOnline={false}
-                    rating={4.2 + (i * 0.15)}
-                    reviewCount={8 + i * 3}
-                    onBook={(n) => {
-                      if (!user) { showSignup({ type: 'gist', bookId: id }); return }
-                      setPreselectedNarrator(n)
-                      setBookingType('one_on_one')
-                      setBookingOpen(true)
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 border border-dashed border-border rounded-xl">
-                <p className="text-muted text-sm">No narrators available yet.</p>
-              </div>
-            )}
-
-            {/* Request */}
-            {user && isUuid && (
-              <div className={`mt-3 p-3 rounded-lg border flex items-center justify-between ${hasNarrators ? 'border-border' : 'border-highlight/30 bg-highlight/5'}`}>
-                <div>
-                  <p className="text-sm font-medium">{hasNarrators ? 'Want a different narrator?' : 'Be the first to request'}</p>
-                  <p className="text-xs text-muted">We'll notify narrators.</p>
-                </div>
-                {requestSent ? (
-                  <Badge variant="success">Sent</Badge>
-                ) : (
-                  <Button size="sm" variant={hasNarrators ? 'outline' : 'primary'} disabled={requesting} onClick={async () => {
-                    setRequesting(true)
-                    try {
-                      await supabase.from('session_requests').insert({ reader_id: user.id, book_id: id })
-                      setRequestSent(true)
-                    } catch {}
-                    setRequesting(false)
-                  }}>
-                    {requesting ? <Loader2 size={14} className="animate-spin" /> : <><MessageSquare size={14} className="mr-1" /> Request</>}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-
         </div>
       </div>
 
-      {/* Booking Modal */}
-      <BookingModal
-        open={bookingOpen}
-        onClose={() => { setBookingOpen(false); setPreselectedNarrator(null); setBookingChapter(null) }}
-        bookId={id}
-        sessionType={bookingType}
-        preselectedNarrator={preselectedNarrator}
-        chapter={bookingChapter}
-      />
       {voiceProvider === 'gemini_live' ? (
         <GeminiLiveModal
           open={!!voiceChapter}

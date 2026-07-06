@@ -1,17 +1,12 @@
-import { useSearchParams } from 'react-router-dom'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, BookOpen, Users, Calendar, Clock, Star, User } from 'lucide-react'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, BookOpen, Mic, MessageSquare } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
 import { StarRating } from '../components/ui/StarRating'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { useSignupModal } from '../hooks/useSignupModal'
-import { useUpcomingSessions } from '../hooks/useUpcomingSessions'
-import { format } from 'date-fns'
-import { supabase } from '../lib/supabase'
 
 export function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -22,8 +17,7 @@ export function Home() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const showSignup = useSignupModal((s) => s.show)
-  const { books, loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
-  const { sessions: upcomingSessions } = useUpcomingSessions(5)
+  const { loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
 
   const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
   const featuredBooks = getFeaturedBooks()
@@ -37,7 +31,7 @@ export function Home() {
             Books are long and lonely. <span className="text-highlight">Conversations aren't.</span>
           </h1>
           <p className="text-muted mt-4 text-lg max-w-xl">
-            Skip the reading. Have a narration from someone who understands the next title you're dying to read.
+            Talk to the book. An AI narrator reads it aloud — word for word — and answers your questions, out loud, as you go.
           </p>
           <div className="flex gap-3 mt-8">
             <Button size="lg" onClick={() => user ? navigate('/books') : showSignup({ type: 'getstarted' })}>
@@ -62,21 +56,21 @@ export function Home() {
                 <BookOpen size={24} className="text-highlight" />
               </div>
               <h3 className="font-semibold mb-1">Pick a book</h3>
-              <p className="text-sm text-muted">Browse our catalog. See ratings, reviews, and what readers say — all in one place.</p>
+              <p className="text-sm text-muted">Browse the catalog. See ratings, reviews, and what readers say — all in one place.</p>
             </div>
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-highlight/10 flex items-center justify-center mx-auto mb-4">
-                <Users size={24} className="text-highlight" />
+                <Mic size={24} className="text-highlight" />
               </div>
-              <h3 className="font-semibold mb-1">Choose a narrator</h3>
-              <p className="text-sm text-muted">Find someone who's read the book deeply. Check their ratings, availability, and book a slot that works for you.</p>
+              <h3 className="font-semibold mb-1">Press Talk</h3>
+              <p className="text-sm text-muted">The AI narrator begins reading the chapter aloud — verbatim, in the author's actual words. No summaries, no slop.</p>
             </div>
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-highlight/10 flex items-center justify-center mx-auto mb-4">
-                <Calendar size={24} className="text-highlight" />
+                <MessageSquare size={24} className="text-highlight" />
               </div>
-              <h3 className="font-semibold mb-1">Join a 30-min session</h3>
-              <p className="text-sm text-muted">Get on a call. Ask questions, discuss ideas, get the gist. A Google Meet link is created automatically.</p>
+              <h3 className="font-semibold mb-1">Ask anything</h3>
+              <p className="text-sm text-muted">Interrupt any time. Ask a question, get an answer grounded in the book — then pick up right where you left off.</p>
             </div>
           </div>
         </div>
@@ -89,7 +83,7 @@ export function Home() {
             <div className="flex items-end justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold">Top rated books</h2>
-                <p className="text-sm text-muted mt-1">Highest rated on Goodreads, available for narration</p>
+                <p className="text-sm text-muted mt-1">Highest rated on Goodreads — ready to talk to</p>
               </div>
               <Link to="/books" className="text-sm text-highlight hover:underline flex items-center gap-1">
                 View all <ArrowRight size={14} />
@@ -120,97 +114,37 @@ export function Home() {
         </section>
       )}
 
-      {/* ===== WHY VYAS ===== */}
+      {/* ===== WHY VYAZ ===== */}
       <section className="border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-16">
           <h2 className="text-xl font-bold text-center mb-10">Why Vyaz?</h2>
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <div className="p-5 rounded-xl border border-border">
-              <h3 className="font-semibold text-sm mb-1">Not a summary. A conversation.</h3>
-              <p className="text-xs text-muted leading-relaxed">Blinkist gives you bullet points. YouTube gives you a monologue. Vyaz gives you a real person who answers your specific questions.</p>
+              <h3 className="font-semibold text-sm mb-1">Not a summary. The real thing.</h3>
+              <p className="text-xs text-muted leading-relaxed">Blinkist gives you bullet points. Vyaz reads you the author's actual words — verbatim — and answers your questions along the way.</p>
             </div>
             <div className="p-5 rounded-xl border border-border">
-              <h3 className="font-semibold text-sm mb-1">Ask what a book can't answer.</h3>
-              <p className="text-xs text-muted leading-relaxed">"How does this apply to my startup?" "Is chapter 7 worth reading?" A narrator adapts to you. A book doesn't.</p>
+              <h3 className="font-semibold text-sm mb-1">Ask what a page can't answer.</h3>
+              <p className="text-xs text-muted leading-relaxed">"How does this apply to my startup?" "Is chapter 7 worth it?" The narrator answers, grounded in the book. A page doesn't.</p>
             </div>
             <div className="p-5 rounded-xl border border-border">
-              <h3 className="font-semibold text-sm mb-1">30 minutes, not 30 hours.</h3>
-              <p className="text-xs text-muted leading-relaxed">The average nonfiction book takes 6+ hours to read. A Vyaz session gets you the substance in one focused conversation.</p>
+              <h3 className="font-semibold text-sm mb-1">Listen, don't slog.</h3>
+              <p className="text-xs text-muted leading-relaxed">The average nonfiction book takes 6+ hours to read. Listen and ask instead — on your commute, at the gym, hands-free.</p>
             </div>
             <div className="p-5 rounded-xl border border-border">
               <h3 className="font-semibold text-sm mb-1">Decide if it's worth reading.</h3>
-              <p className="text-xs text-muted leading-relaxed">Not sure a book is for you? Talk to someone who's read it. You'll know in 30 minutes whether to commit or move on.</p>
+              <p className="text-xs text-muted leading-relaxed">Not sure a book is for you? Talk to it first. You'll know fast whether to commit or move on.</p>
             </div>
           </div>
         </div>
       </section>
-
-      {/* ===== UPCOMING SESSIONS ===== */}
-      {upcomingSessions.length > 0 && (
-        <section className="border-b border-border">
-          <div className="max-w-6xl mx-auto px-4 py-16">
-            <h2 className="text-xl font-bold text-center mb-2">Upcoming sessions</h2>
-            <p className="text-sm text-muted text-center mb-8">Join a group conversation happening soon</p>
-            <div className="max-w-2xl mx-auto space-y-3">
-              {upcomingSessions.map((session) => {
-                const attendeeCount = session.attendees?.length || 0
-                const seatsLeft = session.max_attendees - attendeeCount
-                const alreadyJoined = session.attendees?.some((a) => a.reader_id === user?.id)
-                return (
-                  <div key={session.id} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-foreground/20 transition-colors">
-                    <div className="w-10 h-14 rounded-lg bg-surface border border-border overflow-hidden shrink-0">
-                      {session.book?.cover_url ? (
-                        <img src={session.book.cover_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted" /></div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <Link to={`/books/${session.book?.id}`} className="text-sm font-medium truncate hover:text-highlight">{session.book?.title}</Link>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted">
-                        <span className="flex items-center gap-1">
-                          {session.narrator?.avatar_url ? (
-                            <img src={session.narrator.avatar_url} alt="" className="w-3.5 h-3.5 rounded-full" />
-                          ) : (
-                            <User size={10} />
-                          )}
-                          {session.narrator?.name}
-                        </span>
-                        <span className="flex items-center gap-1"><Calendar size={10} /> {format(new Date(session.scheduled_at), 'EEE, MMM d · h:mm a')}</span>
-                        <span className="flex items-center gap-1"><Clock size={10} /> {session.duration_minutes} min</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="muted"><Users size={10} /> {seatsLeft} left</Badge>
-                      {alreadyJoined ? (
-                        <Badge variant="success">Joined</Badge>
-                      ) : (
-                        <Button size="sm" onClick={async () => {
-                          if (!user) { showSignup({ type: 'join', sessionId: session.id, bookId: session.book?.id }); return }
-                          if (seatsLeft <= 0) return
-                          await supabase.from('session_attendees').insert({ session_id: session.id, reader_id: user.id })
-                          window.location.reload()
-                        }} disabled={seatsLeft <= 0}>
-                          {seatsLeft <= 0 ? 'Full' : 'Join'}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ===== FULL CATALOG ===== */}
       <section id="browse" className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold">Explore all books</h2>
-            <p className="text-sm text-muted mt-1">Find a book and connect with someone who knows it inside out</p>
+            <p className="text-sm text-muted mt-1">Find a book and talk to it</p>
           </div>
         </div>
 

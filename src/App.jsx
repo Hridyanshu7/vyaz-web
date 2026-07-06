@@ -4,12 +4,8 @@ import { Layout } from './components/layout/Layout'
 import { Home } from './pages/Home'
 import { BookBrowse } from './pages/BookBrowse'
 import { BookDetail } from './pages/BookDetail'
-import { NarratorProfile } from './pages/NarratorProfile'
-import { Dashboard } from './pages/Dashboard'
-import { PostSession } from './pages/PostSession'
 import { AddBook } from './pages/AddBook'
 import { Profile } from './pages/Profile'
-import { Availability } from './pages/Availability'
 import { Login } from './pages/Login'
 import { useAuthStore } from './stores/authStore'
 import { useBookStore } from './stores/bookStore'
@@ -50,11 +46,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/books" element={<BookBrowse />} />
             <Route path="/books/:id" element={<BookDetail />} />
-            <Route path="/narrators/:id" element={<NarratorProfile />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/review/:bookingId" element={<PostSession />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/availability" element={<Availability />} />
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/login" element={<Login />} />
             <Route path="*" element={<Navigate to="/" replace />} />
