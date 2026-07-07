@@ -7,6 +7,7 @@ import { BookDetail } from './pages/BookDetail'
 import { AddBook } from './pages/AddBook'
 import { Profile } from './pages/Profile'
 import { Login } from './pages/Login'
+import { AdminPanel } from './components/admin/AdminPanel'
 import { useAuthStore } from './stores/authStore'
 import { useBookStore } from './stores/bookStore'
 
@@ -29,6 +30,14 @@ class ErrorBoundary extends Component {
   }
 }
 
+// Admin lives at its own route now (it used to be a tab inside the removed Dashboard).
+function AdminRoute() {
+  const { profile, loading } = useAuthStore()
+  if (loading) return null
+  if (!profile?.is_admin) return <Navigate to="/" replace />
+  return <div className="max-w-6xl mx-auto px-4 py-6"><AdminPanel /></div>
+}
+
 export default function App() {
   const initAuth = useAuthStore((s) => s.initialize)
   const initBooks = useBookStore((s) => s.initialize)
@@ -47,6 +56,7 @@ export default function App() {
             <Route path="/books" element={<BookBrowse />} />
             <Route path="/books/:id" element={<BookDetail />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admin" element={<AdminRoute />} />
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/login" element={<Login />} />
             <Route path="*" element={<Navigate to="/" replace />} />

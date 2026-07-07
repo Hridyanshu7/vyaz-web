@@ -93,7 +93,7 @@ function Waveform({ sessionRef, state }) {
   )
 }
 
-export function GeminiLiveModal({ open, onClose, book, chapter }) {
+export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter' }) {
   const [state, setState] = useState('idle')
   const [error, setError] = useState(null)
   const [sessionId, setSessionId] = useState(null)
@@ -132,7 +132,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
   }
 
   useEffect(() => {
-    if (!open || !book || !chapter) return
+    if (!open || !book || (mode !== 'gist' && !chapter)) return
     let cancelled = false
 
     async function connect() {
@@ -142,12 +142,13 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
       setProgress(0)
       setActiveIndex(-1)
       try {
-        const config = await getGeminiLiveSession(book, chapter)
+        const config = await getGeminiLiveSession(book, chapter, { mode })
         if (cancelled) return
         setSessionId(config.sessionId)
 
         const session = new GeminiLiveSession({
           ...config,
+          mode,
           onStateChange: (s) => { if (!cancelled) setState(s) },
           onTranscript: ({ id, role, text, segments }) => {
             if (!cancelled && config.sessionId && text) {
@@ -183,7 +184,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
       sessionRef.current?.end()
       sessionRef.current = null
     }
-  }, [open, book, chapter])
+  }, [open, book, chapter, mode])
 
   const handleClose = () => {
     if (sessionId) clearVoiceTranscript(sessionId)
@@ -209,7 +210,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter }) {
             </div>
             <p className="text-xs text-muted truncate mt-1">{book?.title}</p>
             <h2 className="text-sm font-semibold leading-snug mt-0.5">
-              Ch {chapter?.number}: {chapter?.title}
+              {mode === 'gist' ? 'Whole-book Gist' : `Ch ${chapter?.number}: ${chapter?.title}`}
             </h2>
           </div>
           <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer shrink-0">

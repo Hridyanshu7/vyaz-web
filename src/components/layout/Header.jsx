@@ -34,6 +34,11 @@ export function Header() {
           </Link>
           {user ? (
             <>
+              {profile?.is_admin && (
+                <Link to="/admin" className="text-sm text-muted hover:text-foreground transition-colors">
+                  Admin
+                </Link>
+              )}
               <div className="flex items-center gap-3">
                 <Link to="/profile" className="flex items-center gap-1.5 text-sm hover:text-highlight transition-colors">
                   {profile?.avatar_url ? (
@@ -74,6 +79,11 @@ export function Header() {
             </Link>
             {user ? (
               <>
+                {profile?.is_admin && (
+                  <Link to="/admin" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
+                    Admin
+                  </Link>
+                )}
                 <Link to="/profile" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>
                   Profile
                 </Link>

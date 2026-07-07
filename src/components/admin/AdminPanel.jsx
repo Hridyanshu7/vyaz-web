@@ -41,9 +41,9 @@ function UserAccess() {
       dirty.map(async (userId) => {
         const u = users.find((x) => x.id === userId)
         const { error } = await supabase.from('profiles').update({
-          role: u.role, is_admin: u.is_admin, is_active: u.is_active,
+          is_admin: u.is_admin, is_active: u.is_active,
         }).eq('id', userId)
-        if (!error) updateUser(userId, { role: u.role, is_admin: u.is_admin, is_active: u.is_active })
+        if (!error) updateUser(userId, { is_admin: u.is_admin, is_active: u.is_active })
         return { userId, error }
       })
     )
@@ -101,12 +101,6 @@ function UserAccess() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-2 pl-11">
-                  <select value={u.role || 'reader'} onChange={(e) => patch(u.id, { role: e.target.value })}
-                    className="text-xs px-2 py-1 rounded-lg border border-border bg-background cursor-pointer focus:outline-none">
-                    <option value="reader">Listener</option>
-                    <option value="narrator">Narrator</option>
-                    <option value="both">Both</option>
-                  </select>
                   <button onClick={() => patch(u.id, { is_admin: !u.is_admin })}
                     className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border transition-colors ${u.is_admin ? 'bg-highlight/10 border-highlight text-highlight' : 'border-border text-muted hover:text-foreground'}`}>
                     {u.is_admin ? 'Revoke Admin' : 'Make Admin'}
@@ -1048,7 +1042,7 @@ const LIVE_VOICE_OPTIONS = GEMINI_VOICES.map(([value, desc]) => ({ value, label:
 
 function GeminiLiveCard() {
   const { vals, set, save, saving, saved } = useProviderSettings([
-    'live_model', 'live_voice', 'live_system_prompt',
+    'live_model', 'live_voice', 'live_system_prompt', 'live_gist_prompt',
   ])
   return (
     <ProviderCard
@@ -1087,6 +1081,14 @@ function GeminiLiveCard() {
             </label>
             <p className="text-[10px] text-muted mb-1">Leave blank to use the built-in narrator prompt. {'{content}'} is the full chapter.</p>
             <textarea value={vals.live_system_prompt || ''} onChange={(e) => set('live_system_prompt', e.target.value)}
+              rows={12} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
+          </div>
+          <div>
+            <label className="text-xs text-muted mb-1 block">
+              Gist Prompt (whole-book summary) — use {ph(['book_title', 'author', 'content'])}
+            </label>
+            <p className="text-[10px] text-muted mb-1">Leave blank to use the built-in gist prompt. {'{content}'} is the whole book.</p>
+            <textarea value={vals.live_gist_prompt || ''} onChange={(e) => set('live_gist_prompt', e.target.value)}
               rows={12} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
           </div>
           <Button size="sm" onClick={save} disabled={saving}>

@@ -31,7 +31,7 @@ export function BookDetail() {
   const [descExpanded, setDescExpanded] = useState(false)
   const [expandedCard, setExpandedCard] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
-  const [gistSoon, setGistSoon] = useState(false)
+  const [gistOpen, setGistOpen] = useState(false)
 
   // Provider precedence: admin settings → public scoped read → gemini_live default.
   const adminVoiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider)
@@ -124,12 +124,10 @@ export function BookDetail() {
           </div>
 
           {/* Whole-book Gist (AI) — coming soon */}
-          <Button className="w-full mt-4" onClick={() => setGistSoon(true)}>
+          <Button className="w-full mt-4" onClick={() => setGistOpen(true)} disabled={!book.chapters?.length}>
             <Zap size={14} className="mr-1" /> Book Gist (AI)
           </Button>
-          <p className="text-[10px] text-muted text-center mt-1">
-            {gistSoon ? 'Whole-book AI summary — coming soon.' : 'A whole-book summary you can talk to'}
-          </p>
+          <p className="text-[10px] text-muted text-center mt-1">A whole-book summary you can talk to</p>
 
           {/* Summary */}
           <div className="mt-4">
@@ -261,6 +259,15 @@ export function BookDetail() {
           chapter={voiceChapter}
         />
       )}
+
+      {/* Whole-book Gist (AI) — always the Gemini Live modal, gist mode */}
+      <GeminiLiveModal
+        open={gistOpen}
+        onClose={() => setGistOpen(false)}
+        book={book}
+        chapter={null}
+        mode="gist"
+      />
     </div>
   )
 }
