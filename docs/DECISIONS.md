@@ -148,6 +148,7 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 ### D2. Pricing: Freemium 3-tier + verbatim credits
 - **Status:** Recommended (see [pricing.md](pricing.md)). Free (2–3 concise ch) → ₹199 Learner → ₹449 Scholar; verbatim as ₹99/ch credits. **No text-summary tier** — the transcript *is* part of the audio experience, not a separate SKU.
 - **Cost lever:** concise/discussion mode (~₹17/ch) as everyday default vs verbatim (~₹75/ch) premium. Cost reduction (₹17→₹10) is strategic, not cosmetic.
+- **Update (2026-07-07): concise mode decided against.** No non-verbatim narration mode — reaffirms A4 (concise/discussion would also re-break progress tracking + black/grey classification, which require verbatim delivery). Pricing must lean on other levers (credits, tiering), not a concise SKU.
 
 ### D3. Unit economics + the scaling wall
 - **Status:** Documented ([unit-economics.md](unit-economics.md)). ~$0.90 per verbatim chapter (~30 min audio; audio-output dominates). Two hard limits: **~3 concurrent Live sessions/key** (→ Vertex for 1,000) and **~10–15 min per WebSocket connection** (a 30-min chapter needs session resumption — not yet built).

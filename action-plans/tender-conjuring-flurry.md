@@ -66,6 +66,8 @@
 **Context:** Two separate problems. Ambient/stationary noise (café, factory hum) is cheap to attack; a second human *voice* (call-centre) is not — it needs a voiceprint (pitch alone is not an identifier). Approach is measurement-gated: ship the cheapest layer, measure against real environments, add heavier layers only on a measured failure. **Phase 0 done** — VAD schema verified against the live API (`realtimeInputConfig.automaticActivityDetection`: `disabled`, `startOfSpeechSensitivity`, `prefixPaddingMs`, `endOfSpeechSensitivity`, `silenceDurationMs`; camelCase).
 
 29. **Baseline (yours to capture).** Run Talk in a noisy environment; note false interrupts, first-word clipping, and whether a faint voice registers. Gates everything below.
+   - **Partial baseline captured 2026-07-07 (fan noise):** with a fan running, barge-in got noticeably less sensitive — user has to find a "dead gap" to interrupt. **Confirmed environmental, not a regression:** same test in a quiet room = crisp barge-in (also ruled out the v1alpha `Constrained` endpoint switch as a cause). Matches the predicted AGC-amplifies-noise mechanism → Phase 1 (#30) is the direct fix to try first.
+   - **Second, distinct finding — playback/echo:** when the narrator's own playback volume is louder than the user's voice, barge-in fails to detect the user at all even with **no** background noise. Likely acoustic echo/speaker-bleed (mic picks up the narrator over the speakers), not ambient noise — a different mechanism from #30–32. Candidate fixes: a playback volume control/lower default gain, headphones as the recommended setup, `startOfSpeechSensitivity: HIGH` at the margin. Needs its own headphones-vs-speakers test to confirm before building.
 30. **Ambient Phase 1 — config only, no deps.** In `geminiLive.js`: set mic `autoGainControl: false`; add `prefixPaddingMs` (~200–300ms) to `automaticActivityDetection`; leave start sensitivity at default (protects faint voices). Also the fix for **user first-word clipping**. Measure vs #29.
 31. **Ambient Phase 2 — WASM denoise (RNNoise)** in the mic path, *only if* Phase 1 leaves loud stationary noise (e.g. factory floor). Raises SNR so VAD can stay sensitive. Likely forces the AudioWorklet migration.
 32. **Ambient Phase 3 — manual VAD** (disable auto-VAD; client-side detect + `activityStart`/`activityEnd`), *only if* Gemini's VAD knobs prove too coarse. Full control, more code.
@@ -96,4 +98,8 @@
 ## Voice — reconnection polish
 
 38. **Gapless reconnect (pre-emptive `goAway` handoff).** Reconnection already works (A11) but has a ~1–3s "Reconnecting…" gap because we reconnect *after* the socket drops. Enhancement: on Gemini's `goAway` warning (carries `timeLeft`), open the resume connection *before* the old one closes → no visible pause. **Must handle (per discussion):** open early but **hand over late** — the old socket is still alive and may be mid-audio, so keep it driving mic/playback until its `timeLeft` is nearly spent, then switch. Otherwise you waste the old session's remaining time / cut its audio tail. Also keep the **concurrent-overlap window tiny** — two live sockets at once = double audio + cost and counts toward the ~3-session/key cap. Optional polish, not a fix.
+
+## Pricing — concise narration mode: decided against
+
+**Decision (2026-07-07):** No concise/discussion narration mode. Verbatim-only stands (reaffirms A4) — the ₹17/ch concise-mode pricing lever from DECISIONS D2 is dropped. Pricing should lean on other levers (credits, tiering) instead.
 
