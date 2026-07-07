@@ -1,6 +1,6 @@
 # Vyaz — Architecture Snapshot
 
-_Current-system map. Last updated: 2026-07-06. For the **why** behind these choices, see [DECISIONS.md](DECISIONS.md)._
+_Current-system map. Last updated: 2026-07-07. For the **why** behind these choices, see [DECISIONS.md](DECISIONS.md)._
 
 ## Product in one line
 A P2P book-knowledge marketplace where readers **talk to books** — an AI voice agent narrates a chapter verbatim and answers questions — plus human narrator sessions (1:1 and group).
@@ -51,3 +51,11 @@ Per-book buttons: **EPUB** (`parseEpub` → chapter text) → **Generate/Regen**
 - Voice mic capture uses deprecated `ScriptProcessorNode` (main-thread) — perf ceiling (DECISIONS A9); likely forced by target-speaker work (A12).
 - Existing books need a lossless re-split for 100% coverage (action item #2).
 - Interruption robustness (ambient noise / second speaker) scoped but not built (A12).
+
+## Recent changes (2026-07-07) — see DECISIONS
+- **AI-only pivot (D5):** the human-narrator/P2P side is being removed (**Phase A shipped** — narrator UI, `/dashboard`, `/narrators`, `/availability` gone). ⚠️ The data-model + flows above still describe P2P tables/sessions — those drop in **Phase C** and this doc gets its full cleanup in **Phase D**.
+- **Admin** moved from a Dashboard tab to its own **`/admin`** route (`is_admin`-gated) + header link (C6).
+- **Whole-book Gist** (AI summary): `voice-session` `mode:'gist'` (own `live_gist_prompt`) + `GeminiLiveModal` gist mode; whole-book content sent client-side (A13). **Button removed from BookDetail pending Gemini billing** (item 36); feature code retained.
+- **Mic capture on AudioWorklet** (`src/lib/pcmCaptureProcessor.js`) with a ScriptProcessorNode fallback — the A9 fix (A14).
+- **Security/RLS:** `voice_provider` public-scoped read (migration `006`, C4); `profiles` locked to owner+admin via `is_admin()` (migration `007`, C5).
+- **Parked:** Sarvam Vision OCR as a future scanned/Indic ingestion path (B6).
