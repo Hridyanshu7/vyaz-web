@@ -3,6 +3,9 @@ import { X, Mic, Loader2, PhoneOff, SkipForward, Volume2, CheckCircle2, Circle }
 import { getVoicePipelineSession, VoicePipelineSession } from '../lib/voicePipeline'
 import { supabase } from '../lib/supabase'
 import { useAdminStore } from '../stores/adminStore'
+import { useAuthStore } from '../stores/authStore'
+import { startVoiceSessionRecord, endVoiceSessionRecord, submitSessionRating } from '../lib/voiceSessionLog'
+import { SessionRatingScreen } from './SessionRatingScreen'
 
 const STATE_LABELS = {
   idle: 'Starting...',
@@ -20,8 +23,13 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
   const [sessionId, setSessionId] = useState(null)
   const [totalSections, setTotalSections] = useState(0)
   const [completedSections, setCompletedSections] = useState([])
+  const [showRating, setShowRating] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [submittingRating, setSubmittingRating] = useState(false)
   const sessionRef = useRef(null)
   const bubblesRef = useRef(null)
+  const { user } = useAuthStore()
 
   const { voiceTranscripts, appendVoiceMessage, clearVoiceTranscript } = useAdminStore()
   const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
@@ -46,6 +54,14 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
 
         setSessionId(config.sessionId)
         setTotalSections(config.totalSections)
+        startVoiceSessionRecord({
+          sessionId: config.sessionId,
+          userId: user?.id,
+          bookId: book?.id,
+          chapterNumber: chapter?.number,
+          mode: 'chapter',
+          provider: 'pipeline',
+        })
 
         const session = new VoicePipelineSession({
           ...config,
@@ -86,11 +102,33 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
   }, [open, book, chapter])
 
   const handleClose = () => {
-    if (sessionId) clearVoiceTranscript(sessionId)
+    const hadSession = !!sessionId
+    if (sessionId) {
+      const turns = useAdminStore.getState().voiceTranscripts[sessionId] || []
+      endVoiceSessionRecord({
+        sessionId,
+        userId: user?.id,
+        turns,
+        meta: { endReason: error ? 'error' : 'user_ended', completedSections, totalSections },
+      })
+      clearVoiceTranscript(sessionId)
+    }
     sessionRef.current?.end()
     sessionRef.current = null
     setState('idle')
     setError(null)
+    if (hadSession) setShowRating(true)
+    else onClose()
+  }
+
+  const handleSubmitRating = async () => {
+    if (!rating) return
+    setSubmittingRating(true)
+    await submitSessionRating({ sessionId, userId: user?.id, rating, feedbackText })
+    setSubmittingRating(false)
+    setShowRating(false)
+    setRating(0)
+    setFeedbackText('')
     onClose()
   }
 
@@ -111,11 +149,24 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
               Ch {chapter?.number}: {chapter?.title}
             </h2>
           </div>
-          <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer shrink-0">
-            <X size={16} />
-          </button>
+          {!showRating && (
+            <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer shrink-0">
+              <X size={16} />
+            </button>
+          )}
         </div>
 
+        {showRating ? (
+          <SessionRatingScreen
+            rating={rating}
+            setRating={setRating}
+            feedbackText={feedbackText}
+            setFeedbackText={setFeedbackText}
+            onSubmit={handleSubmitRating}
+            submitting={submittingRating}
+          />
+        ) : (
+        <>
         {/* Progress bar */}
         {hasSections && (
           <div className="px-4 pt-3 shrink-0">
@@ -232,6 +283,8 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
             <PhoneOff size={12} /> End Session
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

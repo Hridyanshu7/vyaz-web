@@ -38,6 +38,7 @@ React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase*
 - **[docs/design-language.html](docs/design-language.html)** — **brand & design language (v1)**: thesis, voice, and the token/type/component system that **governs every design decision**. Open in a browser (rendered page). Token changes are ADRs in DECISIONS.md.
 - **[docs/system-field-guide.html](docs/system-field-guide.html)** — plain-language explainer of the whole system (browser, Gemini, memory, every parameter, glossary). Open in a browser.
 - **[docs/sql-queries.md](docs/sql-queries.md)** — SQL runbook: voice-agent observability (`voice_events`), content health, users, sessions, ops. Run in Supabase SQL editor.
+- **[docs/debugging-transcript-mismatches.md](docs/debugging-transcript-mismatches.md)** — focused runbook for "audio didn't match the speech-bubble text" reports; finds the exact session via `voice_sessions`/`voice_events` and lists the known causes.
 - **[docs/pricing.md](docs/pricing.md)** · **[docs/unit-economics.md](docs/unit-economics.md)** · **[docs/voice-providers-comparison.md](docs/voice-providers-comparison.md)** — strategy & economics.
 - **[action-plans/tender-conjuring-flurry.md](action-plans/tender-conjuring-flurry.md)** — the live voice-agent **action items / open threads** (verify verbatim, lossless re-split, generation params, Talk auth gate, RAG, etc.).
 - `docs/older/` — earlier docs (PROJECT-STATUS, PERSONAS, PITCH-DECK, etc.); may be partly stale.

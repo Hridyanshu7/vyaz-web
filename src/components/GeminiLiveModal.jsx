@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Mic, Loader2, PhoneOff, Volume2, Radio, CheckCircle2, Circle } from 'lucide-react'
 import { getGeminiLiveSession, GeminiLiveSession } from '../lib/geminiLive'
 import { useAdminStore } from '../stores/adminStore'
+import { useAuthStore } from '../stores/authStore'
+import { startVoiceSessionRecord, endVoiceSessionRecord, submitSessionRating } from '../lib/voiceSessionLog'
+import { SessionRatingScreen } from './SessionRatingScreen'
 import { supabase } from '../lib/supabase'
 
 // Low-frequency events worth persisting to voice_events (skip per-turn/state spam).
@@ -100,9 +103,15 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
   const [progress, setProgress] = useState(0)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [reconnectCountdown, setReconnectCountdown] = useState(0)
+  const [showRating, setShowRating] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [submittingRating, setSubmittingRating] = useState(false)
   const sessionRef = useRef(null)
   const bubblesRef = useRef(null)
   const stickToBottomRef = useRef(true)
+  const providerConfigRef = useRef(null) // { liveModel, liveVoice } — for the voice_sessions record at close
+  const { user } = useAuthStore()
 
   const { voiceTranscripts, upsertVoiceMessage, clearVoiceTranscript } = useAdminStore()
   const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
@@ -145,6 +154,15 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
         const config = await getGeminiLiveSession(book, chapter, { mode })
         if (cancelled) return
         setSessionId(config.sessionId)
+        providerConfigRef.current = { liveModel: config.liveModel, liveVoice: config.liveVoice }
+        startVoiceSessionRecord({
+          sessionId: config.sessionId,
+          userId: user?.id,
+          bookId: book?.id,
+          chapterNumber: mode === 'gist' ? null : chapter?.number,
+          mode,
+          provider: 'gemini_live',
+        })
 
         const session = new GeminiLiveSession({
           ...config,
@@ -187,11 +205,38 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
   }, [open, book, chapter, mode])
 
   const handleClose = () => {
-    if (sessionId) clearVoiceTranscript(sessionId)
+    const hadSession = !!sessionId
+    if (sessionId) {
+      // Capture the transcript BEFORE clearing it — clearVoiceTranscript wipes the store
+      // entry this record depends on.
+      const turns = useAdminStore.getState().voiceTranscripts[sessionId] || []
+      const meta = {
+        endReason: error ? 'error' : 'user_ended',
+        model: providerConfigRef.current?.liveModel,
+        voice: providerConfigRef.current?.liveVoice,
+      }
+      if (mode !== 'gist') { meta.progressPct = progress; meta.activeSectionIndex = activeIndex }
+      endVoiceSessionRecord({ sessionId, userId: user?.id, turns, meta })
+      clearVoiceTranscript(sessionId)
+    }
     sessionRef.current?.end()
     sessionRef.current = null
     setState('idle')
     setError(null)
+    // Only prompt for a rating if a session record actually exists to attach it to —
+    // e.g. a connection failure before any sessionId was issued has nothing to rate.
+    if (hadSession) setShowRating(true)
+    else onClose()
+  }
+
+  const handleSubmitRating = async () => {
+    if (!rating) return
+    setSubmittingRating(true)
+    await submitSessionRating({ sessionId, userId: user?.id, rating, feedbackText })
+    setSubmittingRating(false)
+    setShowRating(false)
+    setRating(0)
+    setFeedbackText('')
     onClose()
   }
 
@@ -213,11 +258,24 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
               {mode === 'gist' ? 'Whole-book Gist' : `Ch ${chapter?.number}: ${chapter?.title}`}
             </h2>
           </div>
-          <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer shrink-0">
-            <X size={16} />
-          </button>
+          {!showRating && (
+            <button onClick={handleClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer shrink-0">
+              <X size={16} />
+            </button>
+          )}
         </div>
 
+        {showRating ? (
+          <SessionRatingScreen
+            rating={rating}
+            setRating={setRating}
+            feedbackText={feedbackText}
+            setFeedbackText={setFeedbackText}
+            onSubmit={handleSubmitRating}
+            submitting={submittingRating}
+          />
+        ) : (
+        <>
         {/* Two-column body */}
         <div className="flex flex-col sm:flex-row flex-1 min-h-0">
 
@@ -326,6 +384,8 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

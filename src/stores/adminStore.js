@@ -36,12 +36,16 @@ export const useAdminStore = create(
         set((s) => ({ newTag: { ...s.newTag, [bookId]: val } })),
 
       // ── Voice session transcript ──
-      voiceTranscripts: {}, // { [sessionId]: [{ role, text, id }] }
+      // `ts` (epoch ms) is stamped once, at first creation, on every turn — never
+      // overwritten on later streaming updates — so voice_sessions.data.turns carries a
+      // real per-turn timestamp (baseline: the row's own started_at) without needing a
+      // separate relative-offset field.
+      voiceTranscripts: {}, // { [sessionId]: [{ role, text, id, ts }] }
       appendVoiceMessage: (sessionId, msg) =>
         set((s) => ({
           voiceTranscripts: {
             ...s.voiceTranscripts,
-            [sessionId]: [...(s.voiceTranscripts[sessionId] || []), msg],
+            [sessionId]: [...(s.voiceTranscripts[sessionId] || []), { ...msg, ts: msg.ts ?? Date.now() }],
           },
         })),
       // Update message with matching id in place, or append if new (for streaming bubbles)
@@ -50,8 +54,8 @@ export const useAdminStore = create(
           const existing = s.voiceTranscripts[sessionId] || []
           const idx = existing.findIndex((m) => m.id === msg.id)
           const next = idx >= 0
-            ? existing.map((m, i) => (i === idx ? { ...m, ...msg } : m))
-            : [...existing, msg]
+            ? existing.map((m, i) => (i === idx ? { ...m, ...msg } : m)) // msg has no ts → m.ts survives
+            : [...existing, { ...msg, ts: Date.now() }]
           return { voiceTranscripts: { ...s.voiceTranscripts, [sessionId]: next } }
         }),
       clearVoiceTranscript: (sessionId) =>
