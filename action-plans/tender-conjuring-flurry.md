@@ -1,7 +1,7 @@
 # Vyaz — Voice Agent Action Items
 
 ## Needs action / verification
-1. **Test the verbatim rework** (just shipped, unconfirmed) — verify: parens are silent in audio, agent reads verbatim (not paraphrasing), progress bar + section states stay in sync.
+1. **✅ Done.** ~~Test the verbatim rework~~ — validated across this arc (A10 bubble-fidelity fix + reconnection testing): verbatim reading, `((...))` classification, and progress bar/section sync all confirmed working.
 2. **Re-run "Split sections" on existing books (coverage fix) — must be LOSSLESS.**
    - **Verified 2026-07-02:** existing books drop words. *Zero to One* = 99% overall but **ch 18 = 82%**; *The Hard Thing About Hard Things* = 98% overall but **ch 18 = 38%** (~62% of that chapter missing). Cause: the old chunker dropped every paragraph ≤40 chars.
    - The corrected splitter (`splitIntoSections`, merge-not-drop, in `src/lib/sections.js`) is deployed — but it only applies to **new** splits.
@@ -16,7 +16,7 @@
 6. **Sarvam + Smallest.ai providers** — blocked on API keys / sales-gated pricing.
 
 ## Noted but decided against / low priority
-7. **`bookStore` eager-load trim** — public store loads all chapters via `select('*')`; you chose to keep it client-side, so no action.
+7. **✅ Done (superseded).** ~~`bookStore` eager-load trim~~ — this was reversed: lazy-loading **was** shipped (`fetchBookChapters`, light grid `select`; DECISIONS C1). Item text was stale/contradictory — corrected here.
 8. **Disable input transcription** — minor cost saving, but we keep it for your speech bubbles.
 
 ## Generation parameters (Gemini Live) — planned build
@@ -58,7 +58,7 @@
 24. **✅ Phase A — hide P2P UI (shipped, PR #3).** Routes (`/narrators/:id`, `/dashboard`, `/dashboard/review`, `/availability`), Header link, BookGrid/BookCard narrator badge, BookDetail (AI-only; Gist→AI placeholder), Home (AI copy; sessions removed), Profile (role/gcal removed), Admin Group Sessions tab. Reversible — no code/DB deleted.
 25. **Phase B — delete dead code.** Remove P2P pages (`NarratorProfile`, `Dashboard`, `PostSession`, `Availability`, `Schedule`), components (`BookingModal`, `narrators/NarratorCard`, `AvailabilityPicker`), hooks (`useSessions`, `useUpcomingSessions`, `useBookings`, `useAvailability`; check `usePresence`), `lib/calendar.js`. Remove `fetchNarrators`/`narrators`/`getNarratorsForBook` from `bookStore` and the `sessions`/`groupSessions` fetch from `adminDataStore` (**must leave both `initialize` `Promise.all`s valid**). **Rewrite `SignupModal`** — drop `onboarding_complete`/`gcal`/`role`/`availability`/`NEEDS_CALENDAR` + the P2P `session_attendees`/`availability` writes; keep `signin`/`getstarted`/`talk`. Remove the narrator onboarding gate in `Layout.jsx`. Remove the role `<select>` in `AdminPanel` Users tab + the `GroupSessions` component. Remove the `gcal` edge function; update `book-delete` to stop referencing `sessions`.
 26. **🚦 Gate before Phase C.** `npm run build` clean **and** grep proves **zero** references remain to: `sessions`, `session_attendees`, `session_requests`, `bookings`, `reviews`, `availability`, `narrator_books`, `gcal`, `user_role`, `onboarding_complete`. Deploy the no-reference frontend and verify prod healthy **before** any DB drop.
-27. **Phase C — drop DB (migration `007_remove_p2p.sql`).** Drop tables: `sessions`, `session_attendees`, `session_requests`, `narrator_books`, `availability`, `bookings`, `reviews`. Drop `profiles` columns: `role`, `bio`, `gcal_connected`, `gcal_refresh_token`, `onboarding_complete`. Drop the `user_role` enum + all RLS policies tied to the removed tables. Run in Supabase SQL editor **after** #26 passes. No backup (per decision — no data worth keeping).
+27. **Phase C — drop DB (migration `008_remove_p2p.sql`).** *(renumbered from `007` — that number is now taken by the profiles RLS lock migration.)* Drop tables: `sessions`, `session_attendees`, `session_requests`, `narrator_books`, `availability`, `bookings`, `reviews`. Drop `profiles` columns: `role`, `bio`, `gcal_connected`, `gcal_refresh_token`, `onboarding_complete`. Drop the `user_role` enum + all RLS policies tied to the removed tables. Run in Supabase SQL editor **after** #26 passes. No backup (per decision — no data worth keeping).
 28. **Phase D — docs & positioning.** CLAUDE.md / ARCHITECTURE.md / DECISIONS.md: rewrite the product one-liner (drop "human narrator sessions"), remove the sessions/narrator data-model + flow sections, add a **new ADR** for the AI-only pivot (the *why*: anti-slop, fidelity, conversation). Update `docs/design-language.html` + `docs/system-field-guide.html` (remove human-narrator mentions). Revisit pricing/unit-economics/personas (were P2P-marketplace framed). Add a `project` memory recording the pivot. (Repo/dir name `books-p2p` + remote `vyaz-web` become misnomers — cosmetic, don't rename lightly.)
 
 ## Noise & speaker robustness (see DECISIONS A12)
@@ -69,9 +69,9 @@
    - **Partial baseline captured 2026-07-07 (fan noise):** with a fan running, barge-in got noticeably less sensitive — user has to find a "dead gap" to interrupt. **Confirmed environmental, not a regression:** same test in a quiet room = crisp barge-in (also ruled out the v1alpha `Constrained` endpoint switch as a cause). Matches the predicted AGC-amplifies-noise mechanism → Phase 1 (#30) is the direct fix to try first.
    - **Second, distinct finding — playback/echo:** when the narrator's own playback volume is louder than the user's voice, barge-in fails to detect the user at all even with **no** background noise. Likely acoustic echo/speaker-bleed (mic picks up the narrator over the speakers), not ambient noise — a different mechanism from #30–32. Candidate fixes: a playback volume control/lower default gain, headphones as the recommended setup, `startOfSpeechSensitivity: HIGH` at the margin. Needs its own headphones-vs-speakers test to confirm before building.
 30. **Ambient Phase 1 — config only, no deps.** In `geminiLive.js`: set mic `autoGainControl: false`; add `prefixPaddingMs` (~200–300ms) to `automaticActivityDetection`; leave start sensitivity at default (protects faint voices). Also the fix for **user first-word clipping**. Measure vs #29.
-31. **Ambient Phase 2 — WASM denoise (RNNoise)** in the mic path, *only if* Phase 1 leaves loud stationary noise (e.g. factory floor). Raises SNR so VAD can stay sensitive. Likely forces the AudioWorklet migration.
+31. **Ambient Phase 2 — WASM denoise (RNNoise)** in the mic path, *only if* Phase 1 leaves loud stationary noise (e.g. factory floor). Raises SNR so VAD can stay sensitive. **Its AudioWorklet prerequisite is done** (✅ shipped 2026-07-07, DECISIONS A14, `src/lib/pcmCaptureProcessor.js`) — this can build directly on it.
 32. **Ambient Phase 3 — manual VAD** (disable auto-VAD; client-side detect + `activityStart`/`activityEnd`), *only if* Gemini's VAD knobs prove too coarse. Full control, more code.
-33. **Target-speaker / voiceprint** (reject a second human voice). Separate larger build: enrol the user's voiceprint, run client-side speaker verification (ONNX/WASM embedding) to gate audio *before* Gemini (no server-side target-speaker hook exists). Denoise/VAD can't solve this; requires AudioWorklet.
+33. **Target-speaker / voiceprint** (reject a second human voice). Separate larger build: enrol the user's voiceprint, run client-side speaker verification (ONNX/WASM embedding) to gate audio *before* Gemini (no server-side target-speaker hook exists). Denoise/VAD can't solve this. **AudioWorklet prerequisite already shipped** (A14) — no longer a blocker.
 
 ## Scaling — concurrency / Vertex AI (see DECISIONS A3, D3)
 
