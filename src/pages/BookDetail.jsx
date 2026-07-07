@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { BookOpen, ArrowLeft, FileText, ExternalLink, Zap, BookMarked, Mic, Loader2 } from 'lucide-react'
+import { BookOpen, ArrowLeft, FileText, ExternalLink, BookMarked, Mic, Loader2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
@@ -31,7 +31,6 @@ export function BookDetail() {
   const [descExpanded, setDescExpanded] = useState(false)
   const [expandedCard, setExpandedCard] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
-  const [gistOpen, setGistOpen] = useState(false)
 
   // Provider precedence: admin settings → public scoped read → gemini_live default.
   const adminVoiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider)
@@ -123,11 +122,9 @@ export function BookDetail() {
             )}
           </div>
 
-          {/* Whole-book Gist (AI) — coming soon */}
-          <Button className="w-full mt-4" onClick={() => setGistOpen(true)} disabled={!book.chapters?.length}>
-            <Zap size={14} className="mr-1" /> Book Gist (AI)
-          </Button>
-          <p className="text-[10px] text-muted text-center mt-1">A whole-book summary you can talk to</p>
+          {/* Book Gist (AI) button removed pending Gemini billing — feature code retained
+              (voice-session mode:'gist', GeminiLiveModal gist mode, live_gist_prompt). See
+              DECISIONS A13 / action plan item 36 to re-enable. */}
 
           {/* Summary */}
           <div className="mt-4">
@@ -259,15 +256,6 @@ export function BookDetail() {
           chapter={voiceChapter}
         />
       )}
-
-      {/* Whole-book Gist (AI) — always the Gemini Live modal, gist mode */}
-      <GeminiLiveModal
-        open={gistOpen}
-        onClose={() => setGistOpen(false)}
-        book={book}
-        chapter={null}
-        mode="gist"
-      />
     </div>
   )
 }

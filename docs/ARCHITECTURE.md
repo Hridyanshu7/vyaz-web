@@ -55,7 +55,7 @@ Per-book buttons: **EPUB** (`parseEpub` → chapter text) → **Generate/Regen**
 ## Recent changes (2026-07-07) — see DECISIONS
 - **AI-only pivot (D5):** the human-narrator/P2P side is being removed (**Phase A shipped** — narrator UI, `/dashboard`, `/narrators`, `/availability` gone). ⚠️ The data-model + flows above still describe P2P tables/sessions — those drop in **Phase C** and this doc gets its full cleanup in **Phase D**.
 - **Admin** moved from a Dashboard tab to its own **`/admin`** route (`is_admin`-gated) + header link (C6).
-- **Whole-book Gist** (AI summary): `voice-session` `mode:'gist'` (own `live_gist_prompt`) + `GeminiLiveModal` gist mode; whole-book content sent client-side (A13).
+- **Whole-book Gist** (AI summary): `voice-session` `mode:'gist'` (own `live_gist_prompt`) + `GeminiLiveModal` gist mode; whole-book content sent client-side (A13). **Button removed from BookDetail pending Gemini billing** (item 36); feature code retained.
 - **Mic capture on AudioWorklet** (`src/lib/pcmCaptureProcessor.js`) with a ScriptProcessorNode fallback — the A9 fix (A14).
 - **Security/RLS:** `voice_provider` public-scoped read (migration `006`, C4); `profiles` locked to owner+admin via `is_admin()` (migration `007`, C5).
 - **Parked:** Sarvam Vision OCR as a future scanned/Indic ingestion path (B6).

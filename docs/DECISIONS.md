@@ -73,6 +73,7 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 - **Decision:** The "Book Gist (AI)" button opens the **same GeminiLiveModal in `gist` mode** — a reliable whole-book *summary* (not verbatim), conversational (interrupt + Q&A), with its **own admin-editable prompt** (`live_gist_prompt`, **Gemini-Live-only**; default fallback lives in `voice-session`). No verbatim word-alignment/progress in gist mode.
 - **Client-side content:** the whole-book text is assembled in the browser (chapters already in `bookStore`) and sent to the edge fn — **no per-request DB blob fetch**, so concurrent gist requests don't amplify heavy reads.
 - **Caveat:** whole-book context is a large input → hits Gemini quota on the current tier (needs billing/higher tier or Vertex; very long books may exceed context even with slidingWindow). RAG (A7) is the eventual fix.
+- **Update (2026-07-07):** the BookDetail **Gist button was removed** so users don't hit the quota error; the feature code (edge fn `mode:'gist'`, modal gist mode, `live_gist_prompt`) is **retained**. Re-enable = action plan item 36.
 
 ### A14. AudioWorklet mic capture (the A9 fix, executed)
 - **Status:** Shipped 2026-07-07.
