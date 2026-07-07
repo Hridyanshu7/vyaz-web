@@ -3,7 +3,7 @@
 _Auto-loaded every session. Keep this concise — it's a map + current-state, not the full story. Deep context lives in the docs linked below._
 
 ## What Vyaz is
-A P2P **book-knowledge marketplace** where readers **"talk to books"** — an AI voice agent narrates a chapter **verbatim** and answers questions — plus human narrator sessions (1:1 / group). Target: **premium learners in India** (AI study companion).
+A P2P **book-knowledge marketplace** where readers **"talk to books"** — an AI voice agent narrates a chapter **verbatim** and answers questions, plus a whole-book AI **Gist** summary. **AI-only** — the human-narrator/P2P side was removed (see DECISIONS D5). Target: **premium learners in India** (AI study companion).
 
 ## Stack
 React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase** (Postgres/Auth/Realtime/RLS/**Edge Functions**) · **Google Gemini** (Live voice + text + TTS) · **Cartesia** (alt voice provider).
@@ -24,6 +24,7 @@ React 18 + Vite + Tailwind v4 + Zustand (frontend, on **Vercel**) · **Supabase*
 - **Observability:** `geminiLive.js` emits structured events (`session_start`, `ws_open`, `go_away`, `ws_close {code, reason, durationMs, intentional}`, `reconnect_attempt`/`reconnect_success`, `server_error`, `session_end`…); `GeminiLiveModal` best-effort persists the key ones to the **`voice_events`** table (migration `005`) to debug why sessions drop. Query recipes: [docs/sql-queries.md](docs/sql-queries.md).
 - **Reliability (shipped 2026-07-06, see DECISIONS A10/A11, C1):** (1) transcript bubbles no longer drop spoken words — fixed a render-layer tail-drop and cross-turn buffer resets; (2) long chapters survive the ~15-min socket via **session resumption + auto-reconnect** (resume handle + `slidingWindow` context compression; UI shows a friendly "Reconnecting…" countdown); (3) public `bookStore` now **lazy-loads** each book's `chapters` on BookDetail open, so the grid cold-load is light.
 - **Next thread (scoped, not built — A12):** interruption/noise robustness — ambient-noise handling (VAD tuning + optional WASM denoise) first; **target-speaker** rejection (voiceprint enrollment + client-side speaker verification) is the larger, separate build.
+- **AI-only pivot (in progress, 2026-07-07):** human-narrator/P2P removed (Phase A shipped). Admin now at **`/admin`**; whole-book **Gist** (AI summary) added; mic capture on **AudioWorklet**; `profiles` RLS locked + `voice_provider` public-scoped read. See DECISIONS **D5, A13, A14, C4–C6**; action plan **24–35** (Phases B/C/D + Sarvam OCR pending).
 
 ## Key constraints (don't relearn the hard way)
 - Gemini Live: **~3 concurrent sessions/key** on the Developer API → **Vertex AI (1,000/project)** for scale (still the true mass-usage wall; not addressed). **~10–15 min per WebSocket** → long chapters now **auto-resume** via session resumption + reconnect (A11), so this no longer kills a session.

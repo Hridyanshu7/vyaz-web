@@ -1,6 +1,6 @@
 # Vyaz — Decision Log (ADRs)
 
-_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-06._
+_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-07._
 
 > **How to use this:** this is the "don't lose the why" record. When a decision changes, add a new entry that supersedes the old one (don't silently edit history). Companion docs: [`ARCHITECTURE.md`](ARCHITECTURE.md) (current system), [`pricing.md`](pricing.md), [`unit-economics.md`](unit-economics.md), [`voice-providers-comparison.md`](voice-providers-comparison.md).
 
@@ -68,6 +68,17 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 - **Two distinct problems:** (a) **ambient noise** (cafe) — *cheap*: mic already requests `echoCancellation`/`noiseSuppression`/`autoGainControl`; add VAD sensitivity/prefix-padding tuning + optional WASM denoise (RNNoise). (b) **second human speaker** (call-centre) — *hard*: needs **voiceprint enrollment + client-side speaker verification** (ONNX/WASM speaker embedding) gating audio *before* Gemini, since Gemini Live has **no server-side target-speaker hook**; likely forces the AudioWorklet migration (A9).
 - **Key fact:** pitch alone is **not** a reliable identifier — a speaker *embedding* (timbre/formants, many dims) is. Do (a) first; (b) is a separate larger project.
 
+### A13. Whole-book Gist (AI summary mode)
+- **Status:** Shipped (client + edge fn) 2026-07-07 — **gated on Gemini quota/billing** (whole-book input is large).
+- **Decision:** The "Book Gist (AI)" button opens the **same GeminiLiveModal in `gist` mode** — a reliable whole-book *summary* (not verbatim), conversational (interrupt + Q&A), with its **own admin-editable prompt** (`live_gist_prompt`, **Gemini-Live-only**; default fallback lives in `voice-session`). No verbatim word-alignment/progress in gist mode.
+- **Client-side content:** the whole-book text is assembled in the browser (chapters already in `bookStore`) and sent to the edge fn — **no per-request DB blob fetch**, so concurrent gist requests don't amplify heavy reads.
+- **Caveat:** whole-book context is a large input → hits Gemini quota on the current tier (needs billing/higher tier or Vertex; very long books may exceed context even with slidingWindow). RAG (A7) is the eventual fix.
+
+### A14. AudioWorklet mic capture (the A9 fix, executed)
+- **Status:** Shipped 2026-07-07.
+- **Decision:** Mic capture moved **off the main thread** to an **AudioWorklet** (`src/lib/pcmCaptureProcessor.js`, batches ~2048 samples) with a **ScriptProcessorNode fallback** (try/catch on worklet load, so Talk always works). Emits `mic_capture {mode}` / `audioworklet_failed`.
+- **Why:** executes the A9 fix ladder — the deprecated `ScriptProcessorNode` ran on the main thread competing with the waveform + React re-renders (choppy audio/laggy text after a few turns). Also the **prerequisite** for heavier audio work (RNNoise denoise, target-speaker — A12).
+
 ---
 
 ## B. Content pipeline
@@ -91,6 +102,11 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 - **Status:** Shipped. Admin 🗑 → `book-delete` edge function: de-syncs Cartesia docs+folder, deletes `voice_progress`, deletes the book (sessions/requests/etc. cascade via FK).
 - **Why batched:** Sequential deletion of 149–345 Cartesia docs took >60s → browser dropped the request. **Parallel batches of 25** → ~3–5s. Lesson: any per-item loop over hundreds of external API calls must be parallelized/batched.
 
+### B6. OCR ingestion (Sarvam Vision) — parked / research
+- **Status:** Parked (research). See action plan item 35.
+- **Decision:** Consider **Sarvam Vision / Document Digitisation API** (3B VLM; English + 22 Indian languages; preserves structure/reading order; strong Indic OCR) as a **second ingestion path** for scanned / image-based PDFs the EPUB parser can't handle (B4). Server-side via an edge fn (key off the client); output feeds the existing **Generate → Split**.
+- **Why not now:** EPUB covers the current catalog; OCR is only for scanned/image sources; free through Feb 2026 but **post-free per-page pricing** (a one-time ingest cost), async/batch for long books, and copyright of scanned commercial books all need checking. Preview API.
+
 ---
 
 ## C. Data / infra
@@ -105,6 +121,20 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 
 ### C3. Repo layout + remote
 - **Status:** Active. The project lives at **`hridyanshu7/books-p2p/vyaz/`** (nested one level — a Claude session is anchored to `books-p2p/`, so we keep the project inside it; the `vyaz/` name was the intended rename). GitHub remote = **`Hridyanshu7/vyaz-web.git`**. Deploy: `vercel --prod` (or git push) for frontend; `npx supabase functions deploy <name>` for edge functions.
+
+### C4. `voice_provider` public scoped read (migration 006)
+- **Status:** Shipped 2026-07-06.
+- **Decision:** `platform_settings` is admin-only (holds secrets), so non-admin/logged-out users couldn't read `voice_provider` → Talk fell back to the wrong provider (Cartesia). Added a **scoped RLS policy** exposing ONLY the `voice_provider` row to `anon`/`authenticated` (each setting is its own row → secrets stay hidden). Client `bookStore.fetchVoiceProvider()` reads it; `BookDetail` precedence = admin settings → public read → `gemini_live` default.
+- **Why:** a public page's behaviour must not depend on admin-only data, and secrets must not leak (RLS is row-scoped, so a single key can be exposed safely).
+
+### C5. `profiles` RLS lock + `is_admin()` helper (migration 007)
+- **Status:** Shipped 2026-07-07.
+- **Decision:** A leftover `"Public profiles" (SELECT true)` policy (from the removed public narrator directory) let **anon read every profile incl. email** — a PII leak. Dropped it; profiles now readable only by the owner (`auth.uid() = id`) or admins. Admin checks use a **`SECURITY DEFINER public.is_admin()`** helper.
+- **Lesson:** an inline `EXISTS(select … from profiles …)` inside a policy **on** `profiles` causes **42P17 infinite recursion** once the permissive public policy is gone — a policy on a table that queries the same table needs a SECURITY DEFINER helper.
+
+### C6. Admin moved to its own `/admin` route
+- **Status:** Shipped 2026-07-07.
+- **Decision:** The Admin panel used to be a **tab inside the Dashboard**; removing `/dashboard` in the P2P pivot orphaned it. Gave Admin its own **`/admin` route** (`is_admin`-gated, non-admins → `/`) + an admin-only header link. Regression fix surfaced by the pivot.
 
 ---
 
@@ -123,3 +153,9 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 
 ### D4. Voice-provider comparison conclusion
 - **Status:** Documented ([voice-providers-comparison.md](voice-providers-comparison.md)). **Gemini Live stays default** (cheapest all-in, unified, multilingual). **Bolna** is the only one worth revisiting — and only for a **phone-based India channel** (telephony, not language; Gemini already does Indian languages). Vobiz = telephony infra, not a voice-agent brain.
+
+### D5. Pivot to AI-only — remove human-narrator / P2P
+- **Status:** Active — **Phase A shipped** (P2P UI hidden); Phases B (dead-code delete), C (DB drops), D (docs) in progress. See action plan items 24–28.
+- **Decision:** Remove the entire human-narrator / P2P side — narrator profiles, availability, bookings, reviews, group sessions, requests, and the Google Calendar (`gcal`) integration. **Humans are only users; all narration is AI** — verbatim chapter Talk + whole-book **Gist** (A13). Narrator `role`/columns deleted outright (never returning); **no data export** (only 2 users, both narrator+listener).
+- **Why:** focus the product on the AI-voice thesis (faithful narration, anti-slop, conversation as the human medium) instead of an unused two-sided marketplace. This **supersedes the "human narrator sessions" framing** throughout the older docs.
+- **Rollout discipline:** phased, **code-first / DB-last** — dropping a table while code still queries it 404s prod and can crash the catalog/admin `Promise.all` inits.

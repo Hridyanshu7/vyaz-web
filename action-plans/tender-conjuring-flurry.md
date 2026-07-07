@@ -77,3 +77,9 @@
 
 34. **Migrate Gemini Live to Vertex AI** (~1,000 concurrent/project). Needs a GCP project + service-account auth — Vertex rejects the `?key=` browser connection and wants a short-lived OAuth token, so it pairs naturally with **moving the connection server-side** (which also closes the browser key-exposure risk). Vertex-only model IDs differ from the Developer API (A3). The path to scale; not started.
 
+## Content ingestion — OCR (Sarvam Vision)
+
+**Context:** Ingestion is EPUB-only today; the parser can't handle scanned / image-based PDFs (DECISIONS B4). **Sarvam Vision / Document Digitisation API** (3B VLM, English + 22 Indian languages, preserves structure/reading order, strong Indic OCR) would fill that gap and fits the India/multilingual + anti-slop direction. Research only for now (DECISIONS B6).
+
+35. **OCR ingestion path (Sarvam Vision) — research → build later.** Add a second ingestion path alongside EPUB: upload scanned PDF/images → call Sarvam Document Digitisation **server-side via an edge function** (keep the key off the client — the Gemini-key-exposure lesson) → structured text → feed the existing **Generate → Split** steps (downstream unchanged). Watch-outs: **pricing after the Feb-2026 free window** (per-page × whole books — a one-time ingest cost, not per-listen); async/batch for long books; OCR only for scanned/image sources (native EPUB extraction stays better/cheaper); copyright of scanned commercial books; preview API. Verify current pricing/limits before building.
+
