@@ -214,6 +214,10 @@ export function SignupModal({ open, onClose }) {
         onClose()
         navigate(`/books/${ctx.bookId}`)
         break
+      case 'talk':
+        onClose()
+        navigate(`/books/${ctx.bookId}?talkChapter=${ctx.chapterNumber}`)
+        break
       case 'join':
         if (ctx.sessionId && user) {
           await supabase.from('session_attendees').insert({
