@@ -89,3 +89,7 @@
 
 36. **Re-enable "Book Gist (AI)".** (1) Enable Gemini **billing / higher tier** (or Vertex #34); (2) author the gist prompt in Admin → Agents → Gemini Live (`live_gist_prompt`); (3) restore the Gist button + gist modal in `BookDetail.jsx` (search the comment "item 36"). For long books on a tight quota, consider a condensed context.
 
+## Security — RLS follow-ups
+
+37. **Tighten `book_requests` RLS.** It has a public `SELECT true` policy → anyone (even logged-out) can read every request row (`reader_id` UUID + book). Low-harm (no PII/email), but restrict SELECT to the requester (`auth.uid() = reader_id`) and admins (`public.is_admin()` — helper already exists from migration 007); keep INSERT for the Request-a-Book flow. Small migration.
+
