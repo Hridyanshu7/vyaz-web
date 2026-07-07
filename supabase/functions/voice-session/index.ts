@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { GoogleGenAI } from "https://esm.sh/@google/genai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -120,8 +121,34 @@ serve(async (req) => {
       }, { onConflict: "session_id" });
     }
 
+    // Mint a short-lived EPHEMERAL token so the browser never receives the real API key.
+    // uses/expiry are generous enough to cover the initial session + session-resumption
+    // reconnects (A11) within one chapter. Falls back to the raw key ONLY if minting fails,
+    // so Talk always works (the client picks v1alpha+access_token vs v1beta+key accordingly).
+    let ephemeralToken: string | null = null;
+    try {
+      const genai = new GoogleGenAI({ apiKey: map.gemini_api_key });
+      const now = Date.now();
+      const tok: any = await genai.authTokens.create({
+        config: {
+          uses: 5, // initial session + a few resumption reconnects
+          expireTime: new Date(now + 30 * 60 * 1000).toISOString(),           // 30 min of connection life
+          newSessionExpireTime: new Date(now + 25 * 60 * 1000).toISOString(),  // 25 min window to (re)start sessions
+        },
+      });
+      ephemeralToken = tok?.name || null;
+    } catch (e: any) {
+      console.error("[voice-session] ephemeral token mint failed; falling back to raw key:", e?.message);
+    }
+
     return new Response(
       JSON.stringify({
+        ephemeralToken,
+        // ROLLOUT PHASE 1: still return the raw key so the CURRENT prod frontend keeps
+        // working during the (non-atomic) edge-fn + Vercel deploy. Once the token-using
+        // frontend is confirmed live in prod, change this to
+        //   geminiApiKey: ephemeralToken ? null : map.gemini_api_key
+        // and redeploy the function to fully stop exposing the key. (PHASE 2)
         geminiApiKey: map.gemini_api_key,
         narrationPrompt,
         answeringPrompt,

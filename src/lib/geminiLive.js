@@ -91,6 +91,11 @@ function parseAsides(text) {
 
 const WS_URL =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent'
+// Ephemeral-token connections use v1alpha AND the *Constrained* method (regular API keys
+// use BidiGenerateContent + ?key=; ephemeral tokens use BidiGenerateContentConstrained
+// + ?access_token=). Wrong method → "Method doesn't allow unregistered callers".
+const WS_URL_V1ALPHA =
+  'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained'
 
 // Long chapters outlive a single WebSocket (~10-15 min limit). On an unexpected
 // drop we transparently re-open and resume via the server's resumption handle.
@@ -99,10 +104,13 @@ const RESUME_PROMPT = 'Please continue reading the chapter aloud from exactly wh
 
 // ─── Full-duplex verbatim narration session ──────────────────────────────────
 export class GeminiLiveSession {
-  constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections, mode,
+  constructor({ geminiApiKey, ephemeralToken, liveSystemPrompt, liveModel, liveVoice, sessionId, sections, mode,
     onStateChange, onTranscript, onProgress, onError, onEvent }) {
     this.mode = mode || 'chapter' // 'chapter' = verbatim narration; 'gist' = whole-book summary
     this.apiKey = geminiApiKey
+    // Short-lived server-minted token; when present we connect via v1alpha + access_token
+    // so the real API key never reaches the browser. Falls back to the raw key if absent.
+    this.authToken = ephemeralToken || null
     this.systemPrompt = liveSystemPrompt || 'You are a narrator. Read the chapter verbatim; wrap your own remarks in ((double parentheses)).'
     this.model = liveModel || 'gemini-3.1-flash-live-preview'
     this.voice = liveVoice || 'Charon'
@@ -297,7 +305,10 @@ export class GeminiLiveSession {
 
   _openSocket(resumeHandle) {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`${WS_URL}?key=${this.apiKey}`)
+      const wsUrl = this.authToken
+        ? `${WS_URL_V1ALPHA}?access_token=${this.authToken}`
+        : `${WS_URL}?key=${this.apiKey}`
+      const ws = new WebSocket(wsUrl)
       this.ws = ws
       let settled = false
 
