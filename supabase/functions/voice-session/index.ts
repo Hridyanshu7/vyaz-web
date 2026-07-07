@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { book_id, book_title, author, chapter_number, chapter_title, oneliner, sections } = await req.json();
+    const { book_id, book_title, author, chapter_number, chapter_title, oneliner, sections, mode, bookContent } = await req.json();
 
     const authHeader = req.headers.get("authorization") || "";
     const jwt = authHeader.replace("Bearer ", "");
@@ -33,6 +33,7 @@ serve(async (req) => {
         "pipeline_tts_model",
         "pipeline_tts_voice",
         "live_system_prompt",
+        "live_gist_prompt",
         "live_model",
         "live_voice",
       ])
@@ -85,6 +86,28 @@ serve(async (req) => {
       .replace(/{oneliner}/g, oneliner || "")
       .replace(/{content}/g, fullChapterContent);
 
+    // ── Gist mode: a reliable WHOLE-BOOK spoken summary (separate prompt), same voice UX.
+    // Not verbatim → no word-alignment progress (finalSections = []). The whole-book text is
+    // sent by the client (already in its store); contextWindowCompression (client) helps long books.
+    let finalLivePrompt = liveSystemPrompt;
+    let finalSections = sections || [];
+    if (mode === "gist") {
+      // Whole-book content comes from the client (already loaded in its store) — no
+      // server-side blob fetch, so concurrent gist requests don't amplify heavy DB reads.
+      const defaultGistPrompt =
+        "You are a knowledgeable, faithful guide to the whole book \"{book_title}\" by {author}. " +
+        "The full text of the book is provided below. Give a clear, reliable, well-structured spoken summary of the ENTIRE book — " +
+        "open with its core thesis, then walk through the key ideas in order, chapter by chapter, in an engaging conversational tone. " +
+        "Ground EVERYTHING strictly in the text below; never invent facts, names, or claims — if something isn't in the text, say so. " +
+        "Cover a chapter at a time, then pause and invite the listener to ask questions, and answer them from the book. " +
+        "This is a summary, not a verbatim reading — you may paraphrase faithfully.\n\nBOOK:\n{content}";
+      finalLivePrompt = (map.live_gist_prompt || defaultGistPrompt)
+        .replace(/{book_title}/g, book_title || "")
+        .replace(/{author}/g, author || "")
+        .replace(/{content}/g, bookContent || "");
+      finalSections = [];
+    }
+
     // Create voice_progress record
     if (userId && sections?.length > 0) {
       await supabase.from("voice_progress").upsert({
@@ -106,12 +129,12 @@ serve(async (req) => {
         llmModel: map.pipeline_llm_model || "gemini-2.5-flash",
         ttsModel: map.pipeline_tts_model || "gemini-2.5-flash-preview-tts",
         ttsVoice: map.pipeline_tts_voice || "Charon",
-        liveSystemPrompt,
+        liveSystemPrompt: finalLivePrompt,
         liveModel: map.live_model || "gemini-3.1-flash-live-preview",
         liveVoice: map.live_voice || "Charon",
-        sections: sections || [],
+        sections: finalSections,
         sessionId,
-        totalSections: sections?.length || 0,
+        totalSections: finalSections.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

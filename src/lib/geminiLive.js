@@ -1,9 +1,18 @@
 import { supabase } from './supabase'
 
 // ─── Session config from Edge Function ────────────────────────────────────────
-export async function getGeminiLiveSession(book, chapter) {
-  const { data, error } = await supabase.functions.invoke('voice-session', {
-    body: {
+export async function getGeminiLiveSession(book, chapter, opts = {}) {
+  const mode = opts.mode || 'chapter'
+  let body
+  if (mode === 'gist') {
+    // Assemble the whole-book content client-side (chapters are already in the store) and
+    // send it — the edge function does no per-request DB fetch (scales under concurrency).
+    const bookContent = (book.chapters || [])
+      .map((c) => `## ${c.title || 'Chapter'}\n${c.content || (c.sections || []).map((s) => s.text).join('\n\n')}`)
+      .join('\n\n')
+    body = { book_id: book.id, book_title: book.title, author: book.author, mode: 'gist', bookContent }
+  } else {
+    body = {
       book_id: book.id,
       book_title: book.title,
       author: book.author,
@@ -11,8 +20,9 @@ export async function getGeminiLiveSession(book, chapter) {
       chapter_title: chapter.title,
       oneliner: chapter.oneliner || '',
       sections: (chapter.sections || []).map((s) => ({ number: s.number, title: s.title || '', text: s.text })),
-    },
-  })
+    }
+  }
+  const { data, error } = await supabase.functions.invoke('voice-session', { body })
   if (error) throw new Error(error.message)
   if (data?.error) throw new Error(data.error)
   return data // { geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections }
@@ -89,8 +99,9 @@ const RESUME_PROMPT = 'Please continue reading the chapter aloud from exactly wh
 
 // ─── Full-duplex verbatim narration session ──────────────────────────────────
 export class GeminiLiveSession {
-  constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections,
+  constructor({ geminiApiKey, liveSystemPrompt, liveModel, liveVoice, sessionId, sections, mode,
     onStateChange, onTranscript, onProgress, onError, onEvent }) {
+    this.mode = mode || 'chapter' // 'chapter' = verbatim narration; 'gist' = whole-book summary
     this.apiKey = geminiApiKey
     this.systemPrompt = liveSystemPrompt || 'You are a narrator. Read the chapter verbatim; wrap your own remarks in ((double parentheses)).'
     this.model = liveModel || 'gemini-3.1-flash-live-preview'
@@ -186,9 +197,12 @@ export class GeminiLiveSession {
       await this._openSocket()
       await this._startMic()
       this._emitProgress()
+      const kickoff = this.mode === 'gist'
+        ? 'Please begin your spoken summary of the book now, starting with its core thesis.'
+        : 'Please begin reading the chapter aloud from the very beginning.'
       this._send({
         clientContent: {
-          turns: [{ role: 'user', parts: [{ text: 'Please begin reading the chapter aloud from the very beginning.' }] }],
+          turns: [{ role: 'user', parts: [{ text: kickoff }] }],
           turnComplete: true,
         },
       })
@@ -392,15 +406,28 @@ export class GeminiLiveSession {
     this._playAnalyser.fftSize = 256
     this._playAnalyser.connect(this.playCtx.destination)
 
-    // ScriptProcessorNode is deprecated but universally supported and simplest for raw PCM.
-    this.processor = this.micCtx.createScriptProcessor(4096, 1, 1)
-    this.processor.onaudioprocess = (e) => {
+    // Capture mic PCM OFF the main thread via AudioWorklet (avoids the deprecated
+    // ScriptProcessorNode's main-thread congestion — DECISIONS A9). Falls back to
+    // ScriptProcessorNode if the worklet module can't load, so Talk always works.
+    const sendPcm = (int16) => {
       if (this.ws?.readyState !== WebSocket.OPEN) return
-      const int16 = floatTo16BitPCM(e.inputBuffer.getChannelData(0))
       this._send({ realtimeInput: { audio: { data: int16ToBase64(int16), mimeType: 'audio/pcm;rate=16000' } } })
     }
-    source.connect(this.processor)
-    this.processor.connect(this.micCtx.destination)
+    try {
+      await this.micCtx.audioWorklet.addModule(new URL('./pcmCaptureProcessor.js', import.meta.url))
+      const node = new AudioWorkletNode(this.micCtx, 'pcm-capture')
+      node.port.onmessage = (e) => sendPcm(new Int16Array(e.data))
+      source.connect(node)
+      node.connect(this.micCtx.destination) // keep the node pulled; it outputs silence
+      this._workletNode = node
+      this._log('mic_capture', { mode: 'audioworklet' })
+    } catch (err) {
+      this._log('audioworklet_failed', { error: err.message })
+      this.processor = this.micCtx.createScriptProcessor(4096, 1, 1)
+      this.processor.onaudioprocess = (e) => sendPcm(floatTo16BitPCM(e.inputBuffer.getChannelData(0)))
+      source.connect(this.processor)
+      this.processor.connect(this.micCtx.destination)
+    }
   }
 
   _enqueueAudio(int16) {
@@ -449,6 +476,7 @@ export class GeminiLiveSession {
     this._ending = true
     this._stopPlayback()
     if (this.processor) { this.processor.disconnect(); this.processor.onaudioprocess = null; this.processor = null }
+    if (this._workletNode) { this._workletNode.disconnect(); this._workletNode.port.onmessage = null; this._workletNode = null }
     if (this.stream) { this.stream.getTracks().forEach((t) => t.stop()); this.stream = null }
     if (this.micCtx) { this.micCtx.close(); this.micCtx = null }
     if (this.playCtx) { this.playCtx.close(); this.playCtx = null }
