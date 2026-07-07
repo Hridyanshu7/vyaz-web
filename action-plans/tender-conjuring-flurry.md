@@ -93,3 +93,7 @@
 
 37. **Tighten `book_requests` RLS.** It has a public `SELECT true` policy → anyone (even logged-out) can read every request row (`reader_id` UUID + book). Low-harm (no PII/email), but restrict SELECT to the requester (`auth.uid() = reader_id`) and admins (`public.is_admin()` — helper already exists from migration 007); keep INSERT for the Request-a-Book flow. Small migration.
 
+## Voice — reconnection polish
+
+38. **Gapless reconnect (pre-emptive `goAway` handoff).** Reconnection already works (A11) but has a ~1–3s "Reconnecting…" gap because we reconnect *after* the socket drops. Enhancement: on Gemini's `goAway` warning (carries `timeLeft`), open the resume connection *before* the old one closes → no visible pause. **Must handle (per discussion):** open early but **hand over late** — the old socket is still alive and may be mid-audio, so keep it driving mic/playback until its `timeLeft` is nearly spent, then switch. Otherwise you waste the old session's remaining time / cut its audio tail. Also keep the **concurrent-overlap window tiny** — two live sockets at once = double audio + cost and counts toward the ~3-session/key cap. Optional polish, not a fix.
+
