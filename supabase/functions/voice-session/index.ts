@@ -144,12 +144,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         ephemeralToken,
-        // ROLLOUT PHASE 1: still return the raw key so the CURRENT prod frontend keeps
-        // working during the (non-atomic) edge-fn + Vercel deploy. Once the token-using
-        // frontend is confirmed live in prod, change this to
-        //   geminiApiKey: ephemeralToken ? null : map.gemini_api_key
-        // and redeploy the function to fully stop exposing the key. (PHASE 2)
-        geminiApiKey: map.gemini_api_key,
+        // The raw key is returned ONLY if token minting failed (graceful fallback so Talk
+        // still works); normally null — the browser gets the ephemeral token, never the key.
+        geminiApiKey: ephemeralToken ? null : map.gemini_api_key,
         narrationPrompt,
         answeringPrompt,
         sttModel: map.pipeline_stt_model || "gemini-2.5-flash",
