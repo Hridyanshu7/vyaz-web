@@ -76,6 +76,15 @@ serve(async (req) => {
       }
     }
 
+    // ── Purge extracted EPUB images (best-effort; never blocks the DB delete) ─
+    // Images live at book-assets/<bookId>/... — see src/lib/bookAssets.js.
+    try {
+      const { data: files } = await supabase.storage.from("book-assets").list(bookId, { limit: 1000 });
+      if (files?.length) {
+        await supabase.storage.from("book-assets").remove(files.map((f: any) => `${bookId}/${f.name}`));
+      }
+    } catch { /* bucket may not exist yet; not fatal */ }
+
     // ── Delete dependent rows that don't cascade, then the book ──────────────
     // sessions / session_requests / narrator_books / bookings cascade via FK.
     // voice_progress was created in the dashboard and may lack a cascade FK.

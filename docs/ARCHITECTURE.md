@@ -1,6 +1,6 @@
 # Vyaz — Architecture Snapshot
 
-_Current-system map. Last updated: 2026-07-07. For the **why** behind these choices, see [DECISIONS.md](DECISIONS.md)._
+_Current-system map. Last updated: 2026-07-09. For the **why** behind these choices, see [DECISIONS.md](DECISIONS.md)._
 
 ## Product in one line
 A P2P book-knowledge marketplace where readers **talk to books** — an AI voice agent narrates a chapter verbatim and answers questions — plus human narrator sessions (1:1 and group).
@@ -12,12 +12,14 @@ A P2P book-knowledge marketplace where readers **talk to books** — an AI voice
 - **Repo:** `hridyanshu7/books-p2p/vyaz/` (nested — see DECISIONS C3). Remote: `Hridyanshu7/vyaz-web`.
 
 ## Data model (key tables)
-- **`books`** — `id, title, author, cover_url, description, genres, language, page_count, isbn, goodreads_data, amazon_data, goodreads_rating…, cartesia_folder_id, is_published`, and **`chapters`** (JSONB, the heavy column). Each chapter: `{ number, title, oneliner, content, sections: [{ number, title, text, cartesia_document_id }] }`. Section numbers restart per chapter.
+- **`books`** — `id, title, author, cover_url, description, genres, language, page_count, isbn, goodreads_data, amazon_data, goodreads_rating…, cartesia_folder_id, is_published`, and **`chapters`** (JSONB). Each chapter: `{ number, title, oneliner, content, sections: [{ number, title, text, cartesia_document_id }] }`. Section numbers restart per chapter. **Kept deliberately lean** — rich structured content lives separately (see `book_content_blocks`, DECISIONS B7/B8).
+- **`book_content_blocks`** — one row per (book, chapter): `blocks` JSONB (`heading`/`paragraph`-with-inline-marks/`list`/`table`/`image`/`svg`, each optionally carrying `role` for sidebar/tip/note content and `page` where detectable). Written by the EPUB parser; **not yet read by the live voice session** (Phase 3, not built). Public read, admin write (migration `010`).
+- **`voice_sessions`** — durable per-session history across all three voice providers: one row per session, `data` JSONB holding `{ meta, turns }` (the full transcript) plus a 1-5 `rating` + optional `feedback_text` (migrations `008`/`009`). Distinct from `voice_events` (technical debug log) and `voice_progress` (legacy live progress bar, pipeline/Cartesia only).
 - **`profiles`** — users; `is_admin`, `role`, `gcal_*`.
-- **`sessions` / `session_attendees` / `session_requests`** — human narrator sessions (migration `003`); `book_id` FKs **cascade** on book delete.
+- **`sessions` / `session_attendees` / `session_requests`** — human narrator sessions (migration `003`); `book_id` FKs **cascade** on book delete. **Being removed** — see AI-only pivot below.
 - **`platform_settings`** — key/value config (API keys, prompts, `voice_provider`, `live_model`, `live_voice`, pipeline models, Cartesia IDs). Created in dashboard; **not** all in migrations.
-- **`voice_progress`** — per-session narration progress (`session_id, book_id, chapter_number, total_sections, completed_sections`). Dashboard-created.
-- Migrations in `supabase/migrations/` (`001` schema, `002` users, `003` sessions, `004` add `books.language`). Note: `platform_settings` + `voice_progress` were created directly in the dashboard.
+- **`voice_progress`** — per-session narration progress (`session_id, book_id, chapter_number, total_sections, completed_sections`). Dashboard-created; Gemini Live doesn't write to it (see `voice_sessions` above).
+- Migrations in `supabase/migrations/` (`001` schema … `011` book-assets storage RLS — see the migrations folder for the full list). Note: `platform_settings` + `voice_progress` were created directly in the dashboard.
 
 ## Zustand stores (`src/stores/`)
 - **`bookStore`** — public books/narrators; `fetchBooks()` selects **light columns only** (no `chapters`); `fetchBookChapters(id)` lazy-loads a book's `chapters` on BookDetail open (memoized — DECISIONS C1); `addBook`, `removeBook`, `getBook`, filtering.
@@ -37,7 +39,7 @@ A P2P book-knowledge marketplace where readers **talk to books** — an AI voice
 - **`gcal`**, **`cartesia-token`**, **`cartesia-tool`** — calendar + Cartesia helpers.
 
 ## Admin content pipeline (`src/components/admin/AdminPanel.jsx`)
-Per-book buttons: **EPUB** (`parseEpub` → chapter text) → **Generate/Regen** (`gemini.js` → chapter list or one-liners+section titles) → **Split** (`splitIntoSections` → sections, `sectionCoverage` asserts 100%) → **Sync KB / Re-sync** (Cartesia) → **🗑 Delete** (`book-delete`). Also: Agents tab (provider switcher + Gemini/Gemini-Live/Cartesia config cards), Users, Group Sessions.
+Per-book buttons: **EPUB** (`parseEpub` → chapter text + structured `blocks` → `book_content_blocks`, images uploaded to Storage — DECISIONS B7-B9) → **Generate/Regen** (`gemini.js` → chapter list or one-liners+section titles) → **Split** (`splitIntoSections` → sections, `sectionCoverage` asserts 100%) → **Sync KB / Re-sync** (Cartesia) → **🗑 Delete** (`book-delete`). Also: Agents tab (provider switcher + Gemini/Gemini-Live/Cartesia config cards), Users.
 
 ## Key flows
 - **Talk (Gemini Live):** BookDetail Talk (auth-gated — action item #15) → `getGeminiLiveSession` (`voice-session` edge fn) → `GeminiLiveSession.start()` → WS narrates the chapter verbatim, `((...))` asides grey, progress via word-alignment; speak to interrupt/continue.
@@ -47,10 +49,16 @@ Per-book buttons: **EPUB** (`parseEpub` → chapter text) → **Generate/Regen**
 ## Known constraints / debt (see DECISIONS + action plan)
 - ✅ `bookStore` lazy-loads chapters now (C1, shipped) — grid cold-load is light.
 - ✅ Long chapters auto-resume past the ~10–15 min/WebSocket limit via session resumption + reconnect (A11, shipped).
-- Gemini Live: **~3 concurrent sessions/key** (→ Vertex for scale) — **still the mass-usage wall**, not addressed; the API key is also shipped to the browser (theft/quota risk at scale).
-- Voice mic capture uses deprecated `ScriptProcessorNode` (main-thread) — perf ceiling (DECISIONS A9); likely forced by target-speaker work (A12).
-- Existing books need a lossless re-split for 100% coverage (action item #2).
+- ✅ Gemini API key no longer reaches the browser — ephemeral tokens, `v1alpha`/`BidiGenerateContentConstrained` (shipped 2026-07-07).
+- Gemini Live: **~3 concurrent sessions/key** (→ Vertex for scale) — **still the mass-usage wall**, not addressed.
+- Voice mic capture moved off the main thread to AudioWorklet (A14, shipped) — no longer debt; still a prerequisite for heavier audio work (denoise/target-speaker, A12).
+- Existing books need a lossless re-split for 100% coverage (action item #2) — likely combinable with re-running EPUB now that the parser is much richer (B7).
 - Interruption robustness (ambient noise / second speaker) scoped but not built (A12).
+- Structured content `blocks` exist (B7/B8) but **nothing reads them yet** — Phase 3 (live multimodal wiring so the agent can discuss images/tables in conversation) not built.
+
+## Recent changes (2026-07-09) — see DECISIONS
+- **Structured content model (B7-B10):** `chapter.content` is now derived from a rich `blocks` array (headings with real hierarchy, inline bold/italic/underline marks, real tables, images, inline SVG charts, sidebar/tip/practice `role` tagging) stored in the new **`book_content_blocks`** table, not nested in `books.chapters` (keeps it lean). Images uploaded to a public **`book-assets`** Storage bucket. No pre-baked AI captions — the live session will feed images into Gemini Live's multimodal `realtimeInput` and let the agent describe them only if asked (Phase 3, not yet built). Also fixed: the multi-file-chapter-merge bug diagnosed earlier.
+- **Durable voice session history + rating (A13-adjacent, new tables):** `voice_sessions` records every Talk/Gist session (transcript + metadata) across all three providers; a mandatory 1-5 star + optional-text rating is collected inline when a session ends (`SessionRatingScreen.jsx`), saved as a separate follow-up write so the transcript survives even if the user abandons the rating step.
 
 ## Recent changes (2026-07-07) — see DECISIONS
 - **AI-only pivot (D5):** the human-narrator/P2P side is being removed (**Phase A shipped** — narrator UI, `/dashboard`, `/narrators`, `/availability` gone). ⚠️ The data-model + flows above still describe P2P tables/sessions — those drop in **Phase C** and this doc gets its full cleanup in **Phase D**.

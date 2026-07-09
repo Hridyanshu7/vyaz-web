@@ -1,6 +1,6 @@
 # Vyaz — Decision Log (ADRs)
 
-_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-07._
+_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-09._
 
 > **How to use this:** this is the "don't lose the why" record. When a decision changes, add a new entry that supersedes the old one (don't silently edit history). Companion docs: [`ARCHITECTURE.md`](ARCHITECTURE.md) (current system), [`pricing.md`](pricing.md), [`unit-economics.md`](unit-economics.md), [`voice-providers-comparison.md`](voice-providers-comparison.md).
 
@@ -96,7 +96,7 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 - **Why:** The old `splitIntoSections` **dropped every paragraph ≤40 chars**, silently losing text (measured: *The Hard Thing* ch18 kept only 38%). New splitter **merges** short paragraphs; `sectionCoverage()` asserts 100% and the admin flags `⚠️cov`. Re-splitting existing books must **preserve section titles + `cartesia_document_id`** (naive re-split wipes them).
 
 ### B4. EPUB parser is a text extractor, not a rich parser
-- **Status:** Known limitation. Extracts clean reading text + h1–h4 + basic lists. **Drops** images, link URLs, page numbers, tables, `<figcaption>` captions. DRM/non-ZIP files now fail with a clear message (PK signature check).
+- **Status:** **Superseded 2026-07-09 — see B7.** Extracts clean reading text + h1–h4 + basic lists. **Drops** images, link URLs, page numbers, tables, `<figcaption>` captions. DRM/non-ZIP files now fail with a clear message (PK signature check).
 - **Why:** Optimized for narration text. Rich extraction (images/captions/links) is a future parser upgrade if needed.
 
 ### B5. Hard-delete book + Cartesia de-sync (parallel batches)
@@ -106,6 +106,32 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 ### B6. OCR ingestion (Sarvam Vision) — parked / research
 - **Status:** Parked (research). See action plan item 35.
 - **Decision:** Consider **Sarvam Vision / Document Digitisation API** (3B VLM; English + 22 Indian languages; preserves structure/reading order; strong Indic OCR) as a **second ingestion path** for scanned / image-based PDFs the EPUB parser can't handle (B4). Server-side via an edge fn (key off the client); output feeds the existing **Generate → Split**.
+
+### B7. Structured content model — blocks replace the flat content string
+- **Status:** Shipped 2026-07-08/09 (parser + storage). **Phase 3 — live multimodal wiring in `geminiLive.js` so the agent actually uses this in conversation — not yet built.**
+- **Decision:** `chapter.content` (flat string) is now **derived and cached** from a new `blocks` array per chapter — `heading` (real level 1-4, not a `#`-prefix hack), `paragraph` (inline `spans` with `bold`/`italic`/`underline` marks), `list`, `table` (real row/cell structure), `image` (alt/caption + uploaded asset URL — see B8/B9), and `svg` (inline vector charts, raw markup + title/desc). Blocks emitted from inside an `<aside>` or an element tagged with a recognized `epub:type` (`sidebar`/`tip`/`note`/`practice`/etc.) carry a `role` field — `<aside>` is **no longer stripped** (the old parser deleted it outright; in real EPUBs it holds genuine sidebar/tip content, not decoration). Page markers (`epub:type="pagebreak"`) captured best-effort — many EPUBs have none at all (page numbers are a print concept), useful where present for loss/coverage QA and conversational "as covered on page N" references.
+- **Bold/italic/underline captured but NOT used in voice this phase** — confirmed Gemini Live's TTS has no SSML/per-word emphasis control, so "faithful emphasis in audio" isn't mechanically possible today; data is there if a future surface can use it.
+- **No pre-baked AI captions for images/charts.** Confirmed Gemini Live's `realtimeInput` accepts image frames into an active session (base64, same channel as mic audio) — the agent will get the actual image as live multimodal context and describe it only if the conversation calls for it, not a canned description written ahead of time.
+- **Folded in:** the multi-file-chapter-merge bug (an untitled spine file under ~500 words merges into the previous chapter instead of becoming a bogus new "Chapter N"; a substantial untitled file still gets its own chapter, to avoid silently merging two real chapters when a book's TOC is sparse).
+- **Why no visual reader UI:** the product surface for this is conversational (speech bubbles), not a rendered document view — see D5's AI-only direction. A synced visual read-along panel was explicitly scoped **out** as a follow-on, not part of this work.
+
+### B8. Blocks live in their own table, not nested in `books.chapters`
+- **Status:** Shipped (migration `010_book_content_blocks.sql`).
+- **Decision:** `book_content_blocks` — one row per (book, chapter) — holds `blocks`, **not** nested inside `books.chapters`.
+- **Why:** blocks are far more verbose JSON than the old flat string (every paragraph is now a spans array; every image carries assetUrl/alt/caption/page). Nesting them would bloat **every** unrelated read/write of a book's chapters — including the admin Catalog tab's eager `select('id, chapters, ...')` for the **entire** catalog at once, and every Split/Generate/Regen write, which rewrite the whole `chapters` column regardless of what changed. Confirmed in practice: embedding blocks in `chapters` visibly slowed the admin Books tab; moving them out (and re-parsing) measurably fixed it. Anticipated to matter more, not less, as more image/table-dense titles are added.
+- **Rejected:** stripping `blocks` from the admin listing via a Postgres JSONB-transform RPC — a band-aid on one query that leaves the underlying write-amplification problem (Split/Generate/Regen still shuttling a growing blob) unfixed.
+- RLS: public read (same sensitivity as `books.chapters`, already public); admin-only write (reuses `is_admin()` from migration 007). Cascades on book delete via FK — no extra cleanup code needed.
+
+### B9. Image/asset storage (`book-assets` bucket)
+- **Status:** Shipped.
+- **Decision:** Images extracted from the EPUB zip during parsing, uploaded to a **public Supabase Storage bucket** `book-assets` (one folder per `book_id`), URL stored on the image block (`src/lib/bookAssets.js`). Bucket created manually via the dashboard (Storage buckets aren't SQL migrations).
+- **Real gotcha (migration `011_book_assets_storage_rls.sql`):** a Storage bucket's "public" toggle only controls **reads**. Uploads are governed separately by RLS on Supabase's internal `storage.objects` table, which denies everything until an explicit policy grants it — every image upload failed with `new row violates row-level security policy` until this policy was added (admin-only write via `is_admin()`, public read). Same mental model as table RLS, easy to miss since Storage doesn't surface it as obviously.
+- Cleanup: `book-delete` edge fn purges a deleted book's asset folder (Storage isn't FK-linked, so this needs explicit code, unlike `book_content_blocks`'s cascade).
+
+### B10. Real EPUB files are messier than the spec — lessons from a live debugging session
+- **Status:** Fixed; worth remembering for any future ingestion work.
+- **Found via a real book ("Romancing The Balance Sheet"):** (1) **a wrapping top-level folder** in the zip — the file had been re-zipped from an *extracted* folder rather than its contents (a common real-world mistake, e.g. macOS/Windows "Compress" on an unzipped folder), so `META-INF/container.xml` wasn't at the true zip root. Fixed by locating `container.xml` anywhere in the archive and treating whatever precedes it as a shared prefix applied to every subsequent path — a general, non-destructive fix, not a one-off hack for this file. (2) **HTML file inputs don't fire `onChange` when the exact same file is re-selected** (a known browser quirk) — silently made repeated debugging attempts look like "nothing happens." Fixed by resetting the input's `value` before each pick. (3) **Errors caught by the UI were being silently swallowed** — only shown in a 50-character-truncated status badge, never logged to console — made every one of the above take far longer to diagnose than necessary. Fixed by adding explicit `console.error` at the catch site.
+- **Lesson:** when a parser/ingestion error is opaque, harden the failure path (clear error messages + full console logging) **before** trying to guess the root cause from a truncated UI string — this alone would have cut the diagnosis time substantially.
 - **Why not now:** EPUB covers the current catalog; OCR is only for scanned/image sources; free through Feb 2026 but **post-free per-page pricing** (a one-time ingest cost), async/batch for long books, and copyright of scanned commercial books all need checking. Preview API.
 
 ---
