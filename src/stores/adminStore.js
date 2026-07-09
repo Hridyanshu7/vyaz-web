@@ -60,6 +60,15 @@ export const useAdminStore = create(
         }),
       clearVoiceTranscript: (sessionId) =>
         set((s) => { const n = { ...s.voiceTranscripts }; delete n[sessionId]; return { voiceTranscripts: n } }),
+      // Thumbs up/down (+ optional remarks on thumbs-down) per agent bubble. Stored directly
+      // on the message object so it rides along with the existing turns snapshot taken at
+      // session end (endVoiceSessionRecord) — no separate table/migration needed.
+      setVoiceMessageFeedback: (sessionId, msgId, feedback) =>
+        set((s) => {
+          const existing = s.voiceTranscripts[sessionId] || []
+          const next = existing.map((m) => (m.id === msgId ? { ...m, feedback } : m))
+          return { voiceTranscripts: { ...s.voiceTranscripts, [sessionId]: next } }
+        }),
     }),
     { name: 'vyaz-admin-pending' }
   )

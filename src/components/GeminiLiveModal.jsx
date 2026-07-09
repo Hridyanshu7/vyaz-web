@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Mic, Loader2, PhoneOff, Volume2, Radio, CheckCircle2, Circle } from 'lucide-react'
+import { X, Mic, Loader2, PhoneOff, Volume2, Radio, CheckCircle2, Circle, ThumbsUp, ThumbsDown, Send } from 'lucide-react'
 import { getGeminiLiveSession, GeminiLiveSession } from '../lib/geminiLive'
 import { useAdminStore } from '../stores/adminStore'
 import { useAuthStore } from '../stores/authStore'
@@ -51,6 +51,92 @@ function AgentContent({ segments, text }) {
           <div key={i} className="space-y-1.5">
             {toParagraphs(seg.text).map((p, j) => <p key={j}>{p}</p>)}
           </div>
+        )
+      )}
+    </div>
+  )
+}
+
+// Thumbs up/down on an agent bubble. Thumbs-down opens a remarks field that only commits
+// to the store on explicit Submit (Enter or the send button) — never on every keystroke.
+// Once submitted, it collapses to a read-only line the user can click to re-open and edit.
+function MessageFeedback({ sessionId, msg, setVoiceMessageFeedback }) {
+  const thumbs = msg.feedback?.thumbs || null
+  const savedRemarks = msg.feedback?.remarks || ''
+  const [draft, setDraft] = useState(savedRemarks)
+  const [editing, setEditing] = useState(false)
+
+  const toggle = (value) => {
+    if (thumbs === value) {
+      setVoiceMessageFeedback(sessionId, msg.id, null)
+      setDraft('')
+      setEditing(false)
+      return
+    }
+    if (value === 'up') {
+      setVoiceMessageFeedback(sessionId, msg.id, { thumbs: 'up', remarks: '' })
+      setDraft('')
+      setEditing(false)
+      return
+    }
+    // Fresh thumbs-down: start editing immediately so the user can type + submit a reason.
+    setVoiceMessageFeedback(sessionId, msg.id, { thumbs: 'down', remarks: '' })
+    setDraft('')
+    setEditing(true)
+  }
+
+  const submit = () => {
+    setVoiceMessageFeedback(sessionId, msg.id, { thumbs: 'down', remarks: draft.trim() })
+    setEditing(false)
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 px-1">
+      <button
+        onClick={() => toggle('up')}
+        aria-label="Good response"
+        className={`p-1 rounded-md cursor-pointer transition-colors ${
+          thumbs === 'up' ? 'text-success bg-success/10' : 'text-muted hover:text-foreground'
+        }`}
+      >
+        <ThumbsUp size={12} />
+      </button>
+      <button
+        onClick={() => toggle('down')}
+        aria-label="Bad response"
+        className={`p-1 rounded-md cursor-pointer transition-colors ${
+          thumbs === 'down' ? 'text-error bg-error/10' : 'text-muted hover:text-foreground'
+        }`}
+      >
+        <ThumbsDown size={12} />
+      </button>
+      {thumbs === 'down' && (
+        editing ? (
+          <>
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+              placeholder="What went wrong? (optional)"
+              autoFocus
+              className="flex-1 text-[11px] px-2 py-1 rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-highlight"
+            />
+            <button
+              onClick={submit}
+              aria-label="Submit remarks"
+              className="p-1 rounded-md text-highlight hover:bg-highlight/10 cursor-pointer shrink-0"
+            >
+              <Send size={12} />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => { setDraft(savedRemarks); setEditing(true) }}
+            className="flex-1 text-left text-[11px] px-2 py-1 rounded-md border border-transparent hover:border-border text-muted truncate cursor-pointer"
+          >
+            {savedRemarks || 'Add a reason…'}
+          </button>
         )
       )}
     </div>
@@ -114,7 +200,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
   const { user, profile } = useAuthStore()
   const listenerName = (profile?.name || '').trim()
 
-  const { voiceTranscripts, upsertVoiceMessage, clearVoiceTranscript } = useAdminStore()
+  const { voiceTranscripts, upsertVoiceMessage, clearVoiceTranscript, setVoiceMessageFeedback } = useAdminStore()
   const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
   const sections = chapter?.sections || []
 
@@ -306,6 +392,9 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
                         ? <AgentContent segments={msg.segments} text={msg.text} />
                         : msg.text}
                     </div>
+                    {msg.role === 'agent' && (
+                      <MessageFeedback sessionId={sessionId} msg={msg} setVoiceMessageFeedback={setVoiceMessageFeedback} />
+                    )}
                   </div>
                 ))}
               </div>
