@@ -253,7 +253,7 @@ export function SignupModal({ open, onClose }) {
         <div className="sticky top-0 bg-background flex items-center justify-between px-5 py-4 border-b border-border z-10">
           <div className="flex items-center gap-2">
             <BookOpen size={18} className="text-highlight" />
-            <h2 className="font-bold">Welcome to Vyaz.ai</h2>
+            <h2 className="font-bold">Welcome to Vyaz</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-surface rounded-lg cursor-pointer">
             <X size={18} />
