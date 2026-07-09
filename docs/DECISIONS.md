@@ -1,6 +1,6 @@
 # Vyaz — Decision Log (ADRs)
 
-_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-09._
+_Append-only record of the significant decisions and pivots, with the **why** behind them. Newest sections grouped by theme. Format per entry: **Decision · Status · Why · Alternatives considered.** Last updated: 2026-07-09 (A15/A16)._
 
 > **How to use this:** this is the "don't lose the why" record. When a decision changes, add a new entry that supersedes the old one (don't silently edit history). Companion docs: [`ARCHITECTURE.md`](ARCHITECTURE.md) (current system), [`pricing.md`](pricing.md), [`unit-economics.md`](unit-economics.md), [`voice-providers-comparison.md`](voice-providers-comparison.md).
 
@@ -79,6 +79,19 @@ _Append-only record of the significant decisions and pivots, with the **why** be
 - **Status:** Shipped 2026-07-07.
 - **Decision:** Mic capture moved **off the main thread** to an **AudioWorklet** (`src/lib/pcmCaptureProcessor.js`, batches ~2048 samples) with a **ScriptProcessorNode fallback** (try/catch on worklet load, so Talk always works). Emits `mic_capture {mode}` / `audioworklet_failed`.
 - **Why:** executes the A9 fix ladder — the deprecated `ScriptProcessorNode` ran on the main thread competing with the waveform + React re-renders (choppy audio/laggy text after a few turns). Also the **prerequisite** for heavier audio work (RNNoise denoise, target-speaker — A12).
+
+### A15. Durable session history + post-session star rating
+- **Status:** Shipped 2026-07-07 (migrations `008` `voice_sessions`, `009` rating columns) — **backfilled into this log**, was already live but undocumented here.
+- **Decision:** Every Talk/Gist session, across all three voice providers, gets one row in **`voice_sessions`**: `data` JSONB holds `{ meta, turns }` (the full transcript), written once at session end (`endVoiceSessionRecord`, `voiceSessionLog.js`). A mandatory 1-5★ + optional free-text rating (`SessionRatingScreen.jsx`) is collected right after, as a **separate follow-up write** (`submitSessionRating`) rather than bundled into the same call.
+- **Why separate writes:** if the user abandons the tab on the rating screen, the transcript + `ended_at` (already saved) survive — only the rating itself would be missing. Matches the existing "best-effort, never block the voice UX" convention used for `voice_events`.
+- **Distinct from:** `voice_events` (technical debug log: connects/drops/errors) and `voice_progress` (legacy narration progress bar, pipeline/Cartesia only — Gemini Live doesn't write to it).
+
+### A16. Per-message thumbs up/down + confirmable remarks (Gemini Live only)
+- **Status:** Shipped 2026-07-09.
+- **Decision:** Each **agent** bubble in `GeminiLiveModal` gets thumbs up/down; thumbs-down opens a remarks field. `adminStore.setVoiceMessageFeedback` patches `{ thumbs, remarks }` directly onto the message object already held in `voiceTranscripts` — since `endVoiceSessionRecord` reads that same array as `turns` at session end (A15), feedback rides into `voice_sessions.data.turns[i].feedback` for free, **no new table or migration**.
+- **Remarks require explicit submit:** typing only updates local component state; Enter or the send button commits to the store. Once submitted it collapses to a read-only line; clicking it re-opens editing. Chosen over live-as-you-type persistence — an editable field with no confirmation step reads as unfinished/uncertain input, not a submitted rating.
+- **Timing caveat (inherited from A15):** feedback only survives if given before **End Session** is clicked — a crash/force-close mid-conversation loses it, same as the rest of the transcript.
+- **Scope:** **Gemini Live only** for now. `VoicePipelineModal`/`VoiceAgentModal` (the other two providers) don't have this yet — explicitly parked, not an oversight.
 
 ---
 
