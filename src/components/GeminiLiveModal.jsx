@@ -111,7 +111,8 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
   const bubblesRef = useRef(null)
   const stickToBottomRef = useRef(true)
   const providerConfigRef = useRef(null) // { liveModel, liveVoice } — for the voice_sessions record at close
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
+  const listenerName = (profile?.name || '').trim()
 
   const { voiceTranscripts, upsertVoiceMessage, clearVoiceTranscript } = useAdminStore()
   const conversation = sessionId ? (voiceTranscripts[sessionId] || []) : []
@@ -151,7 +152,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
       setProgress(0)
       setActiveIndex(-1)
       try {
-        const config = await getGeminiLiveSession(book, chapter, { mode })
+        const config = await getGeminiLiveSession(book, chapter, { mode, listenerName })
         if (cancelled) return
         setSessionId(config.sessionId)
         providerConfigRef.current = { liveModel: config.liveModel, liveVoice: config.liveVoice }

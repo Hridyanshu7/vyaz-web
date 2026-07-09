@@ -10,7 +10,7 @@ export async function getGeminiLiveSession(book, chapter, opts = {}) {
     const bookContent = (book.chapters || [])
       .map((c) => `## ${c.title || 'Chapter'}\n${c.content || (c.sections || []).map((s) => s.text).join('\n\n')}`)
       .join('\n\n')
-    body = { book_id: book.id, book_title: book.title, author: book.author, mode: 'gist', bookContent }
+    body = { book_id: book.id, book_title: book.title, author: book.author, mode: 'gist', bookContent, listener_name: opts.listenerName || '' }
   } else {
     body = {
       book_id: book.id,
@@ -20,6 +20,7 @@ export async function getGeminiLiveSession(book, chapter, opts = {}) {
       chapter_title: chapter.title,
       oneliner: chapter.oneliner || '',
       sections: (chapter.sections || []).map((s) => ({ number: s.number, title: s.title || '', text: s.text })),
+      listener_name: opts.listenerName || '',
     }
   }
   const { data, error } = await supabase.functions.invoke('voice-session', { body })

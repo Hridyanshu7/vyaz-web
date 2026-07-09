@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { book_id, book_title, author, chapter_number, chapter_title, oneliner, sections, mode, bookContent } = await req.json();
+    const { book_id, book_title, author, chapter_number, chapter_title, oneliner, sections, mode, bookContent, listener_name } = await req.json();
 
     const authHeader = req.headers.get("authorization") || "";
     const jwt = authHeader.replace("Bearer ", "");
@@ -85,6 +85,7 @@ serve(async (req) => {
       .replace(/{author}/g, author || "")
       .replace(/{chapter_title}/g, chapter_title || "")
       .replace(/{oneliner}/g, oneliner || "")
+      .replace(/{listener_name}/g, listener_name || "")
       .replace(/{content}/g, fullChapterContent);
 
     // ── Gist mode: a reliable WHOLE-BOOK spoken summary (separate prompt), same voice UX.
@@ -105,6 +106,7 @@ serve(async (req) => {
       finalLivePrompt = (map.live_gist_prompt || defaultGistPrompt)
         .replace(/{book_title}/g, book_title || "")
         .replace(/{author}/g, author || "")
+        .replace(/{listener_name}/g, listener_name || "")
         .replace(/{content}/g, bookContent || "");
       finalSections = [];
     }
