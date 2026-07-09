@@ -184,8 +184,8 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
         <div className="px-4 pt-3 shrink-0">
           <div className="flex items-center gap-2">
             {state === 'narrating' && <Volume2 size={12} className="text-highlight animate-pulse" />}
-            {state === 'asking' && <Mic size={12} className="text-red-500 animate-pulse" />}
-            {state === 'answering' && <Volume2 size={12} className="text-green-500 animate-pulse" />}
+            {state === 'asking' && <Mic size={12} className="text-success animate-pulse" />}
+            {state === 'answering' && <Volume2 size={12} className="text-highlight animate-pulse" />}
             {(state === 'idle' || state === 'paused') && <div className="w-3 h-3" />}
             <p className="text-xs text-muted">{STATE_LABELS[state] || state}</p>
           </div>
@@ -210,8 +210,8 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
 
         {/* Error */}
         {error && (
-          <div className="mx-4 mb-2 p-3 rounded-lg bg-red-50 border border-red-200 shrink-0">
-            <p className="text-xs text-red-700">{error}</p>
+          <div className="mx-4 mb-2 p-3 rounded-lg bg-error/10 border border-error shrink-0">
+            <p className="text-xs text-error">{error}</p>
           </div>
         )}
 
@@ -255,9 +255,9 @@ export function VoicePipelineModal({ open, onClose, book, chapter }) {
           {state === 'asking' && (
             <button
               onClick={() => sessionRef.current?.stopRecordingAndAnswer()}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-300 bg-red-50 text-red-700 text-sm font-medium cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-success bg-success/10 text-success text-sm font-medium cursor-pointer"
             >
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
               Recording... Tap to Send
             </button>
           )}

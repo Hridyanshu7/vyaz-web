@@ -213,13 +213,13 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
           <div className="relative flex items-center justify-center">
             {isActive && !muted && (
               <>
-                <div className={`absolute w-24 h-24 rounded-full opacity-10 animate-ping ${agentState === 'speaking' ? 'bg-highlight' : 'bg-green-500'}`} />
-                <div className={`absolute w-20 h-20 rounded-full opacity-15 animate-pulse ${agentState === 'speaking' ? 'bg-highlight' : 'bg-green-500'}`} />
+                <div className={`absolute w-24 h-24 rounded-full opacity-10 animate-ping ${agentState === 'speaking' ? 'bg-highlight' : 'bg-success'}`} />
+                <div className={`absolute w-20 h-20 rounded-full opacity-15 animate-pulse ${agentState === 'speaking' ? 'bg-highlight' : 'bg-success'}`} />
               </>
             )}
             <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
               muted ? 'bg-surface border-2 border-border' :
-              agentState === 'listening' ? 'bg-green-500/10 border-2 border-green-500' :
+              agentState === 'listening' ? 'bg-success/10 border-2 border-success' :
               agentState === 'speaking' ? 'bg-highlight/10 border-2 border-highlight' :
               'bg-surface border-2 border-border'
             }`}>
@@ -228,7 +228,7 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
               ) : muted ? (
                 <MicOff size={24} className="text-muted" />
               ) : agentState === 'listening' ? (
-                <Mic size={24} className="text-green-500" />
+                <Mic size={24} className="text-success" />
               ) : agentState === 'speaking' ? (
                 <div className="flex items-end gap-0.5 h-5">
                   {[60, 100, 80, 40].map((h, i) => (
@@ -259,8 +259,8 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
 
           {/* Error */}
           {error && (
-            <div className="w-full p-3 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-xs text-red-700">{error}</p>
+            <div className="w-full p-3 rounded-lg bg-error/10 border border-error">
+              <p className="text-xs text-error">{error}</p>
             </div>
           )}
         </div>
@@ -300,12 +300,12 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
               {Array.from({ length: totalSections }, (_, i) => i + 1).map((n) => {
                 const done = completedSections.includes(n)
                 return (
-                  <div key={n} className={`flex items-center gap-2 px-3 py-2 ${done ? 'bg-green-50' : ''}`}>
+                  <div key={n} className={`flex items-center gap-2 px-3 py-2 ${done ? 'bg-success/10' : ''}`}>
                     {done
-                      ? <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                      ? <CheckCircle2 size={12} className="text-success shrink-0" />
                       : <Circle size={12} className="text-muted shrink-0" />
                     }
-                    <span className={`text-xs ${done ? 'text-green-700 line-through' : 'text-muted'}`}>
+                    <span className={`text-xs ${done ? 'text-success line-through' : 'text-muted'}`}>
                       Section {n}
                     </span>
                   </div>
@@ -329,7 +329,7 @@ export function VoiceAgentModal({ open, onClose, book, chapter }) {
           </button>
           <button
             onClick={handleClose}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium cursor-pointer transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-error text-error bg-error/10 hover:bg-error/20 text-sm font-medium cursor-pointer transition-colors"
           >
             <PhoneOff size={14} />
             End Session

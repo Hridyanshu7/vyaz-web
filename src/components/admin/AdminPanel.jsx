@@ -106,7 +106,7 @@ function UserAccess() {
                     {u.is_admin ? 'Revoke Admin' : 'Make Admin'}
                   </button>
                   <button onClick={() => patch(u.id, { is_active: !isActive })}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border transition-colors ${isActive ? 'border-border text-muted hover:border-red-300 hover:text-red-600' : 'border-green-200 bg-green-50 text-green-700'}`}>
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border transition-colors ${isActive ? 'border-border text-muted hover:border-error hover:text-error' : 'border-success bg-success/10 text-success'}`}>
                     {isActive ? 'Suspend' : 'Activate'}
                   </button>
                 </div>
@@ -434,7 +434,7 @@ function BooksCatalog() {
   const uploadEpub = async (book, file) => {
     setOp(book.id, 'parsing')
     try {
-      const epubChapters = await parseEpub(file)
+      const epubChapters = await parseEpub(file, book.id)
       const existing = book.chapters || []
       const merged = epubChapters.map((ec, i) => {
         const match = existing[i] || existing.find((e) => e.title?.toLowerCase().includes(ec.title?.toLowerCase().slice(0, 10)))
@@ -442,7 +442,10 @@ function BooksCatalog() {
       })
       await saveChapters(book.id, merged)
       setOp(book.id, 'done')
-    } catch (err) { setOp(book.id, `error: ${err.message.slice(0, 50)}`) }
+    } catch (err) {
+      console.error('[uploadEpub] full error:', err) // the status badge truncates to 50 chars — full text only shows here
+      setOp(book.id, `error: ${err.message.slice(0, 50)}`)
+    }
   }
 
   const generate = async (book) => {
@@ -609,7 +612,7 @@ function BooksCatalog() {
                   className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-medium cursor-pointer shrink-0 transition-colors ${
                     book.is_published
                       ? 'border-border text-muted hover:border-highlight hover:text-highlight'
-                      : 'border-green-200 bg-green-50 text-green-700'
+                      : 'border-success bg-success/10 text-success'
                   }`}
                 >
                   {book.is_published ? <><EyeOff size={10} /> De-list</> : <><Eye size={10} /> List</>}
@@ -688,16 +691,16 @@ function BooksCatalog() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {chCount > 0 && <span className="text-[10px] text-muted">{chCount} ch{secCount > 0 ? ` · ${secCount} sec` : ''}</span>}
-                        {book.cartesia_folder_id ? <span className="text-[10px] text-green-600">✓ KB</span> :
-                         hasContent ? <span className="text-[10px] text-amber-600">KB not synced</span> : null}
-                        {op && !isRunning && <span className={`text-[10px] ${op === 'done' || op.startsWith('kb-done') || op.startsWith('split-done') ? 'text-green-600' : op.startsWith('error') ? 'text-red-500' : 'text-muted'}`}>
+                        {book.cartesia_folder_id ? <span className="text-[10px] text-success">✓ KB</span> :
+                         hasContent ? <span className="text-[10px] text-warning">KB not synced</span> : null}
+                        {op && !isRunning && <span className={`text-[10px] ${op === 'done' || op.startsWith('kb-done') || op.startsWith('split-done') ? 'text-success' : op.startsWith('error') ? 'text-error' : 'text-muted'}`}>
                           {op === 'done' ? '✓ saved' : op.startsWith('split-done') ? `✓ ${op.split(':')[1]} sections` : op.startsWith('kb-done') ? `✓ KB synced` : op}
                         </span>}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <label className={`px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer ${op === 'parsing' ? 'opacity-50 pointer-events-none' : ''}`}>
                           {op === 'parsing' ? <Loader2 size={10} className="animate-spin" /> : 'EPUB'}
-                          <input type="file" accept=".epub" className="hidden" onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }} />
+                          <input type="file" accept=".epub" className="hidden" onClick={(e) => { e.target.value = '' }} onChange={(e) => { if (e.target.files[0]) uploadEpub(book, e.target.files[0]) }} />
                         </label>
                         {hasContent && (
                           <button onClick={() => splitSections(book)} disabled={op === 'splitting'} className="px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer disabled:opacity-40">
@@ -712,7 +715,7 @@ function BooksCatalog() {
                         <button onClick={() => generate(book)} disabled={op === 'generating' || op === 'parsing'} className="px-2 py-1 text-[10px] rounded border border-border bg-surface hover:bg-background cursor-pointer disabled:opacity-40">
                           {op === 'generating' ? <Loader2 size={10} className="animate-spin" /> : hasChapters ? 'Regen' : 'Generate'}
                         </button>
-                        <button onClick={() => deleteBook(book)} disabled={isRunning} title="Delete book permanently + de-sync KB" className="px-2 py-1 text-[10px] rounded border border-red-200 text-red-600 bg-surface hover:bg-red-50 cursor-pointer disabled:opacity-40">
+                        <button onClick={() => deleteBook(book)} disabled={isRunning} title="Delete book permanently + de-sync KB" className="px-2 py-1 text-[10px] rounded border border-error text-error bg-surface hover:bg-error/10 cursor-pointer disabled:opacity-40">
                           {op === 'deleting' ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
                         </button>
                       </div>
@@ -917,7 +920,7 @@ function ProviderSwitcher() {
           <p className="text-sm font-medium">Active Voice Provider</p>
           <p className="text-xs text-muted mt-0.5">Controls which engine powers the Talk button</p>
         </div>
-        {saved && <span className="text-xs text-green-600">✓ Saved</span>}
+        {saved && <span className="text-xs text-success">✓ Saved</span>}
       </div>
       <div className="flex gap-2 mt-3">
         {[

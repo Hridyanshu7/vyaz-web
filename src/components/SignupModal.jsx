@@ -269,9 +269,9 @@ export function SignupModal({ open, onClose }) {
           {showAuthOnly && (
             <>
               {isLoggedIn ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
-                  <Check size={16} className="text-green-600" />
-                  <span className="text-sm text-green-800">{profile?.email || 'Signed in'}</span>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success">
+                  <Check size={16} className="text-success" />
+                  <span className="text-sm text-success">{profile?.email || 'Signed in'}</span>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -283,7 +283,7 @@ export function SignupModal({ open, onClose }) {
                   <div className="flex gap-2">
                     <button
                       onClick={handleGoogleSignIn}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-background hover:bg-surface transition-colors cursor-pointer shadow-sm"
                     >
                       <svg width="16" height="16" viewBox="0 0 48 48">
                         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
@@ -291,16 +291,16 @@ export function SignupModal({ open, onClose }) {
                         <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
                         <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                       </svg>
-                      <span className="text-sm font-medium text-gray-700">Google</span>
+                      <span className="text-sm font-medium text-foreground">Google</span>
                     </button>
                     <button
                       onClick={handleLinkedInSignIn}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-white hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-background hover:bg-surface transition-colors cursor-pointer shadow-sm"
                     >
                       <svg width="16" height="16" viewBox="0 0 48 48">
                         <path fill="#0A66C2" d="M44.45 0H3.55A3.5 3.5 0 000 3.46v41.08A3.5 3.5 0 003.55 48h40.9A3.5 3.5 0 0048 44.54V3.46A3.5 3.5 0 0044.45 0zM14.24 40.9H7.12V18h7.12v22.9zM10.68 14.82a4.12 4.12 0 110-8.24 4.12 4.12 0 010 8.24zM40.9 40.9h-7.09V29.77c0-2.66-.05-6.08-3.7-6.08-3.7 0-4.27 2.9-4.27 5.89V40.9h-7.1V18h6.83v3.13h.1a7.48 7.48 0 016.73-3.7c7.2 0 8.53 4.74 8.53 10.9v12.57z"/>
                       </svg>
-                      <span className="text-sm font-medium text-gray-700">LinkedIn</span>
+                      <span className="text-sm font-medium text-foreground">LinkedIn</span>
                     </button>
                   </div>
 
@@ -380,9 +380,9 @@ export function SignupModal({ open, onClose }) {
           {/* ===== CALENDAR STEP (only for booking flows) ===== */}
           {isLoggedIn && showCalendarStep && (
             <>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 mb-2">
-                <Check size={16} className="text-green-600" />
-                <span className="text-sm text-green-800">Signed in as {profile?.name || profile?.email}</span>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success mb-2">
+                <Check size={16} className="text-success" />
+                <span className="text-sm text-success">Signed in as {profile?.name || profile?.email}</span>
               </div>
 
               <p className="text-sm font-medium">Connect your calendar to book sessions</p>
@@ -395,7 +395,7 @@ export function SignupModal({ open, onClose }) {
                     <span className="text-sm">Google Calendar</span>
                   </div>
                   {gcalConnected ? (
-                    <span className="text-xs text-green-600 flex items-center gap-1"><Check size={12} /> Connected</span>
+                    <span className="text-xs text-success flex items-center gap-1"><Check size={12} /> Connected</span>
                   ) : (
                     <Button size="sm" variant="outline" onClick={() => {
                       if (context) localStorage.setItem('vyaz_signup_context', JSON.stringify(context))

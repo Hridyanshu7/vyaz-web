@@ -1,37 +1,38 @@
 <style>
   :root {
-    /* ---- Warm manuscript + vermilion seal (light) ---- */
-    --paper: #F3EFE7;        /* background — warm washi */
-    --surface: #FAF7F1;      /* raised paper (cards) */
-    --sunk: #EAE4D8;         /* recessed fill */
-    --ink: #24211C;          /* foreground — warm sumi */
-    --ink-soft: #4A443B;     /* secondary body text */
-    --stone: #776D5E;        /* muted / captions */
-    --line: #E3DCCE;         /* hairline */
-    --line-strong: #D3CABA;
-    --seal: #C4553D;         /* the mark — cinnabar vermilion */
-    --seal-deep: #A5402D;    /* seal-as-text / links (AA) */
-    --seal-wash: #F1E1DB;    /* faint seal tint */
-    --sage: #4E7B52;         /* success */
-    --ochre: #A9772B;        /* warning */
-    --oxblood: #93342A;      /* error (distinct from the brand seal) */
+    /* ---- Black ink, white paper, red seal (light) ---- */
+    --paper: #FFFFFF;        /* background — white paper */
+    --surface: #FFFFFF;      /* raised paper (cards) — separated by border, not tint */
+    --sunk: #F2F2F2;         /* recessed fill */
+    --ink: #000000;          /* foreground — black ink */
+    --ink-soft: #333333;     /* secondary body text */
+    --stone: #666666;        /* muted / captions */
+    --line: #E0E0E0;         /* hairline */
+    --line-strong: #C7C7C7;
+    --seal: #E0201A;         /* the mark — signal red */
+    --seal-deep: #B91C1C;    /* seal-as-text / links (AA) */
+    --seal-wash: #FDECEC;    /* faint seal tint */
+    --sage: #1E7A34;         /* success */
+    --ochre: #A66A00;        /* warning */
+    --oxblood: #7A2318;      /* error (distinct from the brand seal) */
 
     --serif: 'IBM Plex Serif', Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
     --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
     --mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
 
     --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-pill: 999px;
-    --shadow: 0 1px 2px rgba(36,33,28,.05), 0 6px 20px -12px rgba(36,33,28,.18);
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 20px -12px rgba(0,0,0,.22);
     --read: 68ch;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #1A1714; --surface: #221E19; --sunk: #14110E;
-      --ink: #EDE7DA; --ink-soft: #C3BBAB; --stone: #9C9280;
-      --line: #322C24; --line-strong: #423A30;
-      --seal: #E06A50; --seal-deep: #EE9078; --seal-wash: #2E211C;
-      --sage: #6FA073; --ochre: #CFA25A; --oxblood: #D46456;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.6);
+      /* ---- Black ink, white paper, red seal (dark) — cleanly inverted ---- */
+      --paper: #0A0A0A; --surface: #0A0A0A; --sunk: #1A1A1A;
+      --ink: #FFFFFF; --ink-soft: #D6D6D6; --stone: #999999;
+      --line: #2A2A2A; --line-strong: #3D3D3D;
+      --seal: #FF453A; --seal-deep: #FF7A70; --seal-wash: #2A1210;
+      --sage: #3DDC63; --ochre: #E0A030; --oxblood: #C2453A;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
     }
   }
 
@@ -179,8 +180,8 @@
     <p class="standfirst">The single source of truth for how Vyaz looks, sounds, and feels. Brand foundation first — because every color, letterform, and shape here is an argument for one idea: <em>preserve the original, deliver it human.</em></p>
     <div class="mast-meta">
       <span><b>Status:</b> v1 — governs all design decisions</span>
-      <span><b>Updated:</b> 2026-07-06</span>
-      <span><b>Direction:</b> warm manuscript + vermilion seal</span>
+      <span><b>Updated:</b> 2026-07-09</span>
+      <span><b>Direction:</b> black ink, white paper, red seal — clarity and contrast</span>
     </div>
   </header>
 
@@ -252,9 +253,9 @@
         <p>Our symbol is a <strong>seal</strong> — the <em>hanko/chhāp</em>, the stamp of authenticity that both East-Asian and Indian manuscript traditions press onto genuine work. In Vyaz the seal means one thing: <em>this is the real, sourced original.</em></p>
         <div class="demo">
           <span class="seal-mark" style="width:54px;height:54px;font-size:30px;border-radius:13px;">व</span>
-          <div style="max-width:44ch;"><p style="margin:0;font-size:15px;color:var(--ink-soft)">A vermilion seal bearing the Devanagari <em>va</em> (व). It is the only place the brand shouts — small, deliberate, earned. Everything else is quiet ink on paper.</p></div>
+          <div style="max-width:44ch;"><p style="margin:0;font-size:15px;color:var(--ink-soft)">A red seal bearing the Devanagari <em>va</em> (व). It is the only place the brand shouts — small, deliberate, earned. Everything else is black ink on white paper.</p></div>
         </div>
-        <p>This is why <strong>red survives</strong> from the original palette — but reclassified. It is no longer a "highlight color"; it is the seal of the authentic, and it is spent sparingly (see §5).</p>
+        <p>This is why <strong>red survives</strong> as the one accent — but disciplined. It is not a "highlight color" sprinkled around; it is the seal of the authentic, and it is spent sparingly (see §5).</p>
       </section>
 
       <section id="position">
@@ -276,32 +277,32 @@
 
       <section id="color">
         <div class="sec-head"><span class="sec-num">05</span><h2>Color system</h2></div>
-        <p>Three ideas: <strong>warm paper</strong> (the page), <strong>warm sumi ink</strong> (the author's words), <strong>the vermilion seal</strong> (the mark of the authentic). Neutrals do 95% of the work; the seal is a spice, never a sauce.</p>
+        <p>Three ideas: <strong>white paper</strong> (the page), <strong>black ink</strong> (the author's words), <strong>the red seal</strong> (the mark of the authentic). Neutrals do 95% of the work; the seal is a spice, never a sauce.</p>
 
         <div class="kicker">Core tokens (light)</div>
         <div class="swatches">
-          <div class="sw"><div class="chip" style="background:#F3EFE7"></div><div class="body"><span class="nm">Paper</span> <span class="hex">#F3EFE7</span><span class="use">App background</span><span class="tok">--color-background</span></div></div>
-          <div class="sw"><div class="chip" style="background:#FAF7F1"></div><div class="body"><span class="nm">Surface</span> <span class="hex">#FAF7F1</span><span class="use">Cards, raised areas</span><span class="tok">--color-surface</span></div></div>
-          <div class="sw"><div class="chip" style="background:#24211C"></div><div class="body"><span class="nm">Ink</span> <span class="hex">#24211C</span><span class="use">Primary text</span><span class="tok">--color-foreground</span></div></div>
-          <div class="sw"><div class="chip" style="background:#776D5E"></div><div class="body"><span class="nm">Stone</span> <span class="hex">#776D5E</span><span class="use">Muted / captions</span><span class="tok">--color-muted</span></div></div>
-          <div class="sw"><div class="chip" style="background:#C4553D"></div><div class="body"><span class="nm">Seal</span> <span class="hex">#C4553D</span><span class="use">The mark / accent</span><span class="tok">--color-highlight</span></div></div>
-          <div class="sw"><div class="chip" style="background:#E3DCCE"></div><div class="body"><span class="nm">Line</span> <span class="hex">#E3DCCE</span><span class="use">Hairline borders</span><span class="tok">--color-border</span></div></div>
+          <div class="sw"><div class="chip" style="background:#FFFFFF"></div><div class="body"><span class="nm">Paper</span> <span class="hex">#FFFFFF</span><span class="use">App background</span><span class="tok">--color-background</span></div></div>
+          <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid #E0E0E0"></div><div class="body"><span class="nm">Surface</span> <span class="hex">#FFFFFF</span><span class="use">Cards — same white, bordered</span><span class="tok">--color-surface</span></div></div>
+          <div class="sw"><div class="chip" style="background:#000000"></div><div class="body"><span class="nm">Ink</span> <span class="hex">#000000</span><span class="use">Primary text</span><span class="tok">--color-foreground</span></div></div>
+          <div class="sw"><div class="chip" style="background:#666666"></div><div class="body"><span class="nm">Stone</span> <span class="hex">#666666</span><span class="use">Muted / captions</span><span class="tok">--color-muted</span></div></div>
+          <div class="sw"><div class="chip" style="background:#E0201A"></div><div class="body"><span class="nm">Seal</span> <span class="hex">#E0201A</span><span class="use">The mark / accent</span><span class="tok">--color-highlight</span></div></div>
+          <div class="sw"><div class="chip" style="background:#E0E0E0"></div><div class="body"><span class="nm">Line</span> <span class="hex">#E0E0E0</span><span class="use">Hairline borders</span><span class="tok">--color-border</span></div></div>
         </div>
 
         <div class="kicker">Supporting &amp; semantic</div>
         <div class="swatches">
-          <div class="sw"><div class="chip" style="background:#A5402D"></div><div class="body"><span class="nm">Seal-deep</span> <span class="hex">#A5402D</span><span class="use">Seal as text/links (AA)</span></div></div>
-          <div class="sw"><div class="chip" style="background:#4E7B52"></div><div class="body"><span class="nm">Sage</span> <span class="hex">#4E7B52</span><span class="use">Success</span></div></div>
-          <div class="sw"><div class="chip" style="background:#A9772B"></div><div class="body"><span class="nm">Ochre</span> <span class="hex">#A9772B</span><span class="use">Warning</span></div></div>
-          <div class="sw"><div class="chip" style="background:#93342A"></div><div class="body"><span class="nm">Oxblood</span> <span class="hex">#93342A</span><span class="use">Error (≠ brand seal)</span></div></div>
+          <div class="sw"><div class="chip" style="background:#B91C1C"></div><div class="body"><span class="nm">Seal-deep</span> <span class="hex">#B91C1C</span><span class="use">Seal as text/links (AA)</span></div></div>
+          <div class="sw"><div class="chip" style="background:#1E7A34"></div><div class="body"><span class="nm">Sage</span> <span class="hex">#1E7A34</span><span class="use">Success</span></div></div>
+          <div class="sw"><div class="chip" style="background:#A66A00"></div><div class="body"><span class="nm">Ochre</span> <span class="hex">#A66A00</span><span class="use">Warning</span></div></div>
+          <div class="sw"><div class="chip" style="background:#7A2318"></div><div class="body"><span class="nm">Oxblood</span> <span class="hex">#7A2318</span><span class="use">Error (≠ brand seal)</span></div></div>
         </div>
 
         <div class="principle"><span class="tag">The seal rule</span><p>The seal marks the <strong>authentic</strong> and the <strong>active</strong>: the brand mark, the live/recording indicator, the selected item, inline "book verbatim" highlights, and at most <em>one</em> primary action per view. <strong>Never</strong> a large background fill, never two competing reds on one screen, never body text. When in doubt, the workhorse is ink — spend the seal like it costs money.</p></div>
 
         <h3>Light &amp; dark</h3>
-        <p>Dark mode is <em>warm lacquer</em>, not black: background <code>#1A1714</code>, text <code>#EDE7DA</code>, and the seal brightens to <code>#E06A50</code> so the mark still reads. Same meaning, inverted ground. This page is showing you your current scheme.</p>
+        <p>Dark mode is a clean inversion, not a warm tint: background <code>#0A0A0A</code>, text <code>#FFFFFF</code>, and the seal brightens to <code>#FF453A</code> so it still reads at full contrast on black. Same meaning, inverted ground — black ink becomes white ink, white paper becomes black paper, the seal stays the seal. This page is showing you your current scheme.</p>
         <h3>Semantic states vs. the seal</h3>
-        <p>Error red (<code>oxblood</code>) is deliberately deeper and browner than the brand seal, so "something's wrong" never gets confused with "this is authentic." Success/warning lean on sage/ochre — warm, muted, never neon.</p>
+        <p>Error red (<code>oxblood</code>) is deliberately darker and more brownish than the brand seal, so "something's wrong" never gets confused with "this is authentic." Success/warning lean on sage/ochre — plain, functional, never neon, never competing with the seal for attention.</p>
       </section>
 
       <section id="type">
@@ -350,12 +351,12 @@
         <ul>
           <li><strong>Radius:</strong> <code>sm 6px</code> (inputs/chips) · <code>md 10px</code> (buttons/cards) · <code>lg 14px</code> (panels) · <code>pill</code> (tags). Modest — no pill-everything, no sharp-brutalist either.</li>
           <li><strong>Borders:</strong> 1px <code>line</code> hairlines are the default separator.</li>
-          <li><strong>Elevation:</strong> one soft, warm shadow token for genuinely floating things (modals, menus). Cards prefer a border over a shadow.</li>
+          <li><strong>Elevation:</strong> one soft, neutral shadow token for genuinely floating things (modals, menus). Cards prefer a border over a shadow.</li>
           <li><strong>Seal never outlines everything</strong> — no red rails on cards (that's the cliché we avoid); the seal appears as a mark <em>within</em>, not a frame <em>around</em>.</li>
         </ul>
         <div class="demo" style="gap:22px;">
           <div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;box-shadow:none;font-size:14px;color:var(--ink-soft);max-width:200px;">Card — hairline, no shadow</div>
-          <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--shadow);font-size:14px;color:var(--ink-soft);max-width:200px;">Floating — soft warm shadow</div>
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--shadow);font-size:14px;color:var(--ink-soft);max-width:200px;">Floating — soft neutral shadow</div>
         </div>
       </section>
 
@@ -364,7 +365,7 @@
         <ul>
           <li><strong>Icons:</strong> line icons, ~1.5px stroke, drawn in ink (Lucide is already in use — keep it). Icons are quiet; they don't get the seal color unless they express an active/authentic state.</li>
           <li><strong>Imagery:</strong> favor <em>ink-and-paper</em> textures, manuscript/brushwork, real book covers. Avoid stocky 3D gradients and generic "AI" glow — they contradict the anti-slop thesis.</li>
-          <li><strong>The seal motif</strong> can appear as a subtle watermark or a section mark, always small and vermilion. It is the brand's signature gesture.</li>
+          <li><strong>The seal motif</strong> can appear as a subtle watermark or a section mark, always small and red. It is the brand's signature gesture.</li>
           <li><strong>Author presence:</strong> wherever a book appears, the author's name is visible and dignified — never buried.</li>
         </ul>
       </section>
@@ -439,7 +440,7 @@
       </section>
 
       <footer class="foot">
-        Vyaz Brand &amp; Design Language · v1 · companion to CLAUDE.md, DECISIONS.md, ARCHITECTURE.md and the System Field Guide · warm manuscript + vermilion seal.
+        Vyaz Brand &amp; Design Language · v1 · companion to CLAUDE.md, DECISIONS.md, ARCHITECTURE.md and the System Field Guide · black ink, white paper, red seal.
       </footer>
     </main>
   </div>

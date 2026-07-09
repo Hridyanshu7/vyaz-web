@@ -121,7 +121,7 @@ export function AddBook() {
       {book && (
         <div className="mt-6 space-y-4">
           {book._partial && (
-            <div className="flex items-start gap-2 bg-amber-50 text-amber-700 text-sm px-4 py-3 rounded-lg">
+            <div className="flex items-start gap-2 bg-warning/10 text-warning text-sm px-4 py-3 rounded-lg">
               <Info size={16} className="mt-0.5 shrink-0" />
               Auto-fetch returned limited data — edit details below before adding.
             </div>
@@ -152,14 +152,14 @@ export function AddBook() {
                 <div className="flex gap-4 mt-3">
                   {gr?.averageRating && (
                     <div className="flex items-center gap-1 text-xs">
-                      <BookOpen size={12} className="text-green-600" />
+                      <BookOpen size={12} className="text-muted" />
                       <span className="font-medium">{gr.averageRating}</span>
                       <span className="text-muted">({gr.ratingsCount?.toLocaleString()} on Goodreads)</span>
                     </div>
                   )}
                   {az?.stars && (
                     <div className="flex items-center gap-1 text-xs">
-                      <ShoppingCart size={12} className="text-orange-500" />
+                      <ShoppingCart size={12} className="text-muted" />
                       <span className="font-medium">{az.stars}</span>
                       <span className="text-muted">({az.reviewsCount?.toLocaleString()} on Amazon)</span>
                     </div>
@@ -173,11 +173,11 @@ export function AddBook() {
           {(az || gr) && (
             <div className="grid md:grid-cols-2 gap-4">
               {/* Goodreads section */}
-              <div className={`border rounded-xl overflow-hidden ${gr ? 'border-green-200' : 'border-border'}`}>
-                <div className="px-4 py-2.5 bg-green-50 border-b border-green-200 flex items-center gap-2">
-                  <BookOpen size={14} className="text-green-700" />
-                  <span className="text-xs font-semibold text-green-800">Goodreads</span>
-                  {!gr && <span className="text-xs text-green-600 ml-auto">Not found</span>}
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-surface border-b border-border flex items-center gap-2">
+                  <BookOpen size={14} className="text-foreground" />
+                  <span className="text-xs font-semibold text-foreground">Goodreads</span>
+                  {!gr && <span className="text-xs text-muted ml-auto">Not found</span>}
                 </div>
                 {gr ? (
                   <div className="p-4 space-y-3 text-sm">
@@ -226,16 +226,16 @@ export function AddBook() {
               </div>
 
               {/* Amazon section */}
-              <div className={`border rounded-xl overflow-hidden ${az ? 'border-orange-200' : 'border-border'}`}>
-                <div className="px-4 py-2.5 bg-orange-50 border-b border-orange-200 flex items-center gap-2">
-                  <ShoppingCart size={14} className="text-orange-700" />
-                  <span className="text-xs font-semibold text-orange-800">Amazon</span>
-                  {!az && <span className="text-xs text-orange-600 ml-auto">Not found</span>}
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-surface border-b border-border flex items-center gap-2">
+                  <ShoppingCart size={14} className="text-foreground" />
+                  <span className="text-xs font-semibold text-foreground">Amazon</span>
+                  {!az && <span className="text-xs text-muted ml-auto">Not found</span>}
                 </div>
                 {az ? (
                   <div className="p-4 space-y-3 text-sm">
                     {az.aiSummary && (
-                      <div className="p-2.5 bg-orange-50/50 rounded-lg">
+                      <div className="p-2.5 bg-surface rounded-lg">
                         <p className="text-xs font-medium mb-1">AI Review Summary</p>
                         <p className="text-xs text-muted">{az.aiSummary}</p>
                       </div>
@@ -245,7 +245,7 @@ export function AddBook() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">{az.price}</span>
                         {az.listPrice && <span className="text-xs text-muted line-through">{az.listPrice}</span>}
-                        {az.inStockText && <span className="text-xs text-green-600">{az.inStockText}</span>}
+                        {az.inStockText && <span className="text-xs text-success">{az.inStockText}</span>}
                       </div>
                     )}
                     {az.starsBreakdown && (
@@ -255,7 +255,7 @@ export function AddBook() {
                           <div key={label} className="flex items-center gap-2 text-xs">
                             <span className="w-8 text-right text-muted">{label}</span>
                             <div className="flex-1 h-1.5 bg-surface rounded-full overflow-hidden">
-                              <div className="h-full bg-orange-400 rounded-full" style={{ width: `${pct * 100}%` }} />
+                              <div className="h-full bg-highlight rounded-full" style={{ width: `${pct * 100}%` }} />
                             </div>
                             <span className="text-muted w-8 text-right">{Math.round(pct * 100)}%</span>
                           </div>

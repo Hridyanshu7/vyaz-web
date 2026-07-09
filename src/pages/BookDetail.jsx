@@ -111,7 +111,7 @@ export function BookDetail() {
                 <StarRating rating={Math.round(book.goodreads_rating)} size={12} />
                 <span className="text-xs font-semibold">{book.goodreads_rating}</span>
                 <span className="text-[10px] text-muted">({book.goodreads_ratings_count?.toLocaleString()})</span>
-                <span className="text-[10px] text-green-700">Goodreads</span>
+                <span className="text-[10px] text-muted">Goodreads</span>
               </div>
             )}
             {book.amazon_rating && (
@@ -119,7 +119,7 @@ export function BookDetail() {
                 <StarRating rating={Math.round(book.amazon_rating)} size={12} />
                 <span className="text-xs font-semibold">{book.amazon_rating}</span>
                 <span className="text-[10px] text-muted">({book.amazon_reviews_count?.toLocaleString()})</span>
-                <span className="text-[10px] text-orange-600">Amazon</span>
+                <span className="text-[10px] text-muted">Amazon</span>
               </div>
             )}
           </div>
@@ -133,12 +133,12 @@ export function BookDetail() {
           {/* External links */}
           <div className="flex gap-3 mt-3">
             {gr?.url && (
-              <a href={gr.url} target="_blank" rel="noopener noreferrer" className="text-xs text-green-700 hover:underline flex items-center gap-1">
+              <a href={gr.url} target="_blank" rel="noopener noreferrer" className="text-xs text-highlight hover:underline flex items-center gap-1">
                 <ExternalLink size={10} /> Goodreads
               </a>
             )}
             {az?.url && (
-              <a href={az.url} target="_blank" rel="noopener noreferrer" className="text-xs text-orange-600 hover:underline flex items-center gap-1">
+              <a href={az.url} target="_blank" rel="noopener noreferrer" className="text-xs text-highlight hover:underline flex items-center gap-1">
                 <ExternalLink size={10} /> Amazon
               </a>
             )}

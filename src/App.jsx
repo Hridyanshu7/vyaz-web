@@ -19,7 +19,7 @@ class ErrorBoundary extends Component {
       return (
         <div className="max-w-lg mx-auto px-4 py-16 text-center">
           <p className="text-lg font-bold mb-2">Something went wrong</p>
-          <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg font-mono break-all">{this.state.error.message}</p>
+          <p className="text-sm text-error bg-error/10 p-3 rounded-lg font-mono break-all">{this.state.error.message}</p>
           <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-foreground text-white rounded-lg text-sm cursor-pointer">
             Reload
           </button>

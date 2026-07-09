@@ -76,7 +76,7 @@ function Waveform({ sessionRef, state }) {
 
   const BARS = 11
   const color =
-    state === 'speaking' ? 'bg-highlight' : state === 'listening' ? 'bg-green-500' : 'bg-border'
+    state === 'speaking' ? 'bg-highlight' : state === 'listening' ? 'bg-success' : 'bg-border'
   const idle = state !== 'speaking' && state !== 'listening'
 
   return (
@@ -317,8 +317,8 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
             )}
 
             {error && (
-              <div className="mx-4 mb-3 p-3 rounded-lg bg-red-50 border border-red-200 shrink-0">
-                <p className="text-xs text-red-700">{error}</p>
+              <div className="mx-4 mb-3 p-3 rounded-lg bg-error/10 border border-error shrink-0">
+                <p className="text-xs text-error">{error}</p>
               </div>
             )}
           </div>
@@ -331,7 +331,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
               <Waveform sessionRef={sessionRef} state={state} />
               <div className="flex items-center justify-center gap-2 mt-1">
                 {state === 'speaking' && <Volume2 size={12} className="text-highlight animate-pulse" />}
-                {state === 'listening' && <Mic size={12} className="text-green-500 animate-pulse" />}
+                {state === 'listening' && <Mic size={12} className="text-success animate-pulse" />}
                 {(state === 'connecting' || state === 'idle' || state === 'reconnecting') && <Loader2 size={12} className="animate-spin text-muted" />}
                 <p className="text-xs text-muted">{STATE_LABELS[state] || state}</p>
               </div>
@@ -352,7 +352,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
                     const status = activeIndex < 0 ? 'remaining' : i < activeIndex ? 'done' : i === activeIndex ? 'active' : 'remaining'
                     return (
                       <div key={s.number ?? i} className="flex items-start gap-2">
-                        {status === 'done' && <CheckCircle2 size={12} className="text-green-500 shrink-0 mt-0.5" />}
+                        {status === 'done' && <CheckCircle2 size={12} className="text-success shrink-0 mt-0.5" />}
                         {status === 'active' && <Volume2 size={12} className="text-highlight shrink-0 mt-0.5 animate-pulse" />}
                         {status === 'remaining' && <Circle size={12} className="text-muted/40 shrink-0 mt-0.5" />}
                         <span className={`text-[11px] leading-snug ${

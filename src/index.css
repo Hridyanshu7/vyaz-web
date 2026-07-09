@@ -8,6 +8,9 @@
   --color-muted: #6B7280;
   --color-border: #E5E7EB;
   --color-surface: #F9FAFB;
+  --color-success: #1E7A34;
+  --color-warning: #A66A00;
+  --color-error: #7A2318;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 

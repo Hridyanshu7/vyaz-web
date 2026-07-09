@@ -1,7 +1,7 @@
 const variants = {
   default: 'bg-surface text-foreground border border-border',
   highlight: 'bg-highlight/10 text-highlight',
-  success: 'bg-green-50 text-green-700',
+  success: 'bg-success/10 text-success',
   muted: 'bg-surface text-muted',
 }
 
