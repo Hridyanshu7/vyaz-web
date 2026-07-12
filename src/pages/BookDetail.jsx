@@ -14,7 +14,6 @@ function getTopGenres(book) {
 
 export function BookDetail() {
   const { id } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
   const { getBook, fetchBookChapters } = useBookStore()
   const book = getBook(id)
   const [chaptersLoading, setChaptersLoading] = useState(false)
