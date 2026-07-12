@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { BookOpen, ArrowLeft, FileText, ExternalLink, BookMarked, Mic, Loader2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
 import { useBookStore } from '../stores/bookStore'
-import { useAuthStore } from '../stores/authStore'
-import { useSignupModal } from '../hooks/useSignupModal'
-import { VoiceAgentModal } from '../components/VoiceAgentModal'
-import { VoicePipelineModal } from '../components/VoicePipelineModal'
 import { GeminiLiveModal } from '../components/GeminiLiveModal'
-import { useAdminDataStore } from '../stores/adminDataStore'
 
 function getTopGenres(book) {
   if (book.genres?.length > 0) return book.genres
@@ -23,8 +18,6 @@ export function BookDetail() {
   const { getBook, fetchBookChapters } = useBookStore()
   const book = getBook(id)
   const [chaptersLoading, setChaptersLoading] = useState(false)
-  const { user } = useAuthStore()
-  const showSignup = useSignupModal((s) => s.show)
 
   // Chapters are lazy-loaded (grid stays light) — pull this book's chapters on open.
   useEffect(() => {
@@ -37,27 +30,10 @@ export function BookDetail() {
   const [expandedCard, setExpandedCard] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
 
-  // After a signed-out Talk click routes through SignupModal (type: 'talk'), it navigates
-  // back here with ?talkChapter=<number> — auto-reopen Talk on that exact chapter once
-  // chapters are loaded, instead of leaving the user to find + click it again.
-  useEffect(() => {
-    const chNum = searchParams.get('talkChapter')
-    if (!chNum || !book?.chapters?.length) return
-    const ch = book.chapters.find((c) => String(c.number) === chNum)
-    if (ch) setVoiceChapter(ch)
-    setSearchParams((p) => { p.delete('talkChapter'); return p }, { replace: true })
-  }, [searchParams, book?.chapters, setSearchParams])
-
   const handleTalk = (e, ch) => {
     e.stopPropagation()
-    if (!user) { showSignup({ type: 'talk', bookId: id, chapterNumber: ch.number }); return }
     setVoiceChapter(ch)
   }
-
-  // Provider precedence: admin settings → public scoped read → gemini_live default.
-  const adminVoiceProvider = useAdminDataStore((s) => s.platformSettings.voice_provider)
-  const publicVoiceProvider = useBookStore((s) => s.voiceProvider)
-  const voiceProvider = adminVoiceProvider || publicVoiceProvider || 'gemini_live'
 
   if (!book) {
     return (
@@ -232,7 +208,7 @@ export function BookDetail() {
                           size="sm"
                           variant="outline"
                           onClick={(e) => handleTalk(e, ch)}
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 min-h-11"
                         >
                           <Mic size={11} /> Talk
                         </Button>
@@ -256,28 +232,12 @@ export function BookDetail() {
         </div>
       </div>
 
-      {voiceProvider === 'gemini_live' ? (
-        <GeminiLiveModal
-          open={!!voiceChapter}
-          onClose={() => setVoiceChapter(null)}
-          book={book}
-          chapter={voiceChapter}
-        />
-      ) : voiceProvider === 'pipeline' ? (
-        <VoicePipelineModal
-          open={!!voiceChapter}
-          onClose={() => setVoiceChapter(null)}
-          book={book}
-          chapter={voiceChapter}
-        />
-      ) : (
-        <VoiceAgentModal
-          open={!!voiceChapter}
-          onClose={() => setVoiceChapter(null)}
-          book={book}
-          chapter={voiceChapter}
-        />
-      )}
+      <GeminiLiveModal
+        open={!!voiceChapter}
+        onClose={() => setVoiceChapter(null)}
+        book={book}
+        chapter={voiceChapter}
+      />
     </div>
   )
 }

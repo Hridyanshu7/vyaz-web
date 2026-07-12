@@ -5,8 +5,6 @@ import { StarRating } from '../components/ui/StarRating'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
 import { useBookStore } from '../stores/bookStore'
-import { useAuthStore } from '../stores/authStore'
-import { useSignupModal } from '../hooks/useSignupModal'
 
 export function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -14,9 +12,7 @@ export function Home() {
   const selectedGenre = searchParams.get('genre') || null
   const setSearch = (val) => setSearchParams((p) => { val ? p.set('q', val) : p.delete('q'); return p }, { replace: true })
   const setGenre = (val) => setSearchParams((p) => { val ? p.set('genre', val) : p.delete('genre'); return p }, { replace: true })
-  const { user } = useAuthStore()
   const navigate = useNavigate()
-  const showSignup = useSignupModal((s) => s.show)
   const { loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
 
   const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
@@ -34,7 +30,7 @@ export function Home() {
             Talk to the book. An AI narrator reads it aloud — word for word — and answers your questions, out loud, as you go.
           </p>
           <div className="flex gap-3 mt-8">
-            <Button size="lg" onClick={() => user ? navigate('/books') : showSignup({ type: 'getstarted' })}>
+            <Button size="lg" onClick={() => navigate('/books')}>
               Get started <ArrowRight size={18} className="ml-1" />
             </Button>
             <Button variant="outline" size="lg" onClick={() => {

@@ -5,7 +5,6 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useAuthStore } from '../stores/authStore'
 import { useBookStore } from '../stores/bookStore'
-import { useSignupModal } from '../hooks/useSignupModal'
 
 function MultiSelectChips({ options, selected, onToggle }) {
   return (
@@ -41,7 +40,7 @@ export function Profile() {
 
   useEffect(() => {
     if (loading) return
-    if (!user) { useSignupModal.getState().show({ type: 'signin' }); return }
+    if (!user) return
     if (profile) {
       setName(profile.name || '')
       setEmail(profile.email || '')
