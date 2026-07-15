@@ -33,8 +33,11 @@ export function Home() {
         />
         <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 relative grid lg:grid-cols-2 gap-10 items-center">
           <div>
-            <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight max-w-2xl">
-              Books are long and lonely. <span className="text-highlight">Conversations aren't.</span>
+            <h1
+              className="text-[34px] md:text-[58px] font-bold leading-[1.05] tracking-tight max-w-2xl"
+              style={{ fontFamily: "'Nunito', sans-serif" }}
+            >
+              <span className="text-highlight">free, fun &amp; effective</span> way of consuming books!
             </h1>
             <p className="text-ink-soft mt-4 text-lg max-w-xl">
               Talk to the book. An AI narrator reads it aloud — word for word — and answers your questions, out loud, as you go.
@@ -51,26 +54,29 @@ export function Home() {
             </div>
           </div>
 
-          {/* Product collage — desktop Talk layout + the two mobile Chat/Book tabs,
-              rendered straight from docs/design-language.html §12. Hidden below lg:
-              a hero illustration isn't worth the space on a small viewport. */}
+          {/* Product collage — desktop Talk layout + one mobile Chat/Book-tab phone,
+              looping as short muted alpha-channel WebM clips (word-by-word book
+              reveal + tab switching), rendered straight from docs/design-language.html
+              §12. `poster` is the static PNG fallback for browsers without alpha-WebM
+              support (e.g. Safari). Only the left phone overlaps the desktop card —
+              the right side stays clear so the desktop mockup's own voice-orb waveform
+              (bottom-right of that card) stays visible. Hidden below lg: a hero
+              illustration isn't worth the space on a small viewport. */}
           <div className="hidden lg:block relative max-w-[520px] w-full mx-auto">
-            <img
-              src="/hero-talk-desktop.png"
-              alt="The Vyaz Talk session — a live conversation panel next to the book's own text, word-highlighted as it's narrated"
+            <video
+              src="/hero-talk-desktop.webm"
+              poster="/hero-talk-desktop.png"
+              autoPlay loop muted playsInline
+              aria-label="The Vyaz Talk session — a live conversation panel next to the book's own text, word-highlighted as it's narrated"
               className="relative z-10 w-full rounded-2xl"
               style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
             />
-            <img
-              src="/hero-talk-phone-chat.png"
-              alt="The Talk session on mobile, Chat tab"
+            <video
+              src="/hero-talk-phone-chat.webm"
+              poster="/hero-talk-phone-chat.png"
+              autoPlay loop muted playsInline
+              aria-label="The Talk session on mobile, switching between the Chat and Book tabs"
               className="absolute z-20 w-[34%] rounded-xl -left-6 -bottom-10 -rotate-6"
-              style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
-            />
-            <img
-              src="/hero-talk-phone-book.png"
-              alt="The Talk session on mobile, Book tab"
-              className="absolute z-20 w-[34%] rounded-xl -right-6 -bottom-10 rotate-6"
               style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
             />
           </div>
