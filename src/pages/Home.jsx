@@ -31,22 +31,48 @@ export function Home() {
           className="pointer-events-none absolute -top-32 -left-16 w-[820px] h-[520px] rounded-full opacity-30 blur-[90px]"
           style={{ background: 'linear-gradient(135deg, #4A3ECB 0%, #1F9EA8 55%, #F5A623 100%)' }}
         />
-        <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 relative">
-          <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight max-w-2xl">
-            Books are long and lonely. <span className="text-highlight">Conversations aren't.</span>
-          </h1>
-          <p className="text-ink-soft mt-4 text-lg max-w-xl">
-            Talk to the book. An AI narrator reads it aloud — word for word — and answers your questions, out loud, as you go.
-          </p>
-          <div className="flex gap-3 mt-6">
-            <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
-              Get started <ArrowRight size={18} className="ml-1" />
-            </Button>
-            <Button variant="outline" size="lg" onClick={() => {
-              document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })
-            }}>
-              How it works
-            </Button>
+        <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 relative grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight max-w-2xl">
+              Books are long and lonely. <span className="text-highlight">Conversations aren't.</span>
+            </h1>
+            <p className="text-ink-soft mt-4 text-lg max-w-xl">
+              Talk to the book. An AI narrator reads it aloud — word for word — and answers your questions, out loud, as you go.
+            </p>
+            <div className="flex gap-3 mt-6">
+              <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
+                Get started <ArrowRight size={18} className="ml-1" />
+              </Button>
+              <Button variant="outline" size="lg" onClick={() => {
+                document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })
+              }}>
+                How it works
+              </Button>
+            </div>
+          </div>
+
+          {/* Product collage — desktop Talk layout + the two mobile Chat/Book tabs,
+              rendered straight from docs/design-language.html §12. Hidden below lg:
+              a hero illustration isn't worth the space on a small viewport. */}
+          <div className="hidden lg:block relative max-w-[520px] w-full mx-auto">
+            <img
+              src="/hero-talk-desktop.png"
+              alt="The Vyaz Talk session — a live conversation panel next to the book's own text, word-highlighted as it's narrated"
+              className="relative z-10 w-full rounded-2xl"
+              style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
+            />
+            <img
+              src="/hero-talk-phone-chat.png"
+              alt="The Talk session on mobile, Chat tab"
+              className="absolute z-20 w-[34%] rounded-xl -left-6 -bottom-10 -rotate-6"
+              style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
+            />
+            <img
+              src="/hero-talk-phone-book.png"
+              alt="The Talk session on mobile, Book tab"
+              className="absolute z-20 w-[34%] rounded-xl -right-6 -bottom-10 rotate-6"
+              style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
+            />
           </div>
         </div>
       </section>
