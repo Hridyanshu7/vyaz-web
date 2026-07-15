@@ -5,9 +5,9 @@ export function BookCard({ book }) {
   return (
     <Link
       to={`/books/${book.id}`}
-      className="group block rounded-xl border border-border bg-background p-4 hover:border-foreground/20 transition-colors"
+      className="group block rounded-xl border border-border bg-surface p-4 shadow-raised hover:border-border-strong transition-colors"
     >
-      <div className="aspect-[3/4] rounded-lg bg-surface flex items-center justify-center mb-3 overflow-hidden">
+      <div className="aspect-[3/4] rounded-lg bg-background flex items-center justify-center mb-3 overflow-hidden">
         {book.cover_url ? (
           <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
         ) : (

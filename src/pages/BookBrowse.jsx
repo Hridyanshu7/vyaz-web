@@ -15,9 +15,9 @@ export function BookBrowse() {
   const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold mb-1">Browse Books</h1>
-      <p className="text-sm text-muted mb-6">Find a book and connect with someone who knows it inside out.</p>
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">Browse Books</h1>
+      <p className="text-sm text-ink-soft mb-6">Search the full catalog — every book here is ready to talk.</p>
 
       <BookSearch
         searchQuery={searchQuery}

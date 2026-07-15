@@ -1,6 +1,6 @@
 const variants = {
   default: 'bg-surface text-foreground border border-border',
-  highlight: 'bg-highlight/10 text-highlight',
+  highlight: 'bg-accent-wash text-highlight-hover',
   success: 'bg-success/10 text-success',
   muted: 'bg-surface text-muted',
 }

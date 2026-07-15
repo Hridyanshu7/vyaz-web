@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { BookOpen, Phone, Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Mail, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { Logo } from '../components/ui/Logo'
 import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
 
@@ -16,10 +17,15 @@ export function Login() {
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const { sendOtp, verifyOtp, signInWithGoogle, user, profile } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Where to send the user back to after signing in — set by whichever gated button (Get
+  // started, Talk) sent them here. '/dashboard' doesn't exist since the AI-only pivot; '/'
+  // is the sane fallback if nothing gated them (e.g. visiting /login directly).
+  const redirectTo = searchParams.get('redirectTo') || '/'
 
   useEffect(() => {
     if (user && profile) {
-      navigate('/dashboard')
+      navigate(redirectTo, { replace: true })
     }
   }, [user, profile])
 
@@ -60,7 +66,9 @@ export function Login() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin + '/dashboard' },
+        // window.location.href (not a hardcoded path) so ?redirectTo=... survives the
+        // email round-trip — matches signInWithGoogle/signInWithLinkedIn below.
+        options: { emailRedirectTo: window.location.href },
       })
       if (error) throw error
       setMagicLinkSent(true)
@@ -75,7 +83,7 @@ export function Login() {
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <BookOpen size={32} className="text-highlight mx-auto mb-3" />
+          <Logo size={44} className="mx-auto mb-3" />
           <h1 className="text-2xl font-bold">Welcome to Vyaz</h1>
           <p className="text-sm text-muted mt-1">Sign in to get started</p>
         </div>

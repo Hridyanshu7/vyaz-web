@@ -13,7 +13,7 @@ export function StarRating({ rating, max = 5, size = 16, interactive = false, on
         >
           <Star
             size={size}
-            className={i < rating ? 'fill-highlight text-highlight' : 'text-border'}
+            className={i < rating ? 'fill-rating text-rating' : 'text-border'}
           />
         </button>
       ))}

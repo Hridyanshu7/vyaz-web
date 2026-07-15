@@ -1,7 +1,7 @@
 const variants = {
   primary: 'bg-highlight text-white hover:bg-highlight-hover',
   secondary: 'bg-foreground text-white hover:bg-foreground/90',
-  outline: 'border border-border text-foreground hover:bg-surface',
+  outline: 'border border-border-strong text-foreground hover:bg-surface hover:border-highlight',
   ghost: 'text-foreground hover:bg-surface',
 }
 

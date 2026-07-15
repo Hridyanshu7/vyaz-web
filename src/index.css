@@ -1,17 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #FFFFFF;
-  --color-foreground: #0A0A0A;
-  --color-highlight: #DC2626;
-  --color-highlight-hover: #B91C1C;
-  --color-muted: #6B7280;
-  --color-border: #E5E7EB;
-  --color-surface: #F9FAFB;
-  --color-success: #1E7A34;
-  --color-warning: #A66A00;
-  --color-error: #7A2318;
+  /* ---- v2 design language: tinted canvas, white cards, one confident indigo accent ---- */
+  --color-background: #F6F6FA;      /* canvas — app/page background */
+  --color-surface: #FFFFFF;         /* raised cards, header, inputs */
+  --color-foreground: #131316;      /* ink — primary text */
+  --color-ink-soft: #46474E;        /* secondary body text */
+  --color-muted: #75767F;           /* stone — muted/captions */
+  --color-highlight: #5B4EF4;       /* accent — the brand color: buttons, links, focus, selection */
+  --color-highlight-hover: #4A3ECB; /* accent-deep — accent as text/links (AA), hover state */
+  --color-accent-wash: #EEEDFE;     /* faint accent tint, e.g. badge backgrounds */
+  --color-border: #E6E6ED;          /* line — hairline borders */
+  --color-border-strong: #D2D3DC;
+  --color-seal: #E0201A;            /* reserved — no active UI use (design-language.html §3) */
+  --color-rating: #F5A623;          /* star ratings only — its own lane, not the brand accent */
+  --color-success: #1B9358;         /* sage */
+  --color-warning: #B07A12;         /* ochre */
+  --color-error: #C2352B;           /* oxblood */
+  --gradient-signal: linear-gradient(135deg, #4A3ECB 0%, #1F9EA8 55%, #F5A623 100%);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --shadow-raised: 0 1px 2px rgba(19,19,22,.04), 0 6px 20px -8px rgba(19,19,22,.10);
+  --shadow-floating: 0 2px 8px rgba(19,19,22,.08), 0 16px 40px -12px rgba(19,19,22,.20);
+  --shadow-glow: 0 0 0 4px rgba(91,78,244,.14);
 }
 
 body {
@@ -25,4 +36,10 @@ body {
 @keyframes scroll {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
+}
+
+@keyframes rotate-hint {
+  0%, 15% { transform: rotate(0deg); }
+  50%, 65% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
 }

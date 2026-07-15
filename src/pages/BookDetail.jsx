@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { BookOpen, ArrowLeft, FileText, ExternalLink, BookMarked, Mic, Loader2 } from 'lucide-react'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { BookOpen, ArrowLeft, FileText, Clock, ExternalLink, BookMarked, Mic, Loader2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
 import { useBookStore } from '../stores/bookStore'
+import { useAuthStore } from '../stores/authStore'
 import { GeminiLiveModal } from '../components/GeminiLiveModal'
 
 function getTopGenres(book) {
@@ -12,8 +13,16 @@ function getTopGenres(book) {
   return book.goodreads_data?.genres || []
 }
 
+const TABS = [
+  { key: 'chapters', label: 'Chapters' },
+  { key: 'overview', label: 'Overview' },
+]
+
 export function BookDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuthStore()
   const { getBook, fetchBookChapters } = useBookStore()
   const book = getBook(id)
   const [chaptersLoading, setChaptersLoading] = useState(false)
@@ -25,12 +34,29 @@ export function BookDetail() {
     fetchBookChapters(id).finally(() => setChaptersLoading(false))
   }, [id, book, fetchBookChapters])
 
+  const [activeTab, setActiveTab] = useState('chapters')
   const [descExpanded, setDescExpanded] = useState(false)
   const [expandedCard, setExpandedCard] = useState(null)
   const [voiceChapter, setVoiceChapter] = useState(null)
 
+  // A signed-out Talk click routes through /login (?redirectTo=/books/:id?talkChapter=N) —
+  // once chapters are loaded, auto-reopen Talk on that exact chapter instead of leaving the
+  // user to find + click it again, then strip the param so it doesn't re-fire on refresh.
+  useEffect(() => {
+    const chNum = searchParams.get('talkChapter')
+    if (!chNum || !book?.chapters?.length) return
+    const ch = book.chapters.find((c) => String(c.number) === chNum)
+    if (ch) setVoiceChapter(ch)
+    setSearchParams((p) => { p.delete('talkChapter'); return p }, { replace: true })
+  }, [searchParams, book?.chapters, setSearchParams])
+
   const handleTalk = (e, ch) => {
     e.stopPropagation()
+    if (!user) {
+      const target = `/books/${id}?talkChapter=${ch.number}`
+      navigate(`/login?redirectTo=${encodeURIComponent(target)}`)
+      return
+    }
     setVoiceChapter(ch)
   }
 
@@ -48,169 +74,163 @@ export function BookDetail() {
   const topGenres = getTopGenres(book)
   const description = book.description || gr?.description || az?.description || ''
   const chapters = book.chapters || []
+  const readHours = book.page_count ? Math.ceil(book.page_count / 40) : null
+
+  // Book Gist (AI) button removed pending Gemini billing — feature code retained
+  // (voice-session mode:'gist', GeminiLiveModal gist mode, live_gist_prompt). See
+  // DECISIONS A13 / action plan item 36 to re-enable.
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <Link to="/books" className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8">
+      <Link to="/books" className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors mb-5">
         <ArrowLeft size={16} /> Back
       </Link>
 
-      <div className="grid md:grid-cols-[300px_1fr] gap-6">
+      {/* ===== HERO ===== */}
+      <div className="rounded-2xl border border-border bg-surface shadow-raised p-5 sm:p-6 grid sm:grid-cols-[220px_1fr] gap-6">
+        <div className="aspect-[3/4] rounded-xl bg-background flex items-center justify-center border border-border overflow-hidden">
+          {book.cover_url ? (
+            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+          ) : (
+            <BookOpen size={40} className="text-muted" />
+          )}
+        </div>
 
-        {/* ===== LEFT COLUMN ===== */}
-        <div>
-          {/* Cover */}
-          <div className="aspect-[3/4] rounded-xl bg-surface flex items-center justify-center border border-border overflow-hidden shadow-sm mb-4">
-            {book.cover_url ? (
-              <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
-            ) : (
-              <BookOpen size={48} className="text-muted" />
-            )}
-          </div>
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">{book.title}</h1>
+          <p className="text-sm text-ink-soft mt-1">By {book.author}</p>
 
-          {/* Title + Author */}
-          <h1 className="text-xl font-bold leading-tight">{book.title}</h1>
-          <p className="text-sm text-muted mt-0.5">{book.author}</p>
+          <hr className="border-border my-4" />
 
-          {/* Genres */}
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {topGenres.slice(0, 4).map((g) => (
-              <Badge key={g} variant="muted">{g}</Badge>
-            ))}
-          </div>
+          {topGenres.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {topGenres.slice(0, 4).map((g) => (
+                <Badge key={g} variant="muted">{g}</Badge>
+              ))}
+            </div>
+          )}
 
-          {/* Ratings */}
           <div className="mt-3 space-y-1.5">
             {book.goodreads_rating && (
               <div className="flex items-center gap-1.5">
-                <StarRating rating={Math.round(book.goodreads_rating)} size={12} />
+                <StarRating rating={Math.round(book.goodreads_rating)} size={13} />
                 <span className="text-xs font-semibold">{book.goodreads_rating}</span>
-                <span className="text-[10px] text-muted">({book.goodreads_ratings_count?.toLocaleString()})</span>
-                <span className="text-[10px] text-muted">Goodreads</span>
+                <span className="text-xs font-mono text-muted">({book.goodreads_ratings_count?.toLocaleString()})</span>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted">Goodreads</span>
               </div>
             )}
             {book.amazon_rating && (
               <div className="flex items-center gap-1.5">
-                <StarRating rating={Math.round(book.amazon_rating)} size={12} />
+                <StarRating rating={Math.round(book.amazon_rating)} size={13} />
                 <span className="text-xs font-semibold">{book.amazon_rating}</span>
-                <span className="text-[10px] text-muted">({book.amazon_reviews_count?.toLocaleString()})</span>
-                <span className="text-[10px] text-muted">Amazon</span>
+                <span className="text-xs font-mono text-muted">({book.amazon_reviews_count?.toLocaleString()})</span>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted">Amazon</span>
               </div>
             )}
           </div>
 
-          {/* Meta */}
-          <div className="mt-3 text-xs text-muted space-y-0.5">
-            {book.page_count && <p className="flex items-center gap-1"><FileText size={12} /> {book.page_count} pages · ~{Math.ceil(book.page_count / 40)} hr read</p>}
-            {book.isbn && <p>ISBN: {book.isbn}</p>}
-          </div>
-
-          {/* External links */}
-          <div className="flex gap-3 mt-3">
-            {gr?.url && (
-              <a href={gr.url} target="_blank" rel="noopener noreferrer" className="text-xs text-highlight hover:underline flex items-center gap-1">
-                <ExternalLink size={10} /> Goodreads
-              </a>
+          <div className="mt-4 space-y-1.5 text-sm text-ink-soft">
+            {book.page_count && (
+              <div className="flex items-center gap-2">
+                <FileText size={14} className="text-muted shrink-0" />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted w-12 shrink-0">Pages</span>
+                {book.page_count}
+              </div>
             )}
-            {az?.url && (
-              <a href={az.url} target="_blank" rel="noopener noreferrer" className="text-xs text-highlight hover:underline flex items-center gap-1">
-                <ExternalLink size={10} /> Amazon
-              </a>
+            {readHours && (
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-muted shrink-0" />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted w-12 shrink-0">Read</span>
+                ~{readHours} hr
+              </div>
             )}
           </div>
 
-          {/* Book Gist (AI) button removed pending Gemini billing — feature code retained
-              (voice-session mode:'gist', GeminiLiveModal gist mode, live_gist_prompt). See
-              DECISIONS A13 / action plan item 36 to re-enable. */}
-
-          {/* Summary */}
-          <div className="mt-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted mb-2">Summary</p>
-            <p
-              onClick={() => setDescExpanded(!descExpanded)}
-              className={`text-xs leading-relaxed cursor-pointer transition-all hover:line-clamp-none ${descExpanded ? '' : 'line-clamp-8'}`}
-            >{description}</p>
-          </div>
-
-          {/* AI Review Summary */}
-          {az?.aiSummary && (
-            <div className="mt-4 p-3 rounded-lg bg-surface border border-border">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted mb-1">What readers say</p>
-              <p className="text-xs leading-relaxed italic">"{az.aiSummary}"</p>
-              <p className="text-[10px] text-muted mt-1">{book.amazon_reviews_count?.toLocaleString()} reviews</p>
-            </div>
-          )}
-
-          {/* Review cards */}
-          {az?.aiKeywords?.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {az.aiKeywords.slice(0, 4).map((k, i) => (
-                <div
-                  key={i}
-                  onClick={() => setExpandedCard(expandedCard === i ? null : i)}
-                  className="p-2.5 rounded-lg border border-border cursor-pointer hover:border-foreground/20 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider">{k.name}</p>
-                    {k.mentionCount && <p className="text-[10px] text-muted">{k.mentionCount.total.toLocaleString()}</p>}
-                  </div>
-                  <p className={`text-xs text-muted leading-relaxed ${expandedCard === i ? '' : 'line-clamp-2'}`}>{k.text}</p>
-                </div>
-              ))}
+          {(gr?.url || az?.url) && (
+            <div className="flex gap-4 mt-4">
+              {gr?.url && (
+                <a href={gr.url} target="_blank" rel="noopener noreferrer" className="text-xs text-highlight-hover hover:underline flex items-center gap-1">
+                  <ExternalLink size={11} /> Goodreads
+                </a>
+              )}
+              {az?.url && (
+                <a href={az.url} target="_blank" rel="noopener noreferrer" className="text-xs text-highlight-hover hover:underline flex items-center gap-1">
+                  <ExternalLink size={11} /> Amazon
+                </a>
+              )}
             </div>
           )}
         </div>
+      </div>
 
-        {/* ===== RIGHT COLUMN ===== */}
-        <div>
-          {/* CHAPTERS */}
-          <div className="mb-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted mb-3">Chapters</p>
-            {chapters.length > 0 ? (
-              <div className="space-y-2">
+      {/* ===== TABS ===== */}
+      <div className="mt-6 rounded-2xl border border-border bg-surface shadow-raised overflow-hidden">
+        <div className="flex gap-6 px-5 sm:px-6 border-b border-border overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`whitespace-nowrap py-3.5 text-[11px] font-mono uppercase tracking-wider border-b-2 -mb-px cursor-pointer transition-colors ${
+                activeTab === t.key
+                  ? 'text-foreground border-foreground font-medium'
+                  : 'text-muted border-transparent hover:text-ink-soft'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5 sm:p-6 max-h-[60vh] overflow-y-auto">
+
+          {/* ---- Chapters ---- */}
+          {activeTab === 'chapters' && (
+            chapters.length > 0 ? (
+              <div className="space-y-2.5">
                 {chapters.map((ch, i) => {
                   const estimatedPages = ch.content
                     ? Math.ceil(ch.content.split(/\s+/).length / 250)
                     : null
                   return (
-                    <div key={i} className="border border-border rounded-xl p-3">
-                      <div className="flex items-start gap-3">
-                        {/* S. No. */}
-                        <span className="text-xs text-muted font-mono mt-0.5 w-5 shrink-0">
-                          {String(ch.number ?? i + 1).padStart(2, '0')}
-                        </span>
-                        {/* Title + oneliner */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium leading-snug">{ch.title}</p>
+                    <div
+                      key={i}
+                      className="group rounded-xl border border-border bg-background p-3.5 transition-all hover:border-border-strong hover:shadow-floating"
+                    >
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-accent-wash flex items-center justify-center shrink-0">
+                          <span className="text-[11px] font-mono font-semibold text-highlight-hover">
+                            {String(ch.number ?? i + 1).padStart(2, '0')}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-semibold leading-snug">{ch.title}</p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => handleTalk(e, ch)}
+                              className="flex items-center gap-1.5 min-h-11 shrink-0 hover:border-highlight hover:text-highlight-hover hover:bg-accent-wash"
+                            >
+                              <Mic size={11} /> Talk
+                            </Button>
+                          </div>
                           {ch.oneliner && (
-                            <p className="text-xs text-muted mt-0.5 leading-relaxed">{ch.oneliner}</p>
+                            <p className="text-xs text-ink-soft mt-1 leading-relaxed">{ch.oneliner}</p>
+                          )}
+                          {estimatedPages && (
+                            <p className="text-[10px] font-mono uppercase tracking-wider text-muted mt-2">~{estimatedPages} pages</p>
+                          )}
+                          {ch.sections?.some((s) => s.title) && (
+                            <div className="mt-2.5 pl-3 border-l-2 border-border space-y-1">
+                              {ch.sections.filter((s) => s.title).map((s) => (
+                                <p key={s.number} className="text-[10px] text-muted">
+                                  <span className="text-muted/60 mr-1">{s.number}.</span>{s.title}
+                                </p>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        {/* Pages */}
-                        {estimatedPages && (
-                          <span className="text-[10px] text-muted shrink-0 mt-0.5 whitespace-nowrap">~{estimatedPages} pp</span>
-                        )}
-                      </div>
-                      {/* Section titles */}
-                      {ch.sections?.some((s) => s.title) && (
-                        <div className="pl-8 mt-1.5 space-y-0.5">
-                          {ch.sections.filter((s) => s.title).map((s) => (
-                            <p key={s.number} className="text-[10px] text-muted">
-                              <span className="text-muted/50 mr-1">{s.number}.</span>{s.title}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      {/* Talk CTA */}
-                      <div className="flex items-center gap-2 mt-2.5 pl-8">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => handleTalk(e, ch)}
-                          className="flex items-center gap-1 min-h-11"
-                        >
-                          <Mic size={11} /> Talk
-                        </Button>
                       </div>
                     </div>
                   )
@@ -226,8 +246,70 @@ export function BookDetail() {
                 <BookMarked size={24} className="mx-auto text-muted mb-2" />
                 <p className="text-sm text-muted">Chapter details coming soon.</p>
               </div>
-            )}
-          </div>
+            )
+          )}
+
+          {/* ---- Overview (Summary + What readers say) ---- */}
+          {activeTab === 'overview' && (
+            <div className="space-y-8">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-highlight-hover mb-2.5">Summary</p>
+                {description ? (
+                  <div className="max-w-[68ch]">
+                    <p className={`text-sm leading-relaxed text-ink-soft ${descExpanded ? '' : 'line-clamp-8'}`}>
+                      {description}
+                    </p>
+                    {description.length > 400 && (
+                      <button
+                        onClick={() => setDescExpanded(!descExpanded)}
+                        className="text-xs text-highlight-hover hover:underline mt-2 cursor-pointer"
+                      >
+                        {descExpanded ? 'Show less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">No summary available yet.</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-highlight-hover mb-2.5">What readers say</p>
+                {az?.aiSummary || az?.aiKeywords?.length > 0 ? (
+                  <div>
+                    {az?.aiSummary && (
+                      <div className="border-l-2 border-border-strong pl-4 mb-6">
+                        <p className="text-sm leading-relaxed italic">"{az.aiSummary}"</p>
+                        <p className="text-[10px] font-mono uppercase tracking-wider text-muted mt-2">
+                          {book.amazon_reviews_count?.toLocaleString()} reviews
+                        </p>
+                      </div>
+                    )}
+                    {az?.aiKeywords?.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {az.aiKeywords.slice(0, 4).map((k, i) => (
+                          <div
+                            key={i}
+                            onClick={() => setExpandedCard(expandedCard === i ? null : i)}
+                            className="p-3 rounded-lg border border-border cursor-pointer hover:border-border-strong transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-1 gap-1">
+                              <p className="text-xs font-medium">{k.name}</p>
+                              {k.mentionCount && <p className="text-[10px] font-mono text-muted shrink-0">{k.mentionCount.total.toLocaleString()}</p>}
+                            </div>
+                            <p className={`text-xs text-ink-soft leading-relaxed ${expandedCard === i ? '' : 'line-clamp-3'}`}>{k.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">No reader insights yet.</p>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
