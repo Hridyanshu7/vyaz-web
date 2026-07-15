@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Mic, Loader2, PhoneOff, Volume2, Radio, CheckCircle2, Circle, ThumbsUp, ThumbsDown, Send } from 'lucide-react'
+import { X, Mic, Loader2, PhoneOff, Volume2, Radio, CheckCircle2, Circle, ThumbsUp, ThumbsDown, Send, Smartphone } from 'lucide-react'
 import { getGeminiLiveSession, GeminiLiveSession } from '../lib/geminiLive'
 import { useAdminStore } from '../stores/adminStore'
 import { useAuthStore } from '../stores/authStore'
@@ -18,6 +18,54 @@ const STATE_LABELS = {
   reconnecting: 'Reconnecting…',
   ended: 'Session ended',
   error: 'Error',
+}
+
+// Below this width, the two-column layout (transcript + controls) collapses to a single
+// stacked column — matches the `sm:` Tailwind breakpoint used throughout this component.
+// A phone rotated to landscape is almost always wider than this, which is exactly why
+// landscape is required below it: it's the difference between the cramped stacked layout
+// and the same side-by-side layout desktop gets.
+const LANDSCAPE_REQUIRED_BELOW_WIDTH = 640
+
+// Talk is required to run in landscape on narrow viewports — this is a hard gate (no
+// session starts while portrait), not just a hint, so the connect() effect below must
+// depend on it and bail out until it flips.
+function useOrientationGate() {
+  const [needsLandscape, setNeedsLandscape] = useState(() =>
+    window.matchMedia('(orientation: portrait)').matches && window.innerWidth < LANDSCAPE_REQUIRED_BELOW_WIDTH
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)')
+    const check = () => setNeedsLandscape(mq.matches && window.innerWidth < LANDSCAPE_REQUIRED_BELOW_WIDTH)
+    check()
+    mq.addEventListener('change', check)
+    window.addEventListener('resize', check)
+    return () => {
+      mq.removeEventListener('change', check)
+      window.removeEventListener('resize', check)
+    }
+  }, [])
+
+  return needsLandscape
+}
+
+// Blocking gate shown instead of the modal body on a narrow portrait viewport — replaces
+// the transcript/controls entirely rather than overlaying them, since no session is
+// running yet (connect() is gated on the same condition, so no Gemini Live slot is spent
+// while the user hasn't rotated).
+function RotatePrompt() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-16 text-center min-h-[320px]">
+      <Smartphone size={40} className="text-highlight animate-[rotate-hint_2.5s_ease-in-out_infinite]" />
+      <div>
+        <p className="text-sm font-semibold">Rotate your device</p>
+        <p className="text-xs text-muted mt-1 max-w-[240px] mx-auto">
+          Talk needs landscape — more room to follow the transcript and section progress.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 // Group a run of narration into readable paragraphs (~2 sentences each).
@@ -183,6 +231,7 @@ function Waveform({ sessionRef, state }) {
 }
 
 export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter' }) {
+  const needsLandscape = useOrientationGate()
   const [state, setState] = useState('idle')
   const [error, setError] = useState(null)
   const [sessionId, setSessionId] = useState(null)
@@ -228,7 +277,9 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
   }
 
   useEffect(() => {
-    if (!open || !book || (mode !== 'gist' && !chapter)) return
+    // Landscape is mandatory on narrow viewports — bail out without spending a Gemini
+    // Live session slot (only ~3 concurrent per key) until the user actually rotates.
+    if (!open || !book || (mode !== 'gist' && !chapter) || needsLandscape) return
     let cancelled = false
 
     async function connect() {
@@ -289,7 +340,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
       sessionRef.current?.end()
       sessionRef.current = null
     }
-  }, [open, book, chapter, mode])
+  }, [open, book, chapter, mode, needsLandscape])
 
   const handleClose = () => {
     const hadSession = !!sessionId
@@ -331,7 +382,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-6 sm:pb-0">
-      <div className="w-full max-w-3xl bg-background rounded-2xl border border-border shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-3xl bg-background rounded-2xl border border-border shadow-xl overflow-hidden flex flex-col max-h-[90dvh]">
 
         {/* Header (full width) */}
         <div className="flex items-start justify-between p-4 border-b border-border shrink-0">
@@ -352,7 +403,9 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
           )}
         </div>
 
-        {showRating ? (
+        {needsLandscape ? (
+          <RotatePrompt />
+        ) : showRating ? (
           <SessionRatingScreen
             rating={rating}
             setRating={setRating}
@@ -414,7 +467,7 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
           </div>
 
           {/* Right column — controls (30%) */}
-          <div className="flex flex-col min-h-0 sm:w-[30%] shrink-0 border-t sm:border-t-0 border-border">
+          <div className="flex flex-col min-h-0 max-h-[46dvh] sm:max-h-none sm:w-[30%] shrink-0 border-t sm:border-t-0 border-border">
 
             {/* Waveform + state */}
             <div className="px-4 pt-4 shrink-0">

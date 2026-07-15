@@ -796,7 +796,7 @@ function ph(keys) {
 }
 
 function GeminiCard() {
-  const { vals, set, save, saving, saved } = useProviderSettings(['gemini_api_key', 'gemini_chapters_prompt', 'voice_narration_prompt', 'voice_answering_prompt'])
+  const { vals, set, save, saving, saved } = useProviderSettings(['gemini_api_key', 'gemini_chapters_prompt'])
   return (
     <ProviderCard
       title="Gemini"
@@ -821,23 +821,6 @@ function GeminiCard() {
             <textarea value={vals.gemini_chapters_prompt || ''} onChange={(e) => set('gemini_chapters_prompt', e.target.value)}
               rows={4} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
           </div>
-          <hr className="border-border" />
-          <div>
-            <label className="text-xs text-muted mb-1 block">
-              Narration Prompt — use {ph(['book_title', 'author', 'chapter_title', 'oneliner'])}
-            </label>
-            <p className="text-[10px] text-muted mb-1">Return JSON: {`{"text":"...","check_in":"Shall I continue?"}`}</p>
-            <textarea value={vals.voice_narration_prompt || ''} onChange={(e) => set('voice_narration_prompt', e.target.value)}
-              rows={8} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
-          </div>
-          <div>
-            <label className="text-xs text-muted mb-1 block">
-              Answering Prompt — use {ph(['book_title', 'author', 'chapter_title'])}
-            </label>
-            <p className="text-[10px] text-muted mb-1">Return JSON: {`{"text":"..."}`}</p>
-            <textarea value={vals.voice_answering_prompt || ''} onChange={(e) => set('voice_answering_prompt', e.target.value)}
-              rows={6} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
-          </div>
           <Button size="sm" onClick={save} disabled={saving}>
             {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
             {saved ? '✓ Saved' : 'Save'}
@@ -848,173 +831,31 @@ function GeminiCard() {
   )
 }
 
+// Cartesia is no longer a voice-agent option (GeminiLiveModal is the only Talk UI now) —
+// this card only keeps the two credentials the content-sync pipeline (cartesia-kb-sync,
+// book-delete's folder cleanup) still depends on. Not a `ProviderCard` (no more "prompts"
+// tab to show now that the voice-agent-only fields are gone).
 function CartesiaCard() {
-  const { vals, set, save, saving, saved } = useProviderSettings(['cartesia_api_key', 'cartesia_agent_id', 'cartesia_voice_id', 'voice_agent_system_prompt'])
-  return (
-    <ProviderCard
-      title="Cartesia"
-      icon={Bot}
-      secretsContent={
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted mb-1 block">API Key</label>
-              <input type="password" value={vals.cartesia_api_key || ''} onChange={(e) => set('cartesia_api_key', e.target.value)}
-                placeholder="sk-..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
-            </div>
-            <div>
-              <label className="text-xs text-muted mb-1 block">Agent ID</label>
-              <input type="text" value={vals.cartesia_agent_id || ''} onChange={(e) => set('cartesia_agent_id', e.target.value)}
-                placeholder="agent_..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
-            </div>
-            <div>
-              <label className="text-xs text-muted mb-1 block">Voice ID</label>
-              <input type="text" value={vals.cartesia_voice_id || ''} onChange={(e) => set('cartesia_voice_id', e.target.value)}
-                placeholder="voice uuid..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
-            </div>
-          </div>
-          <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
-            {saved ? '✓ Saved' : 'Save'}
-          </Button>
-        </div>
-      }
-      promptsContent={
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-muted mb-1 block">
-              Voice Agent System Prompt — use {ph(['book_title', 'author', 'chapter_title', 'oneliner', 'content'])}
-            </label>
-            <textarea value={vals.voice_agent_system_prompt || ''} onChange={(e) => set('voice_agent_system_prompt', e.target.value)}
-              rows={12} className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono resize-y" />
-          </div>
-          <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
-            {saved ? '✓ Saved' : 'Save'}
-          </Button>
-        </div>
-      }
-    />
-  )
-}
-
-function ProviderSwitcher() {
-  const { platformSettings, updateSetting } = useAdminDataStore()
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const provider = platformSettings.voice_provider || 'cartesia'
-
-  const setProvider = async (val) => {
-    setSaving(true)
-    await supabase.from('platform_settings').upsert({ key: 'voice_provider', value: val, updated_at: new Date().toISOString() })
-    updateSetting('voice_provider', val)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
-  }
-
-  return (
-    <div className="p-3 rounded-xl border border-border bg-surface">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium">Active Voice Provider</p>
-          <p className="text-xs text-muted mt-0.5">Controls which engine powers the Talk button</p>
-        </div>
-        {saved && <span className="text-xs text-success">✓ Saved</span>}
-      </div>
-      <div className="flex gap-2 mt-3">
-        {[
-          { id: 'cartesia', label: 'Cartesia Line', desc: 'Voice agent, benchmark' },
-          { id: 'pipeline', label: 'Pipeline', desc: 'STT → LLM → TTS' },
-          { id: 'gemini_live', label: 'Gemini Live', desc: 'Real-time full-duplex' },
-        ].map((p) => (
-          <button key={p.id} onClick={() => setProvider(p.id)} disabled={saving}
-            className={`flex-1 p-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
-              provider === p.id ? 'border-highlight bg-highlight/5' : 'border-border hover:bg-surface'
-            }`}>
-            <p className={`text-xs font-medium ${provider === p.id ? 'text-highlight' : ''}`}>{p.label}</p>
-            <p className="text-[10px] text-muted mt-0.5">{p.desc}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-const STT_OPTIONS = [
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  // Browser WebSpeech requires real-time integration during recording; not supported yet
-]
-
-const LLM_OPTIONS = [
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (recommended)' },
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (faster)' },
-  { value: 'gemini-2.5-flash-lite-preview-06-17', label: 'Gemini 2.5 Flash Lite (cheapest)' },
-]
-
-const TTS_MODEL_OPTIONS = [
-  { value: 'gemini-2.5-flash-preview-tts', label: 'Gemini 2.5 Flash TTS (preview)' },
-  { value: 'browser', label: 'Browser TTS (no key, robotic)' },
-]
-
-const TTS_VOICE_OPTIONS = [
-  { value: 'Charon', label: 'Charon — Informational' },
-  { value: 'Kore', label: 'Kore — Firm' },
-  { value: 'Zephyr', label: 'Zephyr — Bright' },
-  { value: 'Puck', label: 'Puck — Upbeat' },
-  { value: 'Fenrir', label: 'Fenrir — Excitable' },
-  { value: 'Aoede', label: 'Aoede — Breezy' },
-]
-
-function PipelineModelsCard() {
-  const { vals, set, save, saving, saved } = useProviderSettings([
-    'pipeline_stt_model', 'pipeline_llm_model', 'pipeline_tts_model', 'pipeline_tts_voice',
-  ])
-
-  const useGeminiTTS = (vals.pipeline_tts_model || 'gemini-2.5-flash-preview-tts') !== 'browser'
-
-  const rows = [
-    { key: 'pipeline_stt_model', label: 'STT — Speech to Text', options: STT_OPTIONS, def: 'gemini-2.5-flash' },
-    { key: 'pipeline_llm_model', label: 'LLM — Narration & Answers', options: LLM_OPTIONS, def: 'gemini-2.5-flash' },
-    { key: 'pipeline_tts_model', label: 'TTS — Model', options: TTS_MODEL_OPTIONS, def: 'gemini-2.5-flash-preview-tts' },
-  ]
-
+  const { vals, set, save, saving, saved } = useProviderSettings(['cartesia_api_key', 'cartesia_agent_id'])
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 bg-surface border-b border-border">
-        <Bot size={14} className="text-muted" />
-        <p className="text-sm font-medium">Pipeline Components</p>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-highlight/10 text-highlight ml-1">Pipeline only</span>
+      <div className="px-4 py-3 bg-surface border-b border-border">
+        <p className="text-sm font-medium">Cartesia (Content Sync)</p>
+        <p className="text-[10px] text-muted mt-0.5">Used by the Sync-to-KB content pipeline, not the Talk experience.</p>
       </div>
       <div className="p-4 space-y-3">
-        {rows.map(({ key, label, options, def }) => (
-          <div key={key}>
-            <label className="text-xs text-muted mb-1 block">{label}</label>
-            <select
-              value={vals[key] || def}
-              onChange={(e) => set(key, e.target.value)}
-              className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer"
-            >
-              {options.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-        ))}
-        {useGeminiTTS && (
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted mb-1 block">TTS — Voice</label>
-            <select
-              value={vals.pipeline_tts_voice || 'Charon'}
-              onChange={(e) => set('pipeline_tts_voice', e.target.value)}
-              className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none cursor-pointer"
-            >
-              {TTS_VOICE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <label className="text-xs text-muted mb-1 block">API Key</label>
+            <input type="password" value={vals.cartesia_api_key || ''} onChange={(e) => set('cartesia_api_key', e.target.value)}
+              placeholder="sk-..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
           </div>
-        )}
+          <div>
+            <label className="text-xs text-muted mb-1 block">Agent ID</label>
+            <input type="text" value={vals.cartesia_agent_id || ''} onChange={(e) => set('cartesia_agent_id', e.target.value)}
+              placeholder="agent_..." className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none font-mono" />
+          </div>
+        </div>
         <Button size="sm" onClick={save} disabled={saving}>
           {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
           {saved ? '✓ Saved' : 'Save'}
@@ -1104,15 +945,12 @@ function GeminiLiveCard() {
   )
 }
 
+// GeminiLiveModal is the only Talk UI now — no more provider switch, just its own config
+// plus the shared Gemini key/prompts and the Cartesia credentials content-sync still needs.
 function Agents() {
-  const { platformSettings } = useAdminDataStore()
-  const provider = platformSettings.voice_provider || 'cartesia'
-
   return (
     <div className="space-y-4">
-      <ProviderSwitcher />
-      {provider === 'pipeline' && <PipelineModelsCard />}
-      {provider === 'gemini_live' && <GeminiLiveCard />}
+      <GeminiLiveCard />
       <GeminiCard />
       <CartesiaCard />
     </div>
