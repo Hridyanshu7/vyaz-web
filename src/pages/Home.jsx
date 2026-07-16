@@ -41,13 +41,29 @@ export function Home() {
           style={{ background: 'linear-gradient(135deg, #4A3ECB 0%, #1F9EA8 55%, #F5A623 100%)' }}
         />
         <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 relative grid lg:grid-cols-2 gap-10 items-center">
-          <div>
+          <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
             <h1
               className="text-[34px] md:text-[58px] font-bold leading-[1.05] tracking-tight max-w-2xl"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
               <span className="text-highlight">free, fun &amp; effective</span> way of consuming books!
             </h1>
+
+            {/* Mobile-only hero visual, Duolingo-style: image-first, between the headline
+                and the subtitle. Its own animation — a chat bubble that visibly fades in
+                while the orb pulses green (Chat tab), and a word-by-word book reveal on
+                the Book tab — built specifically for this slot rather than reusing the
+                desktop collage's phone clip. Hidden at lg, where the fuller desktop+phone
+                collage (right column) takes over instead. */}
+            <video
+              src="/hero-mobile-phone.webm"
+              poster="/hero-mobile-phone.png"
+              autoPlay loop muted playsInline
+              aria-label="The Talk session on mobile: a question and answer appearing in Chat, and the book's own text highlighting word by word in Book"
+              className="lg:hidden w-full max-w-[260px] rounded-2xl my-6"
+              style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
+            />
+
             <p
               className="text-ink-soft mt-4 text-base md:text-lg max-w-xl"
               style={{ fontFamily: "'Nunito', sans-serif" }}
@@ -55,7 +71,7 @@ export function Home() {
               Not a summary. Not a bland narration.<br />
               Converse with any book <RotatingTag />
             </p>
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-6 justify-center lg:justify-start">
               <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
                 Try it <ArrowRight size={18} className="ml-1" />
               </Button>
@@ -70,11 +86,10 @@ export function Home() {
           {/* Product collage — desktop Talk layout + one mobile Chat/Book-tab phone,
               looping as short muted alpha-channel WebM clips (word-by-word book
               reveal + tab switching), rendered straight from docs/design-language.html
-              §12. `poster` is the static PNG fallback for browsers without alpha-WebM
-              support (e.g. Safari). Only the left phone overlaps the desktop card —
-              the right side stays clear so the desktop mockup's own voice-orb waveform
-              (bottom-right of that card) stays visible. Hidden below lg: a hero
-              illustration isn't worth the space on a small viewport. */}
+              §12. Only the left phone overlaps the desktop card — the right side stays
+              clear so the desktop mockup's own voice-orb waveform (bottom-right of that
+              card) stays visible. Desktop (lg+) only — mobile gets its own dedicated
+              visual above instead of this whole collage shrunk down. */}
           <div className="hidden lg:block relative max-w-[520px] w-full mx-auto">
             <video
               src="/hero-talk-desktop.webm"
