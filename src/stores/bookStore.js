@@ -101,24 +101,36 @@ export const useBookStore = create((set, get) => ({
   getNarratorsForBook: (bookId) =>
     get().narrators.filter((n) => n.book_ids.includes(bookId)),
 
-  getFilteredBooks: (searchQuery, selectedGenre) => {
-    return get().books.filter((book) => {
+  // opts: { searchQuery, genre, language, author, sortBestsellers }
+  getFilteredBooks: (opts = {}) => {
+    const { searchQuery = '', genre = null, language = null, author = null, sortBestsellers = false } = opts
+    const filtered = get().books.filter((book) => {
       const matchesSearch = !searchQuery ||
         book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         book.author.toLowerCase().includes(searchQuery.toLowerCase())
 
       let matchesGenre = true
-      if (selectedGenre) {
+      if (genre) {
         const bookGenres = getBookGenres(book)
-        if (selectedGenre === 'Miscellaneous') {
+        if (genre === 'Miscellaneous') {
           matchesGenre = !bookGenres.some((g) => get().filterPills.includes(g))
         } else {
-          matchesGenre = bookGenres.includes(selectedGenre)
+          matchesGenre = bookGenres.includes(genre)
         }
       }
-      return matchesSearch && matchesGenre
+
+      const matchesLanguage = !language || book.language === language
+      const matchesAuthor = !author || book.author === author
+
+      return matchesSearch && matchesGenre && matchesLanguage && matchesAuthor
     })
+    if (!sortBestsellers) return filtered
+    return [...filtered].sort((a, b) => (b.goodreads_rating || 0) - (a.goodreads_rating || 0))
   },
+
+  getLanguages: () => [...new Set(get().books.map((b) => b.language).filter(Boolean))].sort(),
+
+  getAuthors: () => [...new Set(get().books.map((b) => b.author).filter(Boolean))].sort(),
 
   getFeaturedBooks: () => {
     return [...get().books]

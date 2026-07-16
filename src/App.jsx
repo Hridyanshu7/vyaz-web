@@ -2,6 +2,7 @@ import { useEffect, Component } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { Home } from './pages/Home'
+import { Mission } from './pages/Mission'
 import { BookBrowse } from './pages/BookBrowse'
 import { BookDetail } from './pages/BookDetail'
 import { AddBook } from './pages/AddBook'
@@ -53,6 +54,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/mission" element={<Mission />} />
             <Route path="/books" element={<BookBrowse />} />
             <Route path="/books/:id" element={<BookDetail />} />
             <Route path="/profile" element={<Profile />} />
