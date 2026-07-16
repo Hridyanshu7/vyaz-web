@@ -1,6 +1,7 @@
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, BookOpen, Mic, MessageSquare } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { RotatingTag } from '../components/ui/RotatingTag'
 import { StarRating } from '../components/ui/StarRating'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
@@ -43,8 +44,8 @@ export function Home() {
               className="text-ink-soft mt-4 text-base md:text-lg max-w-xl"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
-              Converse with any book live, on-demand &amp; hands-free. Not a summary. Not a bland narration.<br />
-              <span className="text-foreground font-semibold">The book, talking back to you.</span>
+              Not a summary. Not a bland narration.<br />
+              Converse with any book <RotatingTag />
             </p>
             <div className="flex gap-3 mt-6">
               <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>

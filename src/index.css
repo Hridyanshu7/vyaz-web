@@ -43,3 +43,15 @@ body {
   50%, 65% { transform: rotate(-90deg); }
   100% { transform: rotate(0deg); }
 }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotating-tag-pill {
+    transform: none !important;
+    transition: opacity 300ms ease !important;
+  }
+}
