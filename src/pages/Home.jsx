@@ -40,10 +40,10 @@ export function Home() {
           className="pointer-events-none absolute -top-32 -left-16 w-[820px] h-[520px] rounded-full opacity-30 blur-[90px]"
           style={{ background: 'linear-gradient(135deg, #4A3ECB 0%, #1F9EA8 55%, #F5A623 100%)' }}
         />
-        <div className="max-w-6xl mx-auto px-4 py-12 md:py-16 relative grid lg:grid-cols-2 gap-10 items-center">
+        <div className="max-w-6xl mx-auto px-4 py-8 md:py-16 relative grid lg:grid-cols-2 gap-10 items-center">
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
             <h1
-              className="text-[34px] md:text-[58px] font-bold leading-[1.05] tracking-tight max-w-2xl"
+              className="text-[24px] md:text-[58px] font-bold leading-[1.1] md:leading-[1.05] tracking-tight max-w-2xl"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
               <span className="text-highlight">free, fun &amp; effective</span> way of consuming books!
@@ -54,24 +54,25 @@ export function Home() {
                 while the orb pulses green (Chat tab), and a word-by-word book reveal on
                 the Book tab — built specifically for this slot rather than reusing the
                 desktop collage's phone clip. Hidden at lg, where the fuller desktop+phone
-                collage (right column) takes over instead. */}
+                collage (right column) takes over instead. Kept small enough that the CTA
+                below is still visible above the fold on a typical phone viewport. */}
             <video
               src="/hero-mobile-phone.webm"
               poster="/hero-mobile-phone.png"
               autoPlay loop muted playsInline
               aria-label="The Talk session on mobile: a question and answer appearing in Chat, and the book's own text highlighting word by word in Book"
-              className="lg:hidden w-full max-w-[260px] rounded-2xl my-6"
+              className="lg:hidden w-full max-w-[150px] rounded-xl my-3"
               style={{ filter: 'drop-shadow(0 2px 8px rgba(19,19,22,.08)) drop-shadow(0 16px 40px rgba(19,19,22,.20))' }}
             />
 
             <p
-              className="text-ink-soft mt-4 text-base md:text-lg max-w-xl"
+              className="text-ink-soft mt-3 text-sm md:text-lg max-w-xl"
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
               Not a summary. Not a bland narration.<br />
               Converse with any book <RotatingTag />
             </p>
-            <div className="flex gap-3 mt-6 justify-center lg:justify-start">
+            <div className="flex gap-3 mt-4 md:mt-6 justify-center lg:justify-start">
               <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
                 Try it <ArrowRight size={18} className="ml-1" />
               </Button>
