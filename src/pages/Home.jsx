@@ -39,8 +39,12 @@ export function Home() {
             >
               <span className="text-highlight">free, fun &amp; effective</span> way of consuming books!
             </h1>
-            <p className="text-ink-soft mt-4 text-lg max-w-xl">
-              Talk to the book. An AI narrator reads it aloud — word for word — and answers your questions, out loud, as you go.
+            <p
+              className="text-ink-soft mt-4 text-base md:text-lg max-w-xl"
+              style={{ fontFamily: "'Nunito', sans-serif" }}
+            >
+              Converse with any book live, on-demand &amp; hands-free. Not a summary. Not a bland narration.<br />
+              <span className="text-foreground font-semibold">The book, talking back to you.</span>
             </p>
             <div className="flex gap-3 mt-6">
               <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
