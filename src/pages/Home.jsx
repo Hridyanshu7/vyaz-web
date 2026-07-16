@@ -1,24 +1,16 @@
-import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, BookOpen, Mic, MessageSquare } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { RotatingTag } from '../components/ui/RotatingTag'
 import { StarRating } from '../components/ui/StarRating'
-import { BookGrid } from '../components/books/BookGrid'
-import { BookSearch } from '../components/books/BookSearch'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 
 export function Home() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const searchQuery = searchParams.get('q') || ''
-  const selectedGenre = searchParams.get('genre') || null
-  const setSearch = (val) => setSearchParams((p) => { val ? p.set('q', val) : p.delete('q'); return p }, { replace: true })
-  const setGenre = (val) => setSearchParams((p) => { val ? p.set('genre', val) : p.delete('genre'); return p }, { replace: true })
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { loading, getFilteredBooks, getFeaturedBooks } = useBookStore()
+  const { getFeaturedBooks } = useBookStore()
 
-  const filteredBooks = getFilteredBooks(searchQuery, selectedGenre)
   const featuredBooks = getFeaturedBooks()
 
   return (
@@ -178,31 +170,6 @@ export function Home() {
               <p className="text-xs text-ink-soft leading-relaxed">Not sure a book is for you? Talk to it first. You'll know fast whether to commit or move on.</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ===== FULL CATALOG ===== */}
-      <section id="browse" className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-end justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold">Explore all books</h2>
-            <p className="text-sm text-ink-soft mt-1">Find a book and talk to it</p>
-          </div>
-        </div>
-
-        <BookSearch
-          searchQuery={searchQuery}
-          onSearchChange={setSearch}
-          selectedGenre={selectedGenre}
-          onGenreChange={setGenre}
-        />
-
-        <div className="mt-6">
-          {loading ? (
-            <div className="text-center py-12 text-muted text-sm">Loading books...</div>
-          ) : (
-            <BookGrid books={filteredBooks} />
-          )}
         </div>
       </section>
     </div>

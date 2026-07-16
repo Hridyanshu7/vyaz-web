@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, ArrowLeft, FileText, Clock, ExternalLink, BookMarked, Mic, Loader2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
-import { Button } from '../components/ui/Button'
 import { StarRating } from '../components/ui/StarRating'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
@@ -206,14 +205,16 @@ export function BookDetail() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-3">
                             <p className="text-sm font-semibold leading-snug">{ch.title}</p>
-                            <Button
-                              size="sm"
-                              variant="outline"
+                            <button
+                              type="button"
                               onClick={(e) => handleTalk(e, ch)}
-                              className="flex items-center gap-1.5 min-h-11 shrink-0 hover:border-highlight hover:text-highlight-hover hover:bg-accent-wash"
+                              aria-label={`Talk about chapter ${ch.number ?? i + 1}: ${ch.title}`}
+                              className="flex items-center justify-center w-11 h-11 rounded-full shrink-0 border border-border-strong bg-transparent text-muted cursor-pointer
+                                transition-colors duration-200 hover:border-highlight hover:text-highlight
+                                focus-visible:border-highlight focus-visible:text-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight/40"
                             >
-                              <Mic size={11} /> Talk
-                            </Button>
+                              <Mic size={18} />
+                            </button>
                           </div>
                           {ch.oneliner && (
                             <p className="text-xs text-ink-soft mt-1 leading-relaxed">{ch.oneliner}</p>
