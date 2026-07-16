@@ -49,7 +49,7 @@ export function Home() {
             </p>
             <div className="flex gap-3 mt-6">
               <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
-                Get started <ArrowRight size={18} className="ml-1" />
+                Try it <ArrowRight size={18} className="ml-1" />
               </Button>
               <Button variant="outline" size="lg" onClick={() => {
                 document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })
