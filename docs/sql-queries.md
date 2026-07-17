@@ -344,12 +344,11 @@ where bucket_id = 'book-assets';
 
 ## 👤 Users (`profiles`)
 
-### Snapshot: totals, admins, GCal, new this week
+### Snapshot: totals, admins, new this week
 ```sql
 select count(*) as total,
        count(*) filter (where is_admin) as admins,
        count(*) filter (where is_active is not false) as active,
-       count(*) filter (where gcal_connected) as gcal_connected,
        count(*) filter (where created_at > now() - interval '7 days') as new_7d
 from profiles;
 ```
