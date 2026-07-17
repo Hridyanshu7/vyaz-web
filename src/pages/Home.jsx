@@ -74,7 +74,7 @@ export function Home() {
               style={{ fontFamily: "'Nunito', sans-serif" }}
             >
               Not a summary. Not a bland narration.<br />
-              Converse with any book <RotatingTag />
+              Talk to any book <RotatingTag />
             </p>
             <div className="flex gap-3 mt-4 md:mt-6 justify-center lg:justify-start">
               <Button size="lg" onClick={() => navigate(user ? '/books' : '/login?redirectTo=/books')}>
