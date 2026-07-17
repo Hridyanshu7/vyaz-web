@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Logo } from '../components/ui/Logo'
 import { useAuthStore } from '../stores/authStore'
 import { supabase } from '../lib/supabase'
+import { track } from '../lib/analytics'
 
 export function Login() {
   const [method, setMethod] = useState('email')
@@ -15,7 +16,7 @@ export function Login() {
   const [loading, setLoading] = useState(false)
   const [codeSent, setCodeSent] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
-  const { sendOtp, verifyOtp, signInWithGoogle, user, profile } = useAuthStore()
+  const { sendOtp, verifyOtp, signInWithGoogle, signInWithLinkedIn, user, profile } = useAuthStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   // Where to send the user back to after signing in — set by whichever gated button (Get
@@ -63,6 +64,7 @@ export function Login() {
     if (!email) return
     setError('')
     setLoading(true)
+    track('signup_method_chosen', { method: 'email_magic_link' })
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
@@ -149,8 +151,11 @@ export function Login() {
           </div>
         </div>
 
-        <Button variant="outline" className="w-full" onClick={signInWithGoogle}>
+        <Button variant="outline" className="w-full" onClick={() => { track('signup_method_chosen', { method: 'google' }); signInWithGoogle() }}>
           Continue with Google
+        </Button>
+        <Button variant="outline" className="w-full mt-2.5" onClick={() => { track('signup_method_chosen', { method: 'linkedin' }); signInWithLinkedIn() }}>
+          Continue with LinkedIn
         </Button>
       </div>
     </div>

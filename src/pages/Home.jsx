@@ -7,6 +7,8 @@ import { RotatingTag } from '../components/ui/RotatingTag'
 import { StarRating } from '../components/ui/StarRating'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
+import { track } from '../lib/analytics'
+import { useScrollDepth } from '../hooks/useScrollDepth'
 
 export function Home() {
   const navigate = useNavigate()
@@ -15,6 +17,8 @@ export function Home() {
   const { getFeaturedBooks } = useBookStore()
 
   const featuredBooks = getFeaturedBooks()
+
+  useScrollDepth('home')
 
   // The header's "Why Vyaz?" / "Get in touch" links work from any page — arriving here
   // via /#why-vyaz (or already on Home when the hash changes) both land in the same
@@ -157,7 +161,12 @@ export function Home() {
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4">
               {featuredBooks.map((book) => (
-                <Link key={book.id} to={`/books/${book.id}`} className="shrink-0 w-[160px] group">
+                <Link
+                  key={book.id}
+                  to={`/books/${book.id}`}
+                  onClick={() => track('book_selected', { book_id: book.id, title: book.title, source: 'home_featured' })}
+                  className="shrink-0 w-[160px] group"
+                >
                   <div className="aspect-[3/4] rounded-xl bg-surface border border-border overflow-hidden mb-2 group-hover:border-foreground/20 transition-colors">
                     {book.cover_url ? (
                       <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />

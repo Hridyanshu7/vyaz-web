@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router-dom'
 import { BookGrid } from '../components/books/BookGrid'
 import { BookSearch } from '../components/books/BookSearch'
 import { useBookStore } from '../stores/bookStore'
+import { useScrollDepth } from '../hooks/useScrollDepth'
 
 function pillClass(active) {
   return `shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
@@ -19,6 +20,8 @@ export function BookBrowse() {
   const selectedAuthor = searchParams.get('author') || null
 
   const { loading, getFilteredBooks, getLanguages, getAuthors } = useBookStore()
+
+  useScrollDepth('books_browse')
 
   const setSearch = (val) => setSearchParams((p) => { val ? p.set('q', val) : p.delete('q'); return p }, { replace: true })
   const setGenre = (val) => setSearchParams((p) => { val ? p.set('genre', val) : p.delete('genre'); return p }, { replace: true })

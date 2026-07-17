@@ -11,6 +11,7 @@ import { Login } from './pages/Login'
 import { AdminPanel } from './components/admin/AdminPanel'
 import { useAuthStore } from './stores/authStore'
 import { useBookStore } from './stores/bookStore'
+import { initAnalytics, identify } from './lib/analytics'
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
@@ -42,11 +43,17 @@ function AdminRoute() {
 export default function App() {
   const initAuth = useAuthStore((s) => s.initialize)
   const initBooks = useBookStore((s) => s.initialize)
+  const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
+    initAnalytics()
     initAuth()
     initBooks()
   }, [initAuth, initBooks])
+
+  useEffect(() => {
+    if (user) identify(user.id, { email: user.email })
+  }, [user])
 
   return (
     <ErrorBoundary>

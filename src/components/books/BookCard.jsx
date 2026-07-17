@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { BookOpen } from 'lucide-react'
+import { track } from '../../lib/analytics'
 
 export function BookCard({ book }) {
   return (
     <Link
       to={`/books/${book.id}`}
+      onClick={() => track('book_selected', { book_id: book.id, title: book.title, source: 'browse_grid' })}
       className="group block rounded-xl border border-border bg-surface p-4 shadow-raised hover:border-border-strong transition-colors"
     >
       <div className="aspect-[3/4] rounded-lg bg-background flex items-center justify-center mb-3 overflow-hidden">

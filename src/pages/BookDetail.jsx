@@ -6,6 +6,7 @@ import { StarRating } from '../components/ui/StarRating'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { GeminiLiveModal } from '../components/GeminiLiveModal'
+import { track } from '../lib/analytics'
 
 function getTopGenres(book) {
   if (book.genres?.length > 0) return book.genres
@@ -51,6 +52,13 @@ export function BookDetail() {
 
   const handleTalk = (e, ch) => {
     e.stopPropagation()
+    track('chapter_talk_started', {
+      book_id: id,
+      book_title: book.title,
+      chapter_number: ch.number,
+      chapter_title: ch.title,
+      signed_in: !!user,
+    })
     if (!user) {
       const target = `/books/${id}?talkChapter=${ch.number}`
       navigate(`/login?redirectTo=${encodeURIComponent(target)}`)
