@@ -5,9 +5,9 @@ import { useAuthStore } from '../../stores/authStore'
 import { Logo } from '../ui/Logo'
 import { NavDropdown } from './NavDropdown'
 
-// "Why Vyaz?" and "Get in touch" are sections on the Home page, reachable from every
-// page via this header — if we're already on Home, just scroll; otherwise navigate to
-// Home with the section as a hash and let Home's own mount effect finish the scroll.
+// "Why Vyaz?" is a section on the Home page, reachable from every page via this
+// header — if we're already on Home, just scroll; otherwise navigate to Home with
+// the section as a hash and let Home's own mount effect finish the scroll.
 function useSectionLink() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -55,9 +55,11 @@ export function Header() {
             <Link to="/books?by=author" className={itemClass}>By Authors</Link>
           </NavDropdown>
 
-          <button type="button" onClick={() => goToSection('contact')} className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer">
-            Get in touch
-          </button>
+          {!profile?.is_admin && (
+            <Link to="/add-book" className="text-sm text-muted hover:text-foreground transition-colors">
+              Request a book
+            </Link>
+          )}
 
           {user ? (
             <NavDropdown
@@ -108,9 +110,11 @@ export function Header() {
             <Link to="/books?by=language" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>By language</Link>
             <Link to="/books?by=author" className="py-2 text-sm text-muted hover:text-foreground" onClick={() => setMobileOpen(false)}>By Authors</Link>
 
-            <button type="button" className="py-2 mt-3 text-sm text-left text-muted hover:text-foreground cursor-pointer border-t border-border pt-3" onClick={() => { goToSection('contact'); setMobileOpen(false) }}>
-              Get in touch
-            </button>
+            {!profile?.is_admin && (
+              <Link to="/add-book" className="py-2 mt-3 text-sm text-muted hover:text-foreground border-t border-border pt-3" onClick={() => setMobileOpen(false)}>
+                Request a book
+              </Link>
+            )}
 
             {user ? (
               <>

@@ -21,9 +21,8 @@ export function Home() {
 
   useScrollDepth('home')
 
-  // The header's "Why Vyaz?" / "Get in touch" links work from any page — arriving here
-  // via /#why-vyaz (or already on Home when the hash changes) both land in the same
-  // spot: scroll once the section has actually rendered.
+  // The header's "Why Vyaz?" link works from any page — arriving here via /#why-vyaz
+  // (or already on Home when the hash changes) scrolls once the section has rendered.
   useEffect(() => {
     if (!location.hash) return
     const id = location.hash.slice(1)
@@ -215,14 +214,6 @@ export function Home() {
               <p className="text-xs text-ink-soft leading-relaxed">Not sure a book is for you? Talk to it first. You'll know fast whether to commit or move on.</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ===== GET IN TOUCH ===== */}
-      <section id="contact" className="scroll-mt-16">
-        <div className="max-w-6xl mx-auto px-4 py-12 text-center">
-          <h2 className="text-xl font-bold">Get in touch</h2>
-          <p className="text-sm text-ink-soft mt-2 max-w-md mx-auto">Questions, feedback or a book you'd like to see on Vyaz - we're all ears.</p>
         </div>
       </section>
     </div>
