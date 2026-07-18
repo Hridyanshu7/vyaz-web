@@ -10,6 +10,8 @@ export const useAdminDataStore = create((set, get) => ({
   adminBooks: [],          // ALL books including unpublished
   platformSettings: {},    // { gemini_api_key: '...', ... }
   filterPills: [],
+  authors: [],
+  bookAuthors: [],         // [{ book_id, author_id }] — link rows
 
   initialize: async () => {
     if (get().initialized) return
@@ -21,6 +23,8 @@ export const useAdminDataStore = create((set, get) => ({
       { data: books },
       { data: settings },
       { data: pills },
+      { data: authors },
+      { data: bookAuthors },
     ] = await Promise.all([
       supabase.from('profiles')
         .select('id, name, email, role, is_admin, is_active, created_at, avatar_url')
@@ -33,6 +37,8 @@ export const useAdminDataStore = create((set, get) => ({
         .order('title'),
       supabase.from('platform_settings').select('key, value'),
       supabase.from('genre_filters').select('name').order('sort_order'),
+      supabase.from('authors').select('id, name, bio, photo_url, created_at').order('name'),
+      supabase.from('book_authors').select('book_id, author_id'),
     ])
 
     const settingsMap = {}
@@ -46,6 +52,8 @@ export const useAdminDataStore = create((set, get) => ({
       adminBooks: books || [],
       platformSettings: settingsMap,
       filterPills: (pills || []).map((r) => r.name),
+      authors: authors || [],
+      bookAuthors: bookAuthors || [],
     })
   },
 
@@ -73,4 +81,21 @@ export const useAdminDataStore = create((set, get) => ({
     set((s) => ({ filterPills: [...s.filterPills, name] })),
   removeFilterPill: (name) =>
     set((s) => ({ filterPills: s.filterPills.filter((p) => p !== name) })),
+
+  // Authors
+  addAuthorLocal: (author) =>
+    set((s) => ({ authors: [...s.authors, author].sort((a, b) => a.name.localeCompare(b.name)) })),
+  updateAuthor: (authorId, patch) =>
+    set((s) => ({ authors: s.authors.map((a) => a.id === authorId ? { ...a, ...patch } : a) })),
+  removeAuthor: (authorId) =>
+    set((s) => ({
+      authors: s.authors.filter((a) => a.id !== authorId),
+      bookAuthors: s.bookAuthors.filter((ba) => ba.author_id !== authorId),
+    })),
+  linkBookAuthor: (bookId, authorId) =>
+    set((s) => (s.bookAuthors.some((ba) => ba.book_id === bookId && ba.author_id === authorId)
+      ? s
+      : { bookAuthors: [...s.bookAuthors, { book_id: bookId, author_id: authorId }] })),
+  unlinkBookAuthor: (bookId, authorId) =>
+    set((s) => ({ bookAuthors: s.bookAuthors.filter((ba) => !(ba.book_id === bookId && ba.author_id === authorId)) })),
 }))

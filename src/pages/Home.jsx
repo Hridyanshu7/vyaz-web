@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { WhatsAppButton } from '../components/WhatsAppButton'
 import { RotatingTag } from '../components/ui/RotatingTag'
 import { StarRating } from '../components/ui/StarRating'
+import { AuthorBadge } from '../components/books/AuthorBadge'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { track } from '../lib/analytics'
@@ -167,12 +168,15 @@ export function Home() {
                   onClick={() => track('book_selected', { book_id: book.id, title: book.title, source: 'home_featured' })}
                   className="shrink-0 w-[160px] group"
                 >
-                  <div className="aspect-[3/4] rounded-xl bg-surface border border-border overflow-hidden mb-2 group-hover:border-foreground/20 transition-colors">
-                    {book.cover_url ? (
-                      <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><BookOpen size={24} className="text-muted" /></div>
-                    )}
+                  <div className="relative mb-2">
+                    <div className="aspect-[3/4] rounded-xl bg-surface border border-border overflow-hidden group-hover:border-foreground/20 transition-colors">
+                      {book.cover_url ? (
+                        <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><BookOpen size={24} className="text-muted" /></div>
+                      )}
+                    </div>
+                    <AuthorBadge book={book} size="sm" />
                   </div>
                   <h3 className="text-sm font-medium leading-tight line-clamp-2 group-hover:text-highlight transition-colors">{book.title}</h3>
                   <p className="text-xs text-muted mt-0.5">{book.author}</p>

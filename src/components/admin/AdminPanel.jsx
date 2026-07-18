@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff, Bot, Trash2 } from 'lucide-react'
+import { Users, BookOpen, Calendar, Check, X, Loader2, ExternalLink, User, Tag, Plus, Eye, EyeOff, Bot, Trash2, Feather } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { supabase } from '../../lib/supabase'
@@ -11,10 +11,12 @@ import { useAdminDataStore } from '../../stores/adminDataStore'
 import { generateChapters, generateOneliners } from '../../lib/gemini'
 import { parseEpub } from '../../lib/epub'
 import { splitIntoSections, sectionCoverage } from '../../lib/sections'
+import { uploadAuthorPhoto } from '../../lib/authorAssets'
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'books', label: 'Books', icon: BookOpen },
+  { id: 'authors', label: 'Authors', icon: Feather },
   { id: 'agents', label: 'Agents', icon: Bot },
 ]
 
@@ -983,6 +985,243 @@ function BooksTab() {
 }
 
 // ─────────────────────────────────────────
+// AUTHORS TAB
+// ─────────────────────────────────────────
+// New books auto-populate `authors` + `book_authors` via a DB trigger (see
+// supabase/migrations/015_authors.sql) — this tab is for admin CRUD, photo upload,
+// manually matching/unmatching any author to any book, and viewing which voice_sessions
+// (the current "reading session" concept) belong to an author's books.
+function AuthorsTab() {
+  const { authors, bookAuthors, adminBooks, loading, addAuthorLocal, updateAuthor, removeAuthor, linkBookAuthor, unlinkBookAuthor } = useAdminDataStore()
+  const [search, setSearch] = useState('')
+  const [expandedId, setExpandedId] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newBio, setNewBio] = useState('')
+  const [savingCreate, setSavingCreate] = useState(false)
+
+  const bookCount = (authorId) => bookAuthors.filter((ba) => ba.author_id === authorId).length
+
+  const filtered = authors.filter((a) => !search || a.name.toLowerCase().includes(search.toLowerCase()))
+
+  const createAuthor = async () => {
+    const name = newName.trim()
+    if (!name) return
+    setSavingCreate(true)
+    const { data, error } = await supabase.from('authors').insert({ name, bio: newBio.trim() || null }).select().single()
+    setSavingCreate(false)
+    if (error) { alert(`Create failed: ${error.message}`); return }
+    addAuthorLocal(data)
+    setNewName(''); setNewBio(''); setCreating(false)
+    setExpandedId(data.id)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-muted">{authors.length} authors</p>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setCreating((c) => !c)}>
+            <Plus size={12} className="mr-1" /> New Author
+          </Button>
+          <input type="text" placeholder="Search authors..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none w-44" />
+        </div>
+      </div>
+
+      {creating && (
+        <div className="p-3 rounded-xl border border-highlight/40 bg-highlight/5 mb-3 space-y-2">
+          <input type="text" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)}
+            className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none" />
+          <textarea placeholder="Bio (optional)" value={newBio} onChange={(e) => setNewBio(e.target.value)} rows={2}
+            className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none resize-none" />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={createAuthor} disabled={savingCreate || !newName.trim()}>
+              {savingCreate ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Create
+            </Button>
+            <button onClick={() => { setCreating(false); setNewName(''); setNewBio('') }}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border border-border text-muted hover:text-foreground">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-8 text-muted text-sm">Loading authors...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-8 text-muted text-sm">No authors yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((a) => (
+            <AuthorCard key={a.id} author={a} bookCount={bookCount(a.id)}
+              expanded={expandedId === a.id}
+              onToggle={() => setExpandedId(expandedId === a.id ? null : a.id)}
+              onUpdate={updateAuthor} onRemove={removeAuthor}
+              bookAuthors={bookAuthors} adminBooks={adminBooks}
+              linkBookAuthor={linkBookAuthor} unlinkBookAuthor={unlinkBookAuthor} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AuthorCard({ author, bookCount, expanded, onToggle, onUpdate, onRemove, bookAuthors, adminBooks, linkBookAuthor, unlinkBookAuthor }) {
+  const [name, setName] = useState(author.name)
+  const [bio, setBio] = useState(author.bio || '')
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [bookSearch, setBookSearch] = useState('')
+  const [sessions, setSessions] = useState(null)
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+
+  const linkedBookIds = bookAuthors.filter((ba) => ba.author_id === author.id).map((ba) => ba.book_id)
+  const dirty = name !== author.name || bio !== (author.bio || '')
+
+  const save = async () => {
+    setSaving(true)
+    const { error } = await supabase.from('authors').update({ name: name.trim(), bio: bio.trim() || null }).eq('id', author.id)
+    setSaving(false)
+    if (error) { alert(`Save failed: ${error.message}`); return }
+    onUpdate(author.id, { name: name.trim(), bio: bio.trim() || null })
+  }
+
+  const uploadPhoto = async (file) => {
+    setUploading(true)
+    const url = await uploadAuthorPhoto(author.id, file)
+    if (!url) { setUploading(false); alert('Photo upload failed'); return }
+    const { error } = await supabase.from('authors').update({ photo_url: url }).eq('id', author.id)
+    setUploading(false)
+    if (error) { alert(`Save failed: ${error.message}`); return }
+    onUpdate(author.id, { photo_url: url })
+  }
+
+  const toggleBook = async (bookId) => {
+    const linked = linkedBookIds.includes(bookId)
+    if (linked) {
+      const { error } = await supabase.from('book_authors').delete().eq('book_id', bookId).eq('author_id', author.id)
+      if (!error) unlinkBookAuthor(bookId, author.id)
+    } else {
+      const { error } = await supabase.from('book_authors').insert({ book_id: bookId, author_id: author.id })
+      if (!error) linkBookAuthor(bookId, author.id)
+    }
+  }
+
+  const loadSessions = async () => {
+    if (linkedBookIds.length === 0) { setSessions([]); return }
+    setSessionsLoading(true)
+    const { data, error } = await supabase.from('voice_sessions')
+      .select('id, book_id, chapter_number, mode, provider, started_at')
+      .in('book_id', linkedBookIds)
+      .order('started_at', { ascending: false })
+      .limit(50)
+    setSessionsLoading(false)
+    setSessions(error ? [] : (data || []))
+  }
+
+  const handleToggle = () => {
+    onToggle()
+    if (!expanded && sessions === null) loadSessions()
+  }
+
+  const remove = async () => {
+    if (!window.confirm(`Delete author "${author.name}"? This unlinks all ${bookCount} book(s). This cannot be undone.`)) return
+    const { error } = await supabase.from('authors').delete().eq('id', author.id)
+    if (error) { alert(`Delete failed: ${error.message}`); return }
+    onRemove(author.id)
+  }
+
+  const filteredBooks = adminBooks.filter((b) => !bookSearch || b.title.toLowerCase().includes(bookSearch.toLowerCase()))
+
+  return (
+    <div className={`p-3 rounded-xl border transition-colors ${dirty ? 'border-highlight/40 bg-highlight/5' : 'border-border'}`}>
+      <div className="flex items-center gap-3 cursor-pointer" onClick={handleToggle}>
+        <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
+          {author.photo_url
+            ? <img src={author.photo_url} alt="" className="w-full h-full object-cover" />
+            : <span className="text-xs font-medium text-muted">{author.name[0]?.toUpperCase()}</span>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium truncate">{author.name}</p>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted">{bookCount} book{bookCount === 1 ? '' : 's'}</span>
+            {dirty && <span className="text-[10px] text-highlight">● unsaved</span>}
+          </div>
+          {author.bio && <p className="text-xs text-muted truncate">{author.bio}</p>}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 pl-11 space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-2">
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none" />
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={2} placeholder="Bio"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none resize-none" />
+            <div className="flex items-center gap-2">
+              <label className="px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border border-border text-muted hover:text-foreground">
+                {uploading ? 'Uploading...' : 'Upload photo'}
+                <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                  onChange={(e) => { if (e.target.files[0]) uploadPhoto(e.target.files[0]); e.target.value = '' }} />
+              </label>
+              {dirty && (
+                <Button size="sm" onClick={save} disabled={saving}>
+                  {saving ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Save
+                </Button>
+              )}
+              <button onClick={remove}
+                className="ml-auto px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer border border-border text-muted hover:border-error hover:text-error">
+                <Trash2 size={12} className="inline mr-1" /> Delete
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">Matched books</p>
+            <input type="text" placeholder="Search books to match..." value={bookSearch} onChange={(e) => setBookSearch(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none mb-2" />
+            <div className="max-h-40 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5">
+              {filteredBooks.map((b) => {
+                const linked = linkedBookIds.includes(b.id)
+                return (
+                  <label key={b.id} className="flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-surface cursor-pointer text-xs">
+                    <input type="checkbox" checked={linked} onChange={() => toggleBook(b.id)} />
+                    <span className="truncate flex-1">{b.title}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">Reading sessions</p>
+            {sessionsLoading ? (
+              <p className="text-xs text-muted">Loading sessions...</p>
+            ) : !sessions || sessions.length === 0 ? (
+              <p className="text-xs text-muted">No sessions yet for this author's books.</p>
+            ) : (
+              <div className="space-y-1">
+                {sessions.map((s) => {
+                  const book = adminBooks.find((b) => b.id === s.book_id)
+                  return (
+                    <div key={s.id} className="flex items-center justify-between text-xs px-2 py-1 rounded-md bg-surface border border-border">
+                      <span className="truncate">{book?.title || 'Unknown book'}{s.chapter_number ? ` · Ch. ${s.chapter_number}` : ' · Gist'}</span>
+                      <span className="text-muted shrink-0 ml-2">{new Date(s.started_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────
 // MAIN ADMIN PANEL
 // ─────────────────────────────────────────
 export function AdminPanel() {
@@ -1011,6 +1250,7 @@ export function AdminPanel() {
       <div className="flex-1 min-w-0">
         <div style={{ display: activeTab === 'users' ? 'block' : 'none' }}><UserAccess /></div>
         <div style={{ display: activeTab === 'books' ? 'block' : 'none' }}><BooksTab /></div>
+        <div style={{ display: activeTab === 'authors' ? 'block' : 'none' }}><AuthorsTab /></div>
         <div style={{ display: activeTab === 'agents' ? 'block' : 'none' }}><Agents /></div>
       </div>
     </div>

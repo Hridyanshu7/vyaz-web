@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, ArrowLeft, FileText, Clock, ExternalLink, BookMarked, Mic, Loader2 } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { StarRating } from '../components/ui/StarRating'
+import { AuthorBadge } from '../components/books/AuthorBadge'
 import { useBookStore } from '../stores/bookStore'
 import { useAuthStore } from '../stores/authStore'
 import { GeminiLiveModal } from '../components/GeminiLiveModal'
@@ -95,12 +96,15 @@ export function BookDetail() {
 
       {/* ===== HERO ===== */}
       <div className="rounded-2xl border border-border bg-surface shadow-raised p-5 sm:p-6 grid sm:grid-cols-[220px_1fr] gap-6">
-        <div className="aspect-[3/4] rounded-xl bg-background flex items-center justify-center border border-border overflow-hidden">
-          {book.cover_url ? (
-            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
-          ) : (
-            <BookOpen size={40} className="text-muted" />
-          )}
+        <div className="relative">
+          <div className="aspect-[3/4] rounded-xl bg-background flex items-center justify-center border border-border overflow-hidden">
+            {book.cover_url ? (
+              <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+            ) : (
+              <BookOpen size={40} className="text-muted" />
+            )}
+          </div>
+          <AuthorBadge book={book} size="lg" />
         </div>
 
         <div className="min-w-0">

@@ -34,7 +34,7 @@ export const useBookStore = create((set, get) => ({
     // catalog) is lazy-loaded per book via fetchBookChapters when a BookDetail opens.
     const { data, error } = await supabase
       .from('books')
-      .select('id, title, author, cover_url, description, genres, language, page_count, isbn, goodreads_data, amazon_data, goodreads_rating, goodreads_ratings_count, amazon_rating, amazon_reviews_count, cartesia_folder_id, is_published')
+      .select('id, title, author, cover_url, description, genres, language, page_count, isbn, goodreads_data, amazon_data, goodreads_rating, goodreads_ratings_count, amazon_rating, amazon_reviews_count, cartesia_folder_id, is_published, book_authors(author:authors(id, name, photo_url))')
       .eq('is_published', true)
       .order('title')
 
