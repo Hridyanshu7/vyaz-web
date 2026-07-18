@@ -556,7 +556,7 @@ function BooksCatalog() {
     const book = books.find((b) => b.id === bookId)
     if ((book.genres || []).includes(tag)) return
     setBookChange(bookId, { genres: [...(book.genres || []), tag], is_published: book.is_published })
-    setNewTag((n) => ({ ...n, [bookId]: '' }))
+    setNewTag(bookId, '')
   }
 
   const getDisplayGenres = (book) => getBookGenres(book)
@@ -651,7 +651,7 @@ function BooksCatalog() {
                 <input
                   type="text"
                   value={newTag[book.id] || ''}
-                  onChange={(e) => setNewTag((n) => ({ ...n, [book.id]: e.target.value }))}
+                  onChange={(e) => setNewTag(book.id, e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addTag(book.id)}
                   placeholder="Add genre tag..."
                   className="flex-1 px-2 py-1 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-highlight/20"
