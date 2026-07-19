@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Self-hosted (design-language.html §5 calls for Geist/Geist Mono; no external CDN, per the
+   no-network posture the rest of the app's assets already follow) — variable fonts, one
+   @font-face per family covers the full weight range. */
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Variable.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Variable.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* ---- v2 design language: tinted canvas, white cards, one confident indigo accent ---- */
   --color-background: #F6F6FA;      /* canvas — app/page background */
@@ -18,8 +37,8 @@
   --color-warning: #B07A12;         /* ochre */
   --color-error: #C2352B;           /* oxblood */
   --gradient-signal: linear-gradient(135deg, #4A3ECB 0%, #1F9EA8 55%, #F5A623 100%);
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --shadow-raised: 0 1px 2px rgba(19,19,22,.04), 0 6px 20px -8px rgba(19,19,22,.10);
   --shadow-floating: 0 2px 8px rgba(19,19,22,.08), 0 16px 40px -12px rgba(19,19,22,.20);
   --shadow-glow: 0 0 0 4px rgba(91,78,244,.14);
@@ -47,6 +66,14 @@ body {
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: .25; }
+}
+
+/* Voice orb wave bars (design-language.html §12) — each bar's height is driven by inline
+   style from live audio level, this keyframe just adds a subtle idle-breathing motion so the
+   bars don't look frozen between level updates. */
+@keyframes wave-pulse {
+  0%, 100% { transform: scaleY(0.85); }
+  50% { transform: scaleY(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

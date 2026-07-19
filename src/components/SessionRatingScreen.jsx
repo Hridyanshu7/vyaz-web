@@ -22,7 +22,7 @@ export function SessionRatingScreen({ rating, setRating, feedbackText, setFeedba
           >
             <Star
               size={28}
-              className={n <= rating ? 'fill-highlight text-highlight' : 'text-muted/40'}
+              className={n <= rating ? 'fill-rating text-rating' : 'text-muted/40'}
             />
           </button>
         ))}

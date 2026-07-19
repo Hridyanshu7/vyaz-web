@@ -148,12 +148,32 @@ function htmlToBlocks(html, baseDir) {
         const src = node.getAttribute('src') || ''
         blocks.push(withRole({ type: 'image', zipPath: resolveZipPath(baseDir, src), alt: node.getAttribute('alt') || null, caption: null, page: currentPage }, roleHere))
       } else if (tag === 'SVG') {
-        // Inline vector chart/graph markup (not a referenced image file). Captured as its
-        // own block type so it isn't silently dropped — no upload/asset pipeline for it
-        // yet (unlike <img>), but the raw markup + any embedded <title>/<desc> survive.
-        const svgTitle = node.querySelector('title')?.textContent?.trim() || null
-        const svgDesc = node.querySelector('desc')?.textContent?.trim() || null
-        blocks.push(withRole({ type: 'svg', markup: node.outerHTML, title: svgTitle, desc: svgDesc, page: currentPage }, roleHere))
+        // Real-world EPUBs almost universally use <svg><image xlink:href="cover.jpg"/></svg>
+        // as a full-bleed, aspect-ratio-preserving wrapper for a raster cover/titlepage
+        // image — not actual vector chart/diagram content (verified across 21 real books,
+        // see block-lab/docs/epub-encoding-notes.md §2.8). Detect that shape and emit a
+        // normal image block instead, so it flows through the existing image-upload pass
+        // below and gets a real assetUrl — the generic 'svg' type has no upload/asset
+        // pipeline at all, so a cover-wrapper svg would otherwise always render broken.
+        const meaningfulChildren = Array.from(node.children).filter((c) => !['title', 'desc', 'defs', 'style'].includes(c.tagName.toLowerCase()))
+        const soleImage = meaningfulChildren.length === 1 && meaningfulChildren[0].tagName.toLowerCase() === 'image' ? meaningfulChildren[0] : null
+        if (soleImage) {
+          const src = soleImage.getAttribute('href') || soleImage.getAttribute('xlink:href') || ''
+          blocks.push(withRole({
+            type: 'image',
+            zipPath: resolveZipPath(baseDir, src),
+            alt: node.querySelector('title')?.textContent?.trim() || null,
+            caption: node.querySelector('desc')?.textContent?.trim() || null,
+            page: currentPage,
+          }, roleHere))
+        } else {
+          // Inline vector chart/graph markup (not a referenced image file). Captured as its
+          // own block type so it isn't silently dropped — no upload/asset pipeline for it
+          // yet (unlike <img>), but the raw markup + any embedded <title>/<desc> survive.
+          const svgTitle = node.querySelector('title')?.textContent?.trim() || null
+          const svgDesc = node.querySelector('desc')?.textContent?.trim() || null
+          blocks.push(withRole({ type: 'svg', markup: node.outerHTML, title: svgTitle, desc: svgDesc, page: currentPage }, roleHere))
+        }
       } else {
         walk(node, roleHere) // recurse into any wrapper tag (div/section/aside/header/main/etc.)
       }

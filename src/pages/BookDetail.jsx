@@ -38,7 +38,11 @@ export function BookDetail() {
   const [activeTab, setActiveTab] = useState('chapters')
   const [descExpanded, setDescExpanded] = useState(false)
   const [expandedCard, setExpandedCard] = useState(null)
-  const [voiceChapter, setVoiceChapter] = useState(null)
+  // Tracked as an INDEX into book.chapters, not the chapter object itself — jump_to_chapter
+  // (voice-triggered chapter switching) needs a setter it can call with a resolved index,
+  // the same shape block-lab's TalkLayout/useLiveSession already use.
+  const [voiceChapterIdx, setVoiceChapterIdx] = useState(null)
+  const voiceChapter = voiceChapterIdx != null ? (book?.chapters || [])[voiceChapterIdx] ?? null : null
 
   // A signed-out Talk click routes through /login (?redirectTo=/books/:id?talkChapter=N) —
   // once chapters are loaded, auto-reopen Talk on that exact chapter instead of leaving the
@@ -46,8 +50,8 @@ export function BookDetail() {
   useEffect(() => {
     const chNum = searchParams.get('talkChapter')
     if (!chNum || !book?.chapters?.length) return
-    const ch = book.chapters.find((c) => String(c.number) === chNum)
-    if (ch) setVoiceChapter(ch)
+    const idx = book.chapters.findIndex((c) => String(c.number) === chNum)
+    if (idx !== -1) setVoiceChapterIdx(idx)
     setSearchParams((p) => { p.delete('talkChapter'); return p }, { replace: true })
   }, [searchParams, book?.chapters, setSearchParams])
 
@@ -65,7 +69,8 @@ export function BookDetail() {
       navigate(`/login?redirectTo=${encodeURIComponent(target)}`)
       return
     }
-    setVoiceChapter(ch)
+    const idx = (book.chapters || []).findIndex((c) => c.number === ch.number)
+    setVoiceChapterIdx(idx !== -1 ? idx : null)
   }
 
   if (!book) {
@@ -327,9 +332,12 @@ export function BookDetail() {
       </div>
 
       <GeminiLiveModal
-        open={!!voiceChapter}
-        onClose={() => setVoiceChapter(null)}
+        open={voiceChapterIdx != null}
+        onClose={() => setVoiceChapterIdx(null)}
         book={book}
+        chapters={book.chapters || []}
+        chapterIdx={voiceChapterIdx}
+        setChapterIdx={setVoiceChapterIdx}
         chapter={voiceChapter}
       />
     </div>

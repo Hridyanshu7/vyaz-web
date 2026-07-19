@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { normalizeWords } from './words'
 
 // ─── Session config from Edge Function ────────────────────────────────────────
 export async function getGeminiLiveSession(book, chapter, opts = {}) {
@@ -12,6 +13,19 @@ export async function getGeminiLiveSession(book, chapter, opts = {}) {
       .join('\n\n')
     body = { book_id: book.id, book_title: book.title, author: book.author, mode: 'gist', bookContent, listener_name: opts.listenerName || '' }
   } else {
+    // `chapter.sections` only exists once an admin has run the Split step (AdminPanel.jsx,
+    // splitIntoSections) — epub.js never populates it at parse time. A never-split chapter
+    // has sections: [] (truthy, so `sections || []` doesn't catch it), which used to send an
+    // EMPTY narration payload: the edge function's {content} placeholder ended up blank, and
+    // Gemini narrated well-known books from its own training memory instead of the real
+    // text — drifting/hallucinating past whatever it could recall precisely, completely
+    // silently (no error, since the session "worked"). Falling back to the whole `content`
+    // as one synthetic section guarantees real chapter text always reaches the prompt (and
+    // this.sections downstream in GeminiLiveSession — _chapterWords/_sentenceOffsets/seek
+    // all read from it too, so an empty array was silently breaking those as well).
+    const sections = chapter.sections?.length
+      ? chapter.sections
+      : (chapter.content ? [{ number: 1, title: '', text: chapter.content }] : [])
     body = {
       book_id: book.id,
       book_title: book.title,
@@ -19,7 +33,7 @@ export async function getGeminiLiveSession(book, chapter, opts = {}) {
       chapter_number: chapter.number,
       chapter_title: chapter.title,
       oneliner: chapter.oneliner || '',
-      sections: (chapter.sections || []).map((s) => ({ number: s.number, title: s.title || '', text: s.text })),
+      sections: sections.map((s) => ({ number: s.number, title: s.title || '', text: s.text })),
       listener_name: opts.listenerName || '',
     }
   }
@@ -56,8 +70,15 @@ function base64ToInt16(b64) {
   return new Int16Array(bytes.buffer)
 }
 
-function normalizeWords(text) {
-  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
+// Same chunked-btoa pattern as int16ToBase64, for arbitrary bytes (image files) instead of
+// PCM audio samples — used to send a chapter's image/svg assets as a live multimodal frame.
+function bytesToBase64(bytes) {
+  let binary = ''
+  const chunk = 8192
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
 }
 
 // Split agent text into book-narration (outside (( ))) vs agent-aside (inside (( ))).
@@ -106,7 +127,7 @@ const RESUME_PROMPT = 'Please continue reading the chapter aloud from exactly wh
 // ─── Full-duplex verbatim narration session ──────────────────────────────────
 export class GeminiLiveSession {
   constructor({ geminiApiKey, ephemeralToken, liveSystemPrompt, liveModel, liveVoice, sessionId, sections, mode,
-    onStateChange, onTranscript, onProgress, onError, onEvent }) {
+    onStateChange, onTranscript, onProgress, onError, onEvent, onToolCall }) {
     this.mode = mode || 'chapter' // 'chapter' = verbatim narration; 'gist' = whole-book summary
     this.apiKey = geminiApiKey
     // Short-lived server-minted token; when present we connect via v1alpha + access_token
@@ -122,6 +143,12 @@ export class GeminiLiveSession {
     this.onProgress = onProgress
     this.onError = onError
     this.onEvent = onEvent
+    // Synchronous callback for tool calls this class can't resolve on its own (needs data
+    // it doesn't hold, e.g. the full chapters list for jump_to_chapter, or chapter blocks
+    // for describe_visual) — (name, args) => { ok, error? }, called and answered
+    // immediately, not async, so the toolResponse can go out before this session
+    // potentially tears itself down as a result.
+    this.onToolCall = onToolCall
     this._startedAt = Date.now()
     this._ending = false
 
@@ -264,6 +291,29 @@ export class GeminiLiveSession {
       } else if (fc.name === 'end_session') {
         this._sendToolResponse(fc.id, fc.name, { ok: true })
         this.end()
+      } else if (fc.name === 'jump_to_chapter') {
+        // This class only holds ONE chapter's content — resolving a target chapter and
+        // switching to it needs the full chapters list, which lives at the React layer.
+        // onToolCall is synchronous specifically so the toolResponse can go out (and,
+        // on success, this session torn down) in the same tick, not after an async gap.
+        const result = this.onToolCall?.(fc.name, fc.args || {}) || { ok: false, error: 'chapter switching not available' }
+        this._sendToolResponse(fc.id, fc.name, result)
+        if (result.ok) this.end()
+      } else if (fc.name === 'describe_visual') {
+        // Block-locating (which image/table the listener means) is resolved synchronously
+        // via onToolCall, same as jump_to_chapter — but SENDING it is async (fetching the
+        // asset's bytes), so the toolResponse itself doesn't go out until that's done.
+        const resolved = this.onToolCall?.(fc.name, fc.args || {}) || { ok: false, error: 'not available' }
+        if (!resolved.ok) {
+          this._sendToolResponse(fc.id, fc.name, resolved)
+        } else if (resolved.type === 'table') {
+          this.sendTextContext(resolved.text)
+          this._sendToolResponse(fc.id, fc.name, { ok: true })
+        } else {
+          this.sendImageFrame(resolved.assetUrl).then((sent) => {
+            this._sendToolResponse(fc.id, fc.name, sent ? { ok: true } : { ok: false, error: 'could not load the image' })
+          })
+        }
       } else {
         this._sendToolResponse(fc.id, fc.name, { ok: false, error: 'not implemented' })
       }
@@ -317,6 +367,31 @@ export class GeminiLiveSession {
   _sendToolResponse(id, name, response) {
     this._log('tool_response', { name, response })
     this._send({ toolResponse: { functionResponses: [{ id, name, response }] } })
+  }
+
+  // Send an image (a resolved asset URL from a chapter's image block) into the live session
+  // as multimodal context, so the model can actually look at it and describe it — B7's "no
+  // pre-baked captions, describe live via realtimeInput" design. UNVERIFIED against the
+  // real API: `realtimeInput.video` is a best-guess field name for image-frame delivery,
+  // Gemini Live's frame-streaming convention, not yet confirmed by a live test.
+  async sendImageFrame(assetUrl) {
+    try {
+      const res = await fetch(assetUrl)
+      const blob = await res.blob()
+      const bytes = new Uint8Array(await blob.arrayBuffer())
+      this._send({ realtimeInput: { video: { data: bytesToBase64(bytes), mimeType: blob.type || 'image/jpeg' } } })
+      this._log('image_frame_sent', { assetUrl, mimeType: blob.type })
+      return true
+    } catch (err) {
+      this._log('image_frame_failed', { assetUrl, error: err.message })
+      return false
+    }
+  }
+
+  // Inject structured non-image context (e.g. a table's rows as text) as a real turn — the
+  // model reads it directly, no vision needed, it's already text.
+  sendTextContext(text) {
+    this._send({ clientContent: { turns: [{ role: 'user', parts: [{ text }] }], turnComplete: true } })
   }
 
   // The display-ready word pointer — interpolated against actual AUDIO PLAYBACK time
@@ -543,6 +618,28 @@ export class GeminiLiveSession {
                   description: 'End the listening session now, e.g. "that\'s enough for now" or "let\'s stop here".',
                   parameters: { type: 'OBJECT', properties: {} },
                 },
+                {
+                  name: 'jump_to_chapter',
+                  description: 'Switch to a different chapter of the book, e.g. "go to chapter 5" or "jump to the chapter about X". Provide the chapter number if the listener said one, otherwise the chapter title/topic as best you can tell.',
+                  parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                      chapter_number: { type: 'INTEGER', description: 'The chapter number, if the listener said one.' },
+                      chapter_title: { type: 'STRING', description: 'The chapter title or topic, if no number was given.' },
+                    },
+                  },
+                },
+                {
+                  name: 'describe_visual',
+                  description: 'Look at and describe a chart, image, or table from the chapter, e.g. "what does this chart show?" or "can you describe that image?". Use "most_recent" for whichever one narration just passed; otherwise describe which one the listener means.',
+                  parameters: {
+                    type: 'OBJECT',
+                    properties: {
+                      reference: { type: 'STRING', description: '"most_recent", or a description of which visual (e.g. its caption/topic).' },
+                    },
+                    required: ['reference'],
+                  },
+                },
               ],
             }],
             // Resume prior context after a drop; slidingWindow compresses old context so
@@ -682,6 +779,24 @@ export class GeminiLiveSession {
     this._playbackSources.forEach((s) => { try { s.stop() } catch { /* already stopped */ } })
     this._playbackSources = []
     this._nextStartTime = 0
+  }
+
+  // Tap-to-interrupt (the voice orb, while speaking): mirrors exactly what already happens
+  // on a real server-driven `sc.interrupted` message (barge-in via VAD on the mic stream) —
+  // stop audio immediately, reset the bubble so the next reply starts fresh. Deliberately
+  // client-side only: telling the SERVER to cancel in-flight generation would need an
+  // explicit realtimeInput.activityStart/activityEnd signal, but automaticActivityDetection
+  // is enabled on this session, and sending manual activity markers while auto-VAD is on is
+  // unverified/likely-rejected by the API — same "flag it, don't guess" discipline as
+  // sendImageFrame's realtimeInput.video field above. In practice this still reads as a real
+  // interrupt to the listener (immediate silence); the model's own turn naturally winds down
+  // once it notices the user speaking, same as it always does.
+  interrupt() {
+    this._log('orb_interrupt')
+    this._stopPlayback()
+    this._agentMsgId = null
+    this._agentBuf = ''
+    this.setState('listening')
   }
 
   _send(obj) {
