@@ -8,7 +8,7 @@ import { SessionRatingScreen } from './SessionRatingScreen'
 import { supabase } from '../lib/supabase'
 
 // Low-frequency events worth persisting to voice_events (skip per-turn/state spam).
-const PERSIST_EVENTS = new Set(['session_start', 'setup_complete', 'go_away', 'ws_close', 'ws_error', 'server_error', 'session_end'])
+const PERSIST_EVENTS = new Set(['session_start', 'setup_complete', 'go_away', 'ws_close', 'ws_error', 'server_error', 'session_end', 'tool_call', 'tool_response'])
 
 const STATE_LABELS = {
   idle: 'Starting…',
@@ -268,6 +268,21 @@ export function GeminiLiveModal({ open, onClose, book, chapter, mode = 'chapter'
     setReconnectCountdown(5)
     const iv = setInterval(() => setReconnectCountdown((c) => (c > 0 ? c - 1 : 0)), 1000)
     return () => clearInterval(iv)
+  }, [state])
+
+  // A session can now end ITSELF (the voice-driven end_session tool, not just the manual
+  // End Session button / X). handleClose() is what actually persists the transcript,
+  // clears it, and shows the mandatory rating screen — none of that runs automatically
+  // just because the session tore itself down (onStateChange only sets `state`). Route a
+  // self-ended session through the same close path a manual click already uses. Safe to
+  // call handleClose() here even though it also calls sessionRef.current?.end() again —
+  // that method no-ops on an already-ended session (every cleanup step is null-guarded).
+  // Manual closes never observe this effect firing: handleClose's own setState('idle')
+  // runs synchronously right after session.end()'s setState('ended'), so React batches
+  // them into one commit and `state` settles at 'idle', never rendering 'ended' at all.
+  useEffect(() => {
+    if (state === 'ended') handleClose()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
   const handleTranscriptScroll = () => {

@@ -288,29 +288,52 @@ export async function parseEpub(file, bookId) {
 
   // Map href → chapter title from TOC
   const titleMap = {}
+  // Only TOP-LEVEL TOC entries start a new chapter — a nested entry (a real book Part's
+  // sub-sections, or a "Section II" grouping several numbered chapters beneath it) has its
+  // own real title AND its own real spine file, but treating every nesting depth as an equal
+  // chapter flattens the book's actual structure into far more "chapters" than a reader would
+  // recognize (verified against real books: a 10-real-chapter book was coming out as 30).
+  // Nested titles still get merged into their parent chapter's content below — only
+  // chapter-boundary treatment is depth-gated, titleMap itself stays flat.
+  const topLevelHrefs = new Set()
 
+  // TOC hrefs are relative to wherever the nav/ncx file itself lives, not to the OPF's
+  // directory — those differ whenever the nav file sits in a subfolder. Resolving against
+  // opfDir alone silently drops the subfolder and titleMap ends up keyed to paths that never
+  // match a real spine href.
   if (navItem) {
+    const navDir = navItem.href.includes('/') ? navItem.href.substring(0, navItem.href.lastIndexOf('/') + 1) : ''
     const navFile = getZipFile(zip, navItem.href)
     const navHtml = await navFile?.async('string')
     if (navHtml) {
       const nav = parseHtml(navHtml)
+      const tocRoot = nav.querySelector('nav[epub\\:type="toc"]') || nav.querySelector('nav')
+      const topLevelAnchors = new Set(tocRoot ? Array.from(tocRoot.querySelectorAll(':scope > ol > li > a')) : [])
       nav.querySelectorAll('nav[epub\\:type="toc"] a, nav a').forEach((a) => {
         const rawHref = a.getAttribute('href') || ''
         const href = rawHref.split('#')[0]
-        const fullHref = href.startsWith('/') ? href.slice(1) : (opfDir + href)
+        if (!href) return
+        const fullHref = resolveZipPath(navDir, href)
         titleMap[fullHref] = a.textContent.trim()
+        if (topLevelAnchors.has(a)) topLevelHrefs.add(fullHref)
       })
     }
   } else if (ncxItem) {
+    const ncxDir = ncxItem.href.includes('/') ? ncxItem.href.substring(0, ncxItem.href.lastIndexOf('/') + 1) : ''
     const ncxFile = getZipFile(zip, ncxItem.href)
     const ncxXml = await ncxFile?.async('string')
     if (ncxXml) {
       const ncx = parseXml(ncxXml)
+      const topLevelNavPoints = new Set(ncx.querySelectorAll('navMap > navPoint'))
       ncx.querySelectorAll('navPoint').forEach((np) => {
         const src = np.querySelector('content')?.getAttribute('src') || ''
-        const href = opfDir + src.split('#')[0]
+        const href = src.split('#')[0]
         const label = np.querySelector('navLabel text')?.textContent?.trim() || ''
-        if (label) titleMap[href] = label
+        if (label && href) {
+          const fullHref = resolveZipPath(ncxDir, href)
+          titleMap[fullHref] = label
+          if (topLevelNavPoints.has(np)) topLevelHrefs.add(fullHref)
+        }
       })
     }
   }
@@ -320,6 +343,17 @@ export async function parseEpub(file, bookId) {
   const chapters = []
   let currentChapter = null
   let number = 1
+
+  // Whether the TOC actually lines up with the spine. When it does, any untitled spine file
+  // is a continuation split of the current chapter (production tooling breaking one chapter
+  // into several files, only the first of which the TOC points at) — no matter how long, it
+  // belongs to the chapter it follows, not a new one. Word-count-based chapter splitting is
+  // only a fallback for books whose TOC doesn't resolve against the spine at all. Require at
+  // least 2 matches, not just 1 — some real-world EPUBs ship a stale/corrupt TOC where every
+  // navPoint's anchor collapses onto a single spine href; a single coincidental match there
+  // would wrongly merge the entire rest of the book into it.
+  const matchedSpineCount = spineIds.filter((id) => manifest[id] && titleMap[manifest[id].href]).length
+  const hasTocMatches = matchedSpineCount >= 2
 
   for (const id of spineIds) {
     const item = manifest[id]
@@ -336,23 +370,24 @@ export async function parseEpub(file, bookId) {
     if (narrationText.length < 200 && !currentChapter) continue // leading cover/blank page
 
     const tocTitle = titleMap[item.href]
+    const isChapterStart = tocTitle && topLevelHrefs.has(item.href)
 
-    if (tocTitle && SKIP_TITLE_RE.test(tocTitle)) {
+    if (isChapterStart && SKIP_TITLE_RE.test(tocTitle)) {
       currentChapter = null // explicit front/back matter — don't accumulate into it
       continue
     }
 
-    if (tocTitle) {
+    if (isChapterStart) {
       if (currentChapter) chapters.push(currentChapter)
       currentChapter = { number, title: tocTitle, oneliner: '', blocks: [...blocks], content: narrationText }
       number++
-    } else if (currentChapter && wordCount(narrationText) < CONTINUATION_WORD_THRESHOLD) {
-      // Untitled + short → a trailing multi-file fragment of the chapter just opened.
+    } else if (currentChapter && (hasTocMatches || wordCount(narrationText) < CONTINUATION_WORD_THRESHOLD)) {
+      // Untitled (or nested-titled) continuation → belongs to the chapter just opened.
       currentChapter.blocks.push(...blocks)
       currentChapter.content += '\n\n' + narrationText
-    } else if (narrationText.length >= 200) {
-      // Untitled but substantial → the TOC likely just didn't enumerate this one; keep
-      // it as its own chapter rather than risk silently merging two real chapters.
+    } else if (!hasTocMatches && narrationText.length >= 200) {
+      // Untitled but substantial, AND the TOC doesn't reliably cover the spine → keep it
+      // as its own chapter rather than risk silently merging two real chapters.
       if (currentChapter) chapters.push(currentChapter)
       currentChapter = { number, title: `Chapter ${number}`, oneliner: '', blocks: [...blocks], content: narrationText }
       number++
