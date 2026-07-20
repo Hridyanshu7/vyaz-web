@@ -13,7 +13,7 @@ export function BookCard({ book }) {
       <div className="relative mb-3">
         <div className="aspect-[3/4] rounded-lg bg-background flex items-center justify-center overflow-hidden">
           {book.cover_url ? (
-            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+            <img src={book.cover_url} alt={book.title} className="w-full h-full object-contain" />
           ) : (
             <BookOpen size={32} className="text-muted" />
           )}

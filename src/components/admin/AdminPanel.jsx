@@ -160,7 +160,7 @@ function GroupSessions() {
             <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border border-border">
               <div className="w-8 h-12 rounded bg-surface border border-border overflow-hidden shrink-0">
                 {s.book?.cover_url ? (
-                  <img src={s.book.cover_url} alt="" className="w-full h-full object-cover" />
+                  <img src={s.book.cover_url} alt="" className="w-full h-full object-contain" />
                 ) : (
                   <BookOpen size={12} className="text-muted m-auto mt-2" />
                 )}
@@ -609,7 +609,7 @@ function BooksCatalog() {
             <div key={book.id} className={`p-3 rounded-xl border transition-opacity ${!book.is_published ? 'opacity-50' : ''} ${isBookDirty ? 'border-highlight/40 bg-highlight/5' : 'border-border'}`}>
               <div className="flex items-center gap-2 mb-1.5">
                 {book.cover_url && (
-                  <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
+                  <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-contain shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{book.title}</p>

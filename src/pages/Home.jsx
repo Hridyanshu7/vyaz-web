@@ -170,7 +170,7 @@ export function Home() {
                   <div className="relative mb-2">
                     <div className="aspect-[3/4] rounded-xl bg-surface border border-border overflow-hidden group-hover:border-foreground/20 transition-colors">
                       {book.cover_url ? (
-                        <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+                        <img src={book.cover_url} alt={book.title} className="w-full h-full object-contain" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><BookOpen size={24} className="text-muted" /></div>
                       )}

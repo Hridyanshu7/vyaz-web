@@ -137,7 +137,7 @@ export function AddBook() {
             <div className="flex gap-4">
               <div className="w-24 h-36 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0 overflow-hidden">
                 {book.cover_url ? (
-                  <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover"
+                  <img src={book.cover_url} alt={book.title} className="w-full h-full object-contain"
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }} />
                 ) : null}
                 <div className={`items-center justify-center ${book.cover_url ? 'hidden' : 'flex'} w-full h-full`}>

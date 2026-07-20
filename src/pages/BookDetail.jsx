@@ -104,7 +104,7 @@ export function BookDetail() {
         <div className="relative">
           <div className="aspect-[3/4] rounded-xl bg-background flex items-center justify-center border border-border overflow-hidden">
             {book.cover_url ? (
-              <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
+              <img src={book.cover_url} alt={book.title} className="w-full h-full object-contain" />
             ) : (
               <BookOpen size={40} className="text-muted" />
             )}
