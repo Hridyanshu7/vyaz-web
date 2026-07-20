@@ -25,6 +25,9 @@ export function AddBook() {
     setLoading(true)
     setError('')
     setBook(null)
+    setRequestSent(false)
+    setAdded(false)
+    setAddedBookId(null)
     setStatus('Parsing URL...')
 
     try {
