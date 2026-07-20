@@ -231,7 +231,9 @@ function BookRequests() {
     try {
       const bookData = await importBookFromUrl(req.book_url, () => {})
       await addBook(bookData)
-      await supabase.from('book_requests').update({ status: 'approved' }).eq('id', req.id)
+      // RLS-blocked updates return success with 0 rows, so verify a row actually changed
+      const { data, error } = await supabase.from('book_requests').update({ status: 'approved' }).eq('id', req.id).select('id')
+      if (error || !data?.length) throw new Error(`book imported, but request status not updated: ${error?.message || 'no rows updated (check RLS)'}`)
       setRequests((prev) => prev.filter((r) => r.id !== req.id))
     } catch (err) {
       alert(`Failed to import: ${err.message}`)
@@ -241,8 +243,12 @@ function BookRequests() {
 
   const handleReject = async (reqId) => {
     setProcessing((p) => ({ ...p, [reqId]: 'rejecting' }))
-    await supabase.from('book_requests').update({ status: 'rejected' }).eq('id', reqId)
-    setRequests((prev) => prev.filter((r) => r.id !== reqId))
+    const { data, error } = await supabase.from('book_requests').update({ status: 'rejected' }).eq('id', reqId).select('id')
+    if (error || !data?.length) {
+      alert(`Failed to reject: ${error?.message || 'no rows updated (check RLS)'}`)
+    } else {
+      setRequests((prev) => prev.filter((r) => r.id !== reqId))
+    }
     setProcessing((p) => ({ ...p, [reqId]: null }))
   }
 
@@ -262,7 +268,7 @@ function BookRequests() {
                   <p className="text-sm font-medium">{r.book_title || 'Untitled'}</p>
                   {r.book_author && <p className="text-xs text-muted">{r.book_author}</p>}
                   <p className="text-xs text-muted mt-0.5">
-                    by {r.requester?.name || 'Unknown'} · {new Date(r.created_at).toLocaleDateString('en-IN')}
+                    by {r.requester?.name || (r.user_id ? 'Unknown' : 'Anonymous')} · {new Date(r.created_at).toLocaleDateString('en-IN')}
                   </p>
                   {r.book_url && (
                     <a href={r.book_url} target="_blank" rel="noopener noreferrer"

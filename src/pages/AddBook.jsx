@@ -64,18 +64,20 @@ export function AddBook() {
   }
 
   const handleRequest = async () => {
-    if (!book || !user) return
+    if (!book) return
     setRequesting(true)
-    try {
-      await supabase.from('book_requests').insert({
-        user_id: user.id,
-        book_title: book.title,
-        book_author: book.author,
-        book_url: url,
-      })
+    const { error: reqError } = await supabase.from('book_requests').insert({
+      user_id: user?.id ?? null,
+      book_title: book.title,
+      book_author: book.author,
+      book_url: url,
+    })
+    if (reqError) {
+      setError('Could not send the request. Please try again.')
+    } else {
       setRequestSent(true)
       setError('')
-    } catch {}
+    }
     setRequesting(false)
   }
 
